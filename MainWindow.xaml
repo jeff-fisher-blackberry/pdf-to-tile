@@ -419,66 +419,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- PROFILE & MATRIX CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12"
-                                        Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="SHEET PRESET &amp; MATRIX" Style="{StaticResource SectionHeaderStyle}" />
-
-                                        <TextBlock Text="Preset Profile:" Margin="0,4,0,2" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <ComboBox ItemsSource="{Binding AvailableProfiles}"
-                                                  SelectedItem="{Binding SelectedProfile}"
-                                                  DisplayMemberPath="Name"
-                                                  Margin="0,0,0,8" />
-
-                                        <Grid Margin="0,0,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="8" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Sheet Side:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <ComboBox ItemsSource="{Binding SlicerAvailableSides}"
-                                                          SelectedItem="{Binding SelectedSide}"
-                                                          Margin="0,2,0,0" />
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="Prefix:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <TextBox Text="{Binding NamingPrefix, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,2,0,0" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- Uniform Grid Rows/Cols (visible only in UniformGrid mode) -->
-                                        <Grid Margin="0,0,0,4" Visibility="{Binding IsUniformGridMode, Converter={StaticResource BoolToVis}}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="8" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Rows:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <TextBox Text="{Binding ProfileRows, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,2,0,0" />
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="Columns:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <TextBox Text="{Binding ProfileColumns, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,2,0,0" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
                                 <!-- ========================================== -->
                                 <!-- BANDED MODE: ACTIVE BAND BOUNDS CARD -->
                                 <!-- ========================================== -->
@@ -552,6 +492,66 @@
                                             <TextBlock Grid.Column="0" Text="Row Split:" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <Slider Grid.Column="1" Minimum="30" Maximum="70" Value="{Binding ActiveBandRowSplitPercent}" SmallChange="0.5" LargeChange="2.0" />
                                             <TextBlock Grid.Column="2" Text="{Binding ActiveBandRowSplitPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- PROFILE & MATRIX CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="SHEET PRESET &amp; MATRIX" Style="{StaticResource SectionHeaderStyle}" />
+
+                                        <TextBlock Text="Preset Profile:" Margin="0,4,0,2" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                                  SelectedItem="{Binding SelectedProfile}"
+                                                  DisplayMemberPath="Name"
+                                                  Margin="0,0,0,8" />
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Sheet Side:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <ComboBox ItemsSource="{Binding SlicerAvailableSides}"
+                                                          SelectedItem="{Binding SelectedSide}"
+                                                          Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Prefix:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding NamingPrefix, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Uniform Grid Rows/Cols (visible only in UniformGrid mode) -->
+                                        <Grid Margin="0,0,0,4" Visibility="{Binding IsUniformGridMode, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Rows:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding ProfileRows, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Columns:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding ProfileColumns, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
