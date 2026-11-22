@@ -476,18 +476,11 @@
                                                          Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Grid>
-
-                                        <!-- Banded Mode Badge/Summary -->
-                                        <Border Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}"
-                                                Background="#E0F2FE" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,2,0,0">
-                                            <TextBlock Text="Mode: Banded 2×10 (5 Bands × 20 Pieces = 100)"
-                                                       FontSize="11" FontWeight="SemiBold" Foreground="#0369A1" HorizontalAlignment="Center" />
-                                        </Border>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- ========================================== -->
-                                <!-- BANDED MODE: ACTIVE BAND BOUNDS & NAV CARD -->
+                                <!-- BANDED MODE: ACTIVE BAND BOUNDS CARD -->
                                 <!-- ========================================== -->
                                 <Border Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}"
                                         Background="{DynamicResource CardBackgroundBrush}"
@@ -497,23 +490,9 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="2×10 BAND BOUNDS &amp; NAVIGATION" Style="{StaticResource SectionHeaderStyle}" />
-
-                                        <!-- Band Stepper Strip -->
-                                        <Grid Margin="0,2,0,10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousBandCommand}" Width="52" Padding="4,3" ToolTip="Go to previous band" />
-                                            <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0">
-                                                <TextBlock Text="{Binding ActiveBandDisplayIndex, StringFormat='Band {0} of 5'}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{Binding ActiveBandName}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextBandCommand}" Width="52" Padding="4,3" ToolTip="Go to next band" />
-                                        </Grid>
+                                        <TextBlock Text="2×10 BAND BOUNDING BOX (% OF SHEET)" Style="{StaticResource SectionHeaderStyle}" />
+                                        <TextBlock Text="Set outer boundaries for the active 2 rows × 10 columns (20 chits) section."
+                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
 
                                         <!-- Band Left (X) -->
                                         <Grid Margin="0,2">
@@ -727,21 +706,14 @@
                                         CornerRadius="6"
                                         Padding="12">
                                     <StackPanel>
-                                        <!-- Banded Mode Actions -->
+                                        <!-- Banded Mode Action (Single 2x10 Section / 20 Chits) -->
                                         <StackPanel Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
-                                            <Button Content="✂️ Slice All Bands (100 Pieces)..."
-                                                    Command="{Binding SliceAllBandsCommand}"
+                                            <Button Content="✂️ Slice 2×10 Band (20 Pieces)..."
+                                                    Command="{Binding SliceActiveBandCommand}"
                                                     Style="{StaticResource AccentButtonStyle}"
                                                     Padding="14,10"
                                                     FontSize="13"
-                                                    ToolTip="Slice all 5 discrete 2x10 bands into 100 individual lossless PNG playing pieces" />
-
-                                            <Button Content="✂️ Slice Active Band (20 Pieces)..."
-                                                    Command="{Binding SliceActiveBandCommand}"
-                                                    Padding="10,6"
-                                                    Margin="0,6,0,0"
-                                                    FontSize="12"
-                                                    ToolTip="Slice only the currently active 2x10 band (20 pieces) for fast testing" />
+                                                    ToolTip="Slice the configured 2×10 band into 20 individual lossless PNG playing pieces" />
                                         </StackPanel>
 
                                         <!-- Uniform Mode Action -->

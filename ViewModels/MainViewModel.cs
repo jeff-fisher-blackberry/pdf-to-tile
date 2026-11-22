@@ -290,7 +290,7 @@ namespace pdf_to_Tiles.ViewModels
                 {
                     int row = ((PreviewChitNumber - 1) / 10) + 1;
                     int col = ((PreviewChitNumber - 1) % 10) + 1;
-                    return $"Chit {PreviewChitNumber} of 20 — Band {ActiveBandIndex + 1}, Row {row}, Col {col}";
+                    return $"Chit {PreviewChitNumber} of 20 — Row {row}, Col {col}";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
             }
@@ -1119,20 +1119,12 @@ namespace pdf_to_Tiles.ViewModels
 
             string targetDir = folderDialog.FolderName;
 
-            int pieceCount;
-            if (IsBandedMode)
-            {
-                pieceCount = singleBand ? 20 : (TotalBands * 2 * 10);
-            }
-            else
-            {
-                pieceCount = SelectedProfile.Rows * SelectedProfile.Columns;
-            }
+            int pieceCount = IsBandedMode ? 20 : (SelectedProfile.Rows * SelectedProfile.Columns);
 
             IsSlicing = true;
             SliceProgressPercent = 0;
             SliceProgressText = $"Preparing to slice {pieceCount} pieces...";
-            StatusMessage = $"Slicing {(singleBand ? "active band" : "all bands")} into {pieceCount} PNG pieces...";
+            StatusMessage = IsBandedMode ? $"Slicing 2×10 band into 20 PNG pieces..." : $"Slicing grid into {pieceCount} PNG pieces...";
 
             _sliceCts = new CancellationTokenSource();
 

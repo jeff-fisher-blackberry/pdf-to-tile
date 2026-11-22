@@ -147,11 +147,14 @@ namespace pdf_to_Tiles.Services
                             string filename = $"{prefix}_R{mappedRow:D2}_C{mappedCol + 1:D2}_{side}.png";
                             string outPath = Path.Combine(outputDirectory, filename);
 
-                            // Zero-copy sub-Mat view for memory efficiency
-                            Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
-                            using (var pieceMat = new Mat(masterMat, roi))
+                            // Zero-copy sub-Mat view for memory efficiency with dimension safety guard
+                            if (pieceW > 0 && pieceH > 0)
                             {
-                                Cv2.ImWrite(outPath, pieceMat);
+                                Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
+                                using (var pieceMat = new Mat(masterMat, roi))
+                                {
+                                    Cv2.ImWrite(outPath, pieceMat);
+                                }
                             }
 
                             currentPiece++;

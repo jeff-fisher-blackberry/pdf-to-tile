@@ -154,46 +154,7 @@ namespace pdf_to_Tiles
 
                     if (bands != null && bands.Count > 0)
                     {
-                        // First pass: render all inactive bands in subtle cyan
-                        var inactiveBrush = new SolidColorBrush(Color.FromArgb(120, 56, 189, 248)); // #38BDF8 Sky 400
-                        inactiveBrush.Freeze();
-
-                        for (int b = 0; b < bands.Count; b++)
-                        {
-                            if (b == vm.ActiveBandIndex) continue;
-
-                            var band = bands[b];
-                            double bx = band.Bounds.Left * imgW;
-                            double by = band.Bounds.Top * imgH;
-                            double bw = band.Bounds.Width * imgW;
-                            double bh = band.Bounds.Height * imgH;
-
-                            var inactiveRect = new Rectangle
-                            {
-                                Width = Math.Max(1, bw),
-                                Height = Math.Max(1, bh),
-                                Stroke = inactiveBrush,
-                                StrokeThickness = 1.5
-                            };
-                            Canvas.SetLeft(inactiveRect, bx);
-                            Canvas.SetTop(inactiveRect, by);
-                            SlicerGridCanvas.Children.Add(inactiveRect);
-
-                            // Inactive row divider
-                            double splitY = by + (band.RowSplitRatio * bh);
-                            var splitLine = new Line
-                            {
-                                X1 = bx,
-                                Y1 = splitY,
-                                X2 = bx + bw,
-                                Y2 = splitY,
-                                Stroke = inactiveBrush,
-                                StrokeThickness = 1
-                            };
-                            SlicerGridCanvas.Children.Add(splitLine);
-                        }
-
-                        // Second pass: render the active band on top with bold lines and divider markers
+                        // Render the single active 2x10 band with bold lines and divider markers
                         int activeIdx = Math.Clamp(vm.ActiveBandIndex, 0, bands.Count - 1);
                         var activeBand = bands[activeIdx];
 
