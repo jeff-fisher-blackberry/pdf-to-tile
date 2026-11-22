@@ -1,6 +1,10 @@
+using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using pdf_to_Tiles.ViewModels;
 
 namespace pdf_to_Tiles
@@ -16,25 +20,177 @@ namespace pdf_to_Tiles
 
             if (DataContext is MainViewModel vm)
             {
-                vm.GetViewportSize = () => (PageScrollViewer.ActualWidth, PageScrollViewer.ActualHeight);
+                vm.GetPdfViewportSize = () => (PdfScrollViewer.ActualWidth, PdfScrollViewer.ActualHeight);
+                vm.GetSlicerViewportSize = () => (SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+
+                vm.PropertyChanged += ViewModel_PropertyChanged;
             }
         }
 
-        private void PageScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(MainViewModel.GridLeftPercent):
+                case nameof(MainViewModel.GridTopPercent):
+                case nameof(MainViewModel.GridWidthPercent):
+                case nameof(MainViewModel.GridHeightPercent):
+                case nameof(MainViewModel.ProfileRows):
+                case nameof(MainViewModel.ProfileColumns):
+                case nameof(MainViewModel.ShowGridOverlay):
+                case nameof(MainViewModel.ShowAlignmentGrid):
+                case nameof(MainViewModel.SlicerImage):
+                case nameof(MainViewModel.SelectedSide):
+                    UpdateGridOverlay();
+                    break;
+            }
+        }
+
+        private void PdfScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (DataContext is MainViewModel vm && vm.IsFitToPage)
             {
-                vm.RecalculateFitToPage(PageScrollViewer.ActualWidth, PageScrollViewer.ActualHeight);
+                vm.RecalculatePdfFitToPage(PdfScrollViewer.ActualWidth, PdfScrollViewer.ActualHeight);
             }
         }
 
-        private void PageNumberTextBox_KeyDown(object sender, KeyEventArgs e)
+        private void SlicerScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.IsSlicerFitToPage)
+            {
+                vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+            }
+        }
+
+        private void SlicerImageDisplay_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateGridOverlay();
+            if (DataContext is MainViewModel vm && vm.IsSlicerFitToPage)
+            {
+                vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+            }
+        }
+
+        private void PdfPageNumberTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter && sender is TextBox textBox)
             {
                 var binding = textBox.GetBindingExpression(TextBox.TextProperty);
                 binding?.UpdateSource();
                 textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            }
+        }
+
+        private void UpdateGridOverlay()
+        {
+            if (DataContext is not MainViewModel vm || SlicerGridCanvas == null || SlicerImageDisplay == null)
+            {
+                return;
+            }
+
+            SlicerGridCanvas.Children.Clear();
+
+            double imgW = SlicerImageDisplay.ActualWidth;
+            double imgH = SlicerImageDisplay.ActualHeight;
+
+            if (imgW <= 0 || imgH <= 0 || vm.SlicerImage == null)
+            {
+                return;
+            }
+
+            // 1. Draw alignment crosshairs if enabled
+            if (vm.ShowAlignmentGrid)
+            {
+                var crosshairBrush = new SolidColorBrush(Color.FromArgb(180, 239, 68, 68)); // Semi-transparent Red
+                crosshairBrush.Freeze();
+
+                var hLine = new Line
+                {
+                    X1 = 0,
+                    Y1 = imgH / 2.0,
+                    X2 = imgW,
+                    Y2 = imgH / 2.0,
+                    Stroke = crosshairBrush,
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 6, 4 }
+                };
+                SlicerGridCanvas.Children.Add(hLine);
+
+                var vLine = new Line
+                {
+                    X1 = imgW / 2.0,
+                    Y1 = 0,
+                    X2 = imgW / 2.0,
+                    Y2 = imgH,
+                    Stroke = crosshairBrush,
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 6, 4 }
+                };
+                SlicerGridCanvas.Children.Add(vLine);
+            }
+
+            // 2. Draw slicing grid overlay if enabled
+            if (vm.ShowGridOverlay && vm.ProfileRows > 0 && vm.ProfileColumns > 0)
+            {
+                double x = (vm.GridLeftPercent / 100.0) * imgW;
+                double y = (vm.GridTopPercent / 100.0) * imgH;
+                double w = (vm.GridWidthPercent / 100.0) * imgW;
+                double h = (vm.GridHeightPercent / 100.0) * imgH;
+
+                // Outer bounding box
+                var borderBrush = new SolidColorBrush(Color.FromRgb(2, 132, 199)); // #0284C7 Sky 600
+                borderBrush.Freeze();
+
+                var outerRect = new Rectangle
+                {
+                    Width = Math.Max(1, w),
+                    Height = Math.Max(1, h),
+                    Stroke = borderBrush,
+                    StrokeThickness = 3,
+                    StrokeDashArray = new DoubleCollection { 6, 3 }
+                };
+                Canvas.SetLeft(outerRect, x);
+                Canvas.SetTop(outerRect, y);
+                SlicerGridCanvas.Children.Add(outerRect);
+
+                // Internal grid lines
+                var gridLineBrush = new SolidColorBrush(Color.FromArgb(200, 56, 189, 248)); // #38BDF8 Sky 400
+                gridLineBrush.Freeze();
+
+                double cellW = w / vm.ProfileColumns;
+                double cellH = h / vm.ProfileRows;
+
+                // Vertical lines
+                for (int c = 1; c < vm.ProfileColumns; c++)
+                {
+                    double lineX = x + c * cellW;
+                    var line = new Line
+                    {
+                        X1 = lineX,
+                        Y1 = y,
+                        X2 = lineX,
+                        Y2 = y + h,
+                        Stroke = gridLineBrush,
+                        StrokeThickness = 1.5
+                    };
+                    SlicerGridCanvas.Children.Add(line);
+                }
+
+                // Horizontal lines
+                for (int r = 1; r < vm.ProfileRows; r++)
+                {
+                    double lineY = y + r * cellH;
+                    var line = new Line
+                    {
+                        X1 = x,
+                        Y1 = lineY,
+                        X2 = x + w,
+                        Y2 = lineY,
+                        Stroke = gridLineBrush,
+                        StrokeThickness = 1.5
+                    };
+                    SlicerGridCanvas.Children.Add(line);
+                }
             }
         }
     }

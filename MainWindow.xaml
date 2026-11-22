@@ -7,10 +7,11 @@
         xmlns:conv="clr-namespace:pdf_to_Tiles.Converters"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}"
-        Height="800" Width="1280"
-        MinHeight="500" MinWidth="800"
+        Height="850" Width="1350"
+        MinHeight="600" MinWidth="950"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E">
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Window.DataContext>
         <vm:MainViewModel />
@@ -19,186 +20,598 @@
     <Window.Resources>
         <conv:NullToVisibilityConverter x:Key="NotNullToVis" Invert="False" />
         <conv:NullToVisibilityConverter x:Key="NullToVis" Invert="True" />
+        <conv:EqualityToBooleanConverter x:Key="EqualConverter" />
+        <conv:EqualityToVisibilityConverter x:Key="EqualToVis" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <conv:BooleanInverterConverter x:Key="BoolInvert" />
 
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#2D2D30" />
-            <Setter Property="Foreground" Value="#F1F1F1" />
-            <Setter Property="BorderBrush" Value="#3E3E42" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="Margin" Value="3,0" />
+        <!-- Tab RadioButton Style -->
+        <Style x:Key="ModeTabRadioButton" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,8" />
             <Setter Property="Cursor" Value="Hand" />
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3E3E42" />
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.45" />
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="tabBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0,0,0,3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tabBorder" Property="Background" Value="#E5E7EB" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="tabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="tabBorder" Property="Background" Value="#FFFFFF" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#252526" />
-            <Setter Property="Foreground" Value="#F1F1F1" />
-            <Setter Property="BorderBrush" Value="#3E3E42" />
-            <Setter Property="Padding" Value="6,4" />
-            <Setter Property="Margin" Value="4,0" />
-        </Style>
-
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#252526" />
-            <Setter Property="Foreground" Value="#F1F1F1" />
-            <Setter Property="BorderBrush" Value="#3E3E42" />
-            <Setter Property="Padding" Value="4,2" />
-            <Setter Property="CaretBrush" Value="#F1F1F1" />
-        </Style>
-
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="4,0" />
+        <!-- Card Section Header Style -->
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
+            <!-- Navigation Mode Switcher -->
             <RowDefinition Height="Auto" />
+            <!-- Workspace / Tab View -->
             <RowDefinition Height="*" />
+            <!-- Bottom Status Bar -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- TOP TOOLBAR -->
-        <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="8,6">
-            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <!-- Open Button -->
-                <Button Content="📂 Open PDF..."
-                        Command="{Binding OpenPdfCommand}"
-                        Padding="12,6"
-                        ToolTip="Open a PDF rulebook or counter sheet (non-locking)" />
-
-                <Rectangle Width="1" Height="24" Fill="#454545" Margin="8,0" />
-
-                <!-- Page Navigation -->
-                <Button Content="◀ Prev"
-                        Command="{Binding PreviousPageCommand}"
-                        ToolTip="Navigate to previous page" />
-
-                <TextBlock Text="Page" Margin="6,0,2,0" />
-                <TextBox Text="{Binding CurrentPageNumber, UpdateSourceTrigger=LostFocus}"
-                         Width="45"
-                         TextAlignment="Center"
-                         FontWeight="Bold"
-                         KeyDown="PageNumberTextBox_KeyDown"
-                         ToolTip="Type page number and press Enter" />
-                <TextBlock Text="of" Margin="4,0,2,0" />
-                <TextBlock Text="{Binding TotalPages}" FontWeight="Bold" Margin="0,0,6,0" />
-
-                <Button Content="Next ▶"
-                        Command="{Binding NextPageCommand}"
-                        ToolTip="Navigate to next page" />
-
-                <Rectangle Width="1" Height="24" Fill="#454545" Margin="8,0" />
-
-                <!-- View & Zoom Modes -->
-                <Button Content="Fit to Page"
-                        Command="{Binding FitToPageCommand}"
-                        ToolTip="Scale page proportionally to fit inside the viewport" />
-
-                <Button Content="Actual Size (100%)"
-                        Command="{Binding ActualSizeCommand}"
-                        ToolTip="Display page at 1:1 scale (100%)" />
-
-                <Button Content="-"
-                        Width="30"
-                        Command="{Binding ZoomOutCommand}"
-                        ToolTip="Zoom out" />
-
-                <Button Content="+"
-                        Width="30"
-                        Command="{Binding ZoomInCommand}"
-                        ToolTip="Zoom in" />
-
-                <TextBlock Text="Zoom:" Margin="8,0,2,0" />
-                <TextBlock Text="{Binding ZoomPercentageText}" FontWeight="Bold" Width="55" />
-
-                <Rectangle Width="1" Height="24" Fill="#454545" Margin="8,0" />
-
-                <!-- High-DPI Page Capture -->
-                <TextBlock Text="DPI:" Margin="6,0,2,0" />
-                <ComboBox ItemsSource="{Binding AvailableDpis}"
-                          SelectedItem="{Binding SelectedDpi}"
-                          Width="70"
-                          ToolTip="Select capture DPI resolution" />
-
-                <TextBlock Text="Tag:" Margin="6,0,2,0" />
-                <ComboBox ItemsSource="{Binding AvailableSideTags}"
-                          SelectedItem="{Binding SelectedSideTag}"
-                          Width="80"
-                          ToolTip="Label sheet side (Front, Back, Page)" />
-
-                <Button Content="📸 Capture Page as PNG"
-                        Command="{Binding CapturePageCommand}"
-                        Background="#0E639C"
-                        BorderBrush="#1177BB"
-                        Foreground="#FFFFFF"
-                        Padding="12,6"
-                        Margin="6,0,2,0"
-                        ToolTip="Save current page at high DPI directly to a lossless PNG file" />
-            </WrapPanel>
+        <!-- TOP MODE NAV BAR -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="12,0">
+            <StackPanel Orientation="Horizontal">
+                <RadioButton Content="📄 PDF Viewer &amp; Page Capture"
+                             Style="{StaticResource ModeTabRadioButton}"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=0}" />
+                <RadioButton Content="📐 Deskew &amp; Grid Slicer"
+                             Style="{StaticResource ModeTabRadioButton}"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=1}" />
+            </StackPanel>
         </Border>
 
-        <!-- CENTER VIEWPORT -->
-        <ScrollViewer x:Name="PageScrollViewer"
-                      Grid.Row="1"
-                      Background="#141414"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      SizeChanged="PageScrollViewer_SizeChanged">
+        <!-- WORKSPACE AREA -->
+        <Grid Grid.Row="1">
 
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
-                <!-- Drop shadow border around rendered page -->
-                <Border Background="#FFFFFF"
-                        BorderBrush="#000000"
-                        BorderThickness="1"
-                        CornerRadius="2"
-                        SnapsToDevicePixels="True"
-                        Visibility="{Binding CurrentPageImage, Converter={StaticResource NotNullToVis}}">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="4" Opacity="0.65" />
-                    </Border.Effect>
-                    <Image Source="{Binding CurrentPageImage}"
-                           Stretch="None"
-                           RenderOptions.BitmapScalingMode="HighQuality"
-                           SnapsToDevicePixels="True">
-                        <Image.LayoutTransform>
-                            <ScaleTransform ScaleX="{Binding ZoomScale}" ScaleY="{Binding ZoomScale}" />
-                        </Image.LayoutTransform>
-                    </Image>
+            <!-- ========================================== -->
+            <!-- TAB 0: PDF VIEWER & PAGE CAPTURE -->
+            <!-- ========================================== -->
+            <Grid Visibility="{Binding SelectedTabIndex, Converter={StaticResource EqualToVis}, ConverterParameter=0}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- PDF Toolbar -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource ToolbarBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="📂 Open PDF..."
+                                Command="{Binding OpenPdfCommand}"
+                                Padding="12,6"
+                                ToolTip="Open a PDF rulebook or counter sheet (non-locking)" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <Button Content="◀ Prev"
+                                Command="{Binding PreviousPageCommand}"
+                                ToolTip="Navigate to previous page" />
+
+                        <TextBlock Text="Page" Margin="6,0,2,0" />
+                        <TextBox Text="{Binding CurrentPageNumber, UpdateSourceTrigger=LostFocus}"
+                                 Width="45"
+                                 TextAlignment="Center"
+                                 FontWeight="Bold"
+                                 KeyDown="PdfPageNumberTextBox_KeyDown"
+                                 ToolTip="Type page number and press Enter" />
+                        <TextBlock Text="of" Margin="4,0,2,0" />
+                        <TextBlock Text="{Binding TotalPages}" FontWeight="Bold" Margin="0,0,6,0" />
+
+                        <Button Content="Next ▶"
+                                Command="{Binding NextPageCommand}"
+                                ToolTip="Navigate to next page" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <Button Content="Fit to Page"
+                                Command="{Binding FitToPageCommand}"
+                                ToolTip="Scale page proportionally to fit inside the viewport" />
+
+                        <Button Content="Actual Size (100%)"
+                                Command="{Binding ActualSizeCommand}"
+                                ToolTip="Display page at 1:1 scale (100%)" />
+
+                        <Button Content="-"
+                                Width="30"
+                                Command="{Binding ZoomOutCommand}"
+                                ToolTip="Zoom out" />
+
+                        <Button Content="+"
+                                Width="30"
+                                Command="{Binding ZoomInCommand}"
+                                ToolTip="Zoom in" />
+
+                        <TextBlock Text="Zoom:" Margin="8,0,2,0" />
+                        <TextBlock Text="{Binding ZoomPercentageText}" FontWeight="Bold" Width="55" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <TextBlock Text="DPI:" Margin="6,0,2,0" />
+                        <ComboBox ItemsSource="{Binding AvailableDpis}"
+                                  SelectedItem="{Binding SelectedDpi}"
+                                  Width="70"
+                                  ToolTip="Select capture DPI resolution" />
+
+                        <TextBlock Text="Tag:" Margin="6,0,2,0" />
+                        <ComboBox ItemsSource="{Binding AvailableSideTags}"
+                                  SelectedItem="{Binding SelectedSideTag}"
+                                  Width="75"
+                                  ToolTip="Label sheet side (Front, Back, Page)" />
+
+                        <Button Content="📸 Capture Page as PNG"
+                                Command="{Binding CapturePageCommand}"
+                                ToolTip="Save current page at high DPI directly to a lossless PNG file" />
+
+                        <Button Content="📐 Send Page to Slicer"
+                                Command="{Binding SendPageToSlicerCommand}"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Padding="12,6"
+                                Margin="6,0,2,0"
+                                ToolTip="Render high-DPI page directly into the Deskew &amp; Grid Slicer workspace" />
+                    </WrapPanel>
                 </Border>
 
-                <!-- Empty State Prompt -->
-                <StackPanel HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Visibility="{Binding CurrentPageImage, Converter={StaticResource NullToVis}}">
-                    <TextBlock Text="📄" FontSize="64" HorizontalAlignment="Center" Opacity="0.5" />
-                    <TextBlock Text="No PDF Loaded"
-                               FontSize="20"
-                               FontWeight="Bold"
-                               Foreground="#AAAAAA"
-                               HorizontalAlignment="Center"
-                               Margin="0,10,0,4" />
-                    <TextBlock Text="Click 'Open PDF...' to open a rulebook or counter sheet (non-locking)"
-                               FontSize="13"
-                               Foreground="#777777"
-                               HorizontalAlignment="Center" />
-                </StackPanel>
+                <!-- PDF Viewport -->
+                <ScrollViewer x:Name="PdfScrollViewer"
+                              Grid.Row="1"
+                              Background="{DynamicResource ViewportBackgroundBrush}"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              SizeChanged="PdfScrollViewer_SizeChanged">
+
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                        <Border Background="#FFFFFF"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="2"
+                                SnapsToDevicePixels="True"
+                                Visibility="{Binding CurrentPageImage, Converter={StaticResource NotNullToVis}}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="3" Opacity="0.25" />
+                            </Border.Effect>
+                            <Image Source="{Binding CurrentPageImage}"
+                                   Stretch="None"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   SnapsToDevicePixels="True">
+                                <Image.LayoutTransform>
+                                    <ScaleTransform ScaleX="{Binding ZoomScale}" ScaleY="{Binding ZoomScale}" />
+                                </Image.LayoutTransform>
+                            </Image>
+                        </Border>
+
+                        <!-- Empty State -->
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding CurrentPageImage, Converter={StaticResource NullToVis}}">
+                            <TextBlock Text="📄" FontSize="64" HorizontalAlignment="Center" Opacity="0.4" />
+                            <TextBlock Text="No PDF Loaded"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,10,0,4" />
+                            <TextBlock Text="Click 'Open PDF...' to open a rulebook or counter sheet (non-locking)"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
-        </ScrollViewer>
+
+            <!-- ========================================== -->
+            <!-- TAB 1: DESKEW & GRID SLICER WORKSPACE -->
+            <!-- ========================================== -->
+            <Grid Visibility="{Binding SelectedTabIndex, Converter={StaticResource EqualToVis}, ConverterParameter=1}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Slicer Toolbar -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource ToolbarBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="📂 Open Image..."
+                                Command="{Binding OpenImageForSlicingCommand}"
+                                Padding="12,6"
+                                ToolTip="Open a counter sheet image file (PNG, JPG, TIFF, BMP)" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <!-- Auto Detect Tilt -->
+                        <Button Content="📐 Auto-Detect Tilt"
+                                Command="{Binding AutoDetectTiltCommand}"
+                                ToolTip="Automatically detect scan tilt angle using Hough line transform" />
+
+                        <!-- Manual Angle Adjustments -->
+                        <TextBlock Text="Angle:" Margin="8,0,2,0" />
+                        <Slider Minimum="-5.0" Maximum="5.0" Value="{Binding DeskewAngle}"
+                                Width="120"
+                                SmallChange="0.05" LargeChange="0.5"
+                                TickFrequency="1.0" IsSnapToTickEnabled="False"
+                                VerticalAlignment="Center"
+                                ToolTip="Adjust deskew tilt angle (-5.0° to +5.0°)" />
+
+                        <TextBlock Text="{Binding DeskewAngleText}" FontWeight="Bold" Width="55" Margin="4,0" TextAlignment="Center" />
+
+                        <Button Content="-0.1°" Width="44" Command="{Binding NudgeAngleNegativeCommand}" ToolTip="Nudge angle -0.1°" />
+                        <Button Content="+0.1°" Width="44" Command="{Binding NudgeAnglePositiveCommand}" ToolTip="Nudge angle +0.1°" />
+                        <Button Content="0.0°" Width="42" Command="{Binding ResetAngleCommand}" ToolTip="Reset tilt angle to 0°" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <!-- View Toggles -->
+                        <CheckBox Content="Grid Overlay"
+                                  IsChecked="{Binding ShowGridOverlay}"
+                                  VerticalAlignment="Center"
+                                  Margin="6,0"
+                                  ToolTip="Show or hide the counter matrix slicing grid overlay" />
+
+                        <CheckBox Content="Alignment Crosshairs"
+                                  IsChecked="{Binding ShowAlignmentGrid}"
+                                  VerticalAlignment="Center"
+                                  Margin="6,0"
+                                  ToolTip="Display fine reference crosshairs across the canvas to verify straightening" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <!-- Zoom Controls -->
+                        <Button Content="Fit to View"
+                                Command="{Binding SlicerFitToPageCommand}"
+                                ToolTip="Scale counter sheet to fit inside the visible viewport" />
+
+                        <Button Content="Actual Size (100%)"
+                                Command="{Binding SlicerActualSizeCommand}"
+                                ToolTip="Display counter sheet at 100% scale" />
+
+                        <Button Content="-"
+                                Width="30"
+                                Command="{Binding SlicerZoomOutCommand}"
+                                ToolTip="Zoom out" />
+
+                        <Button Content="+"
+                                Width="30"
+                                Command="{Binding SlicerZoomInCommand}"
+                                ToolTip="Zoom in" />
+
+                        <TextBlock Text="Zoom:" Margin="8,0,2,0" />
+                        <TextBlock Text="{Binding SlicerZoomPercentageText}" FontWeight="Bold" Width="55" />
+                    </WrapPanel>
+                </Border>
+
+                <!-- Slicer Main Content Area: Left Settings Sidebar + Right Viewport -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <!-- Left Settings Column -->
+                        <ColumnDefinition Width="340" MinWidth="300" MaxWidth="440" />
+                        <!-- Splitter -->
+                        <ColumnDefinition Width="4" />
+                        <!-- Viewport Column -->
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT SETTINGS SIDEBAR -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource PanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="0,0,1,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Margin="14" Orientation="Vertical">
+
+                                <!-- PROFILE & MATRIX CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="SHEET PRESET &amp; MATRIX" Style="{StaticResource SectionHeaderStyle}" />
+
+                                        <TextBlock Text="Preset Profile:" Margin="0,4,0,2" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                                  SelectedItem="{Binding SelectedProfile}"
+                                                  DisplayMemberPath="Name"
+                                                  Margin="0,0,0,8" />
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Sheet Side:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <ComboBox ItemsSource="{Binding SlicerAvailableSides}"
+                                                          SelectedItem="{Binding SelectedSide}"
+                                                          Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Prefix:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding NamingPrefix, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Rows:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding ProfileRows, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Columns:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding ProfileColumns, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- GRID BOUNDS CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="GRID BOUNDING BOX (% OF SHEET)" Style="{StaticResource SectionHeaderStyle}" />
+                                        <TextBlock Text="Isolates counter matrix from scanner margins &amp; labels."
+                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
+
+                                        <!-- Left (X) -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="45" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Left (X):" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding GridLeftPercent}" SmallChange="0.1" LargeChange="1.0" />
+                                            <TextBlock Grid.Column="2" Text="{Binding GridLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+
+                                        <!-- Top (Y) -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="45" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Top (Y):" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding GridTopPercent}" SmallChange="0.1" LargeChange="1.0" />
+                                            <TextBlock Grid.Column="2" Text="{Binding GridTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+
+                                        <!-- Width -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="45" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Width:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <Slider Grid.Column="1" Minimum="50" Maximum="100" Value="{Binding GridWidthPercent}" SmallChange="0.1" LargeChange="1.0" />
+                                            <TextBlock Grid.Column="2" Text="{Binding GridWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+
+                                        <!-- Height -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="45" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Height:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <Slider Grid.Column="1" Minimum="50" Maximum="100" Value="{Binding GridHeightPercent}" SmallChange="0.1" LargeChange="1.0" />
+                                            <TextBlock Grid.Column="2" Text="{Binding GridHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- INSET & REVERSE ORIENTATION CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="BLEED INSET &amp; BACK ALIGNMENT" Style="{StaticResource SectionHeaderStyle}" />
+
+                                        <!-- Inward Inset -->
+                                        <Grid Margin="0,2,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="45" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Inward Inset:" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="15" Value="{Binding InwardInsetPx}" SmallChange="1" LargeChange="2" />
+                                            <TextBlock Grid.Column="2" Text="{Binding InwardInsetPx, StringFormat='{}{0:F0} px'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                        </Grid>
+
+                                        <!-- Back Orientation Mode -->
+                                        <TextBlock Text="Back-Side Orientation Mapping:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                                        <ComboBox ItemsSource="{Binding AvailableOrientations}"
+                                                  SelectedItem="{Binding SelectedOrientation}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- SINGLE CHIT PREVIEW CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SINGLE CHIT CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Cell (Row 1, Col 1) with red cut boundary"
+                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
+
+                                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                Width="140" Height="140"
+                                                Background="#F9FAFB">
+                                            <Image Source="{Binding ChitPreviewImage}"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- BATCH SLICE ACTION CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12">
+                                    <StackPanel>
+                                        <Button Content="✂️ Slice Grid to PNG Pieces..."
+                                                Command="{Binding SliceGridCommand}"
+                                                Style="{StaticResource AccentButtonStyle}"
+                                                Padding="14,10"
+                                                FontSize="14"
+                                                ToolTip="Slice configured grid into individual lossless PNG playing pieces" />
+
+                                        <!-- Slicing Progress Box -->
+                                        <StackPanel Visibility="{Binding IsSlicing, Converter={StaticResource BoolToVis}}" Margin="0,10,0,0">
+                                            <ProgressBar Value="{Binding SliceProgressPercent}" Maximum="100" Height="14" Margin="0,0,0,6" />
+                                            <TextBlock Text="{Binding SliceProgressText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                            <Button Content="Cancel Slicing"
+                                                    Command="{Binding CancelSliceCommand}"
+                                                    Margin="0,8,0,0"
+                                                    Background="#EF4444"
+                                                    Foreground="#FFFFFF"
+                                                    BorderBrush="#DC2626" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Splitter -->
+                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" />
+
+                    <!-- RIGHT VIEWPORT: DESKEWED SHEET & INTERACTIVE GRID OVERLAY -->
+                    <ScrollViewer x:Name="SlicerScrollViewer"
+                                  Grid.Column="2"
+                                  Background="{DynamicResource ViewportBackgroundBrush}"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  SizeChanged="SlicerScrollViewer_SizeChanged">
+
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                            <!-- Drop shadow border around rendered sheet -->
+                            <Border Background="#FFFFFF"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="2"
+                                    SnapsToDevicePixels="True"
+                                    Visibility="{Binding SlicerImage, Converter={StaticResource NotNullToVis}}">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="3" Opacity="0.25" />
+                                </Border.Effect>
+
+                                <Grid>
+                                    <Image x:Name="SlicerImageDisplay"
+                                           Source="{Binding SlicerImage}"
+                                           Stretch="None"
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           SnapsToDevicePixels="True"
+                                           SizeChanged="SlicerImageDisplay_SizeChanged" />
+
+                                    <Canvas x:Name="SlicerGridCanvas"
+                                            Width="{Binding ElementName=SlicerImageDisplay, Path=ActualWidth}"
+                                            Height="{Binding ElementName=SlicerImageDisplay, Path=ActualHeight}"
+                                            ClipToBounds="True" />
+                                </Grid>
+
+                                <Border.LayoutTransform>
+                                    <ScaleTransform ScaleX="{Binding SlicerZoomScale}" ScaleY="{Binding SlicerZoomScale}" />
+                                </Border.LayoutTransform>
+                            </Border>
+
+                            <!-- Empty State for Slicer -->
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Visibility="{Binding SlicerImage, Converter={StaticResource NullToVis}}">
+                                <TextBlock Text="📐" FontSize="64" HorizontalAlignment="Center" Opacity="0.4" />
+                                <TextBlock Text="No Counter Sheet Loaded"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,10,0,4" />
+                                <TextBlock Text="Click 'Open Image...' or select a page in the PDF Viewer and click 'Send Page to Slicer'"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </Grid>
 
         <!-- BOTTOM STATUS BAR -->
-        <Border Grid.Row="2" Background="#007ACC" Padding="8,4">
+        <Border Grid.Row="2"
+                Background="{DynamicResource StatusBarBackgroundBrush}"
+                Padding="10,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -207,15 +620,26 @@
 
                 <TextBlock Grid.Column="0"
                            Text="{Binding StatusMessage}"
-                           Foreground="#FFFFFF"
+                           Foreground="{DynamicResource StatusBarForegroundBrush}"
                            FontWeight="Normal"
                            TextTrimming="CharacterEllipsis" />
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="{Binding PagePixelWidth, StringFormat='{}{0} × '}" Foreground="#E0E0E0" />
-                    <TextBlock Text="{Binding PagePixelHeight, StringFormat='{}{0} px'}" Foreground="#E0E0E0" />
-                    <TextBlock Text="|" Margin="8,0" Foreground="#A0CBE8" />
-                    <TextBlock Text="{Binding ZoomPercentageText, StringFormat='{}Zoom: {0}'}" Foreground="#FFFFFF" FontWeight="SemiBold" />
+                    <!-- Tab 0 Dimensions -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding SelectedTabIndex, Converter={StaticResource EqualToVis}, ConverterParameter=0}">
+                        <TextBlock Text="{Binding PagePixelWidth, StringFormat='{}{0} × '}" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="{Binding PagePixelHeight, StringFormat='{}{0} px'}" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="|" Margin="8,0" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="{Binding ZoomPercentageText, StringFormat='{}Zoom: {0}'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <!-- Tab 1 Dimensions -->
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding SelectedTabIndex, Converter={StaticResource EqualToVis}, ConverterParameter=1}">
+                        <TextBlock Text="{Binding SlicerPixelWidth, StringFormat='{}{0} × '}" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="{Binding SlicerPixelHeight, StringFormat='{}{0} px'}" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="|" Margin="8,0" Foreground="{DynamicResource StatusBarSubtleBrush}" />
+                        <TextBlock Text="{Binding SlicerZoomPercentageText, StringFormat='{}Zoom: {0}'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
