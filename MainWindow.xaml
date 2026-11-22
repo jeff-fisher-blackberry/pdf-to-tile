@@ -377,6 +377,39 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="14" Orientation="Vertical">
 
+                                <!-- SINGLE CHIT PREVIEW CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SINGLE CHIT CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+
+                                        <!-- Banded mode Row/Col selector -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6"
+                                                    Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Row:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <ComboBox ItemsSource="{Binding AvailablePreviewRows}" SelectedItem="{Binding SelectedPreviewRowDisplay}" Width="44" Margin="0,0,10,0" />
+                                            <TextBlock Text="Col:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <ComboBox ItemsSource="{Binding AvailablePreviewCols}" SelectedItem="{Binding SelectedPreviewColDisplay}" Width="48" />
+                                        </StackPanel>
+
+                                        <TextBlock Text="{Binding PreviewCellText}"
+                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
+
+                                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                Width="140" Height="140"
+                                                Background="#F9FAFB">
+                                            <Image Source="{Binding ChitPreviewImage}"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- PROFILE & MATRIX CARD -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
@@ -675,39 +708,6 @@
                                         <TextBlock Text="Back-Side Orientation Mapping:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
                                         <ComboBox ItemsSource="{Binding AvailableOrientations}"
                                                   SelectedItem="{Binding SelectedOrientation}" />
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- SINGLE CHIT PREVIEW CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12"
-                                        Margin="0,0,0,12">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="SINGLE CHIT CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
-
-                                        <!-- Banded mode Row/Col selector -->
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6"
-                                                    Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="Row:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <ComboBox ItemsSource="{Binding AvailablePreviewRows}" SelectedItem="{Binding SelectedPreviewRowDisplay}" Width="44" Margin="0,0,10,0" />
-                                            <TextBlock Text="Col:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <ComboBox ItemsSource="{Binding AvailablePreviewCols}" SelectedItem="{Binding SelectedPreviewColDisplay}" Width="48" />
-                                        </StackPanel>
-
-                                        <TextBlock Text="{Binding PreviewCellText}"
-                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
-
-                                        <Border BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                Width="140" Height="140"
-                                                Background="#F9FAFB">
-                                            <Image Source="{Binding ChitPreviewImage}"
-                                                   Stretch="Uniform"
-                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
-                                        </Border>
                                     </StackPanel>
                                 </Border>
 
