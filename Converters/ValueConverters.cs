@@ -87,4 +87,25 @@ namespace pdf_to_Tiles.Converters
             throw new NotSupportedException();
         }
     }
+
+    public class ColorToBrushConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is System.Windows.Media.Color color)
+            {
+                return new System.Windows.Media.SolidColorBrush(color);
+            }
+            return System.Windows.Media.Brushes.Transparent;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is System.Windows.Media.SolidColorBrush brush)
+            {
+                return brush.Color;
+            }
+            return System.Windows.Media.Colors.Transparent;
+        }
+    }
 }

@@ -173,6 +173,170 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Slices a calibrated 2×10 band directly into 20 in-memory ChitItem instances (CV_8UC4 BGRA)
+        /// for real-time editing in the Chit Editor (Tab 3).
+        /// </summary>
+        public static Task<List<ChitItem>> SliceBandedGridToMemoryAsync(
+            Mat masterMat,
+            SheetProfile profile,
+            string side,
+            int? bandIndex,
+            IProgress<SliceProgressReport>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.Run(() =>
+            {
+                if (masterMat == null || masterMat.IsDisposed || masterMat.Width <= 0 || masterMat.Height <= 0)
+                {
+                    throw new ArgumentException("Invalid master image Mat.", nameof(masterMat));
+                }
+
+                if (profile == null)
+                {
+                    throw new ArgumentNullException(nameof(profile));
+                }
+
+                var bands = side.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                    ? profile.BackBands
+                    : profile.FrontBands;
+
+                if (bands == null || bands.Count == 0)
+                {
+                    throw new InvalidOperationException("No 2×10 band definitions found for the active profile.");
+                }
+
+                int totalSheetBands = bands.Count;
+                int startBand = bandIndex.HasValue ? Math.Clamp(bandIndex.Value, 0, bands.Count - 1) : 0;
+                int endBand = bandIndex.HasValue ? startBand + 1 : bands.Count;
+
+                int totalPieces = (endBand - startBand) * 20;
+                int currentPiece = 0;
+                string prefix = string.IsNullOrWhiteSpace(profile.NamingPrefix) ? "Piece" : profile.NamingPrefix.Trim();
+
+                var chitList = new List<ChitItem>();
+
+                for (int b = startBand; b < endBand; b++)
+                {
+                    var band = bands[b];
+                    int bandX = (int)Math.Round(band.Bounds.Left * masterMat.Width);
+                    int bandY = (int)Math.Round(band.Bounds.Top * masterMat.Height);
+                    int bandW = (int)Math.Round(band.Bounds.Width * masterMat.Width);
+                    int bandH = (int)Math.Round(band.Bounds.Height * masterMat.Height);
+
+                    int splitY = bandY + (int)Math.Round(bandH * band.RowSplitRatio);
+                    int row0H = splitY - bandY;
+                    int row1H = (bandY + bandH) - splitY;
+
+                    // Build strictly monotonic divider list: d0 = 0.0, d1..d9, d10 = 1.0
+                    var dividers = new List<double> { 0.0 };
+                    if (band.ColumnDividers != null && band.ColumnDividers.Count == 9)
+                    {
+                        dividers.AddRange(band.ColumnDividers);
+                    }
+                    else
+                    {
+                        dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(10));
+                    }
+                    dividers.Add(1.0);
+
+                    int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
+
+                    for (int r = 0; r < 2; r++)
+                    {
+                        int rowTop = (r == 0) ? bandY : splitY;
+                        int rowHeight = (r == 0) ? row0H : row1H;
+
+                        for (int c = 0; c < 10; c++)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            double leftRatio = dividers[c];
+                            double rightRatio = dividers[c + 1];
+
+                            int colLeft = bandX + (int)Math.Round(leftRatio * bandW);
+                            int colRight = bandX + (int)Math.Round(rightRatio * bandW);
+                            int colWidth = colRight - colLeft;
+
+                            int cellX = colLeft + inset;
+                            int cellY = rowTop + inset;
+                            int pieceW = colWidth - (2 * inset);
+                            int pieceH = rowHeight - (2 * inset);
+
+                            cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
+                            cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));
+                            pieceW = Math.Max(1, Math.Min(pieceW, masterMat.Width - cellX));
+                            pieceH = Math.Max(1, Math.Min(pieceH, masterMat.Height - cellY));
+
+                            int globalRow = (b * 2) + r + 1;
+                            int mappedCol = c;
+                            int mappedRow = globalRow;
+
+                            if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                            {
+                                switch (profile.BackOrientation)
+                                {
+                                    case BackOrientationMode.HorizontalFlip:
+                                        mappedCol = 9 - c;
+                                        break;
+                                    case BackOrientationMode.VerticalFlip:
+                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        break;
+                                    case BackOrientationMode.Rotate180:
+                                        mappedCol = 9 - c;
+                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        break;
+                                    case BackOrientationMode.Direct:
+                                    default:
+                                        break;
+                                }
+                            }
+
+                            string filename = $"{prefix}_R{mappedRow:D2}_C{mappedCol + 1:D2}_{side}.png";
+
+                            if (pieceW > 0 && pieceH > 0)
+                            {
+                                Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
+                                using var cropMat = new Mat(masterMat, roi);
+
+                                var bgraMat = new Mat();
+                                if (cropMat.Channels() == 3)
+                                {
+                                    Cv2.CvtColor(cropMat, bgraMat, ColorConversionCodes.BGR2BGRA);
+                                }
+                                else
+                                {
+                                    cropMat.CopyTo(bgraMat);
+                                }
+
+                                var chit = new ChitItem(
+                                    index: currentPiece + 1,
+                                    row: r + 1,
+                                    col: c + 1,
+                                    side: side,
+                                    pieceName: filename,
+                                    bgraMat: bgraMat
+                                );
+                                chitList.Add(chit);
+                            }
+
+                            currentPiece++;
+
+                            progress?.Report(new SliceProgressReport
+                            {
+                                CurrentIndex = currentPiece,
+                                TotalCount = totalPieces,
+                                CurrentPieceName = filename,
+                                StatusText = $"Slicing in-memory piece {currentPiece} of {totalPieces}: {filename}"
+                            });
+                        }
+                    }
+                }
+
+                return chitList;
+            }, cancellationToken);
+        }
+
+        /// <summary>
         /// Slices a deskewed counter sheet Mat into individual playing piece PNG files using a uniform grid asynchronously.
         /// </summary>
         public static Task SliceGridAsync(

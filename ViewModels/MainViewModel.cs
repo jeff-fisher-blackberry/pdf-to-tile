@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-22-11.3";
+        private const string AppBaseTitle = "PDF to Tiles 2026-22-11.4";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -35,7 +36,7 @@ namespace pdf_to_Tiles.ViewModels
         private string _windowTitle = AppBaseTitle;
 
         [ObservableProperty]
-        private int _selectedTabIndex = 0; // 0 = PDF Viewer, 1 = Deskew & Grid Slicer
+        private int _selectedTabIndex = 0; // 0 = PDF Viewer, 1 = Deskew & Grid Slicer, 2 = Chit Editor
 
         [ObservableProperty]
         private string _statusMessage = "Ready. Open a PDF rulebook or counter sheet to begin.";
@@ -109,6 +110,7 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(SliceGridCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceAllBandsCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceActiveBandCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SendBandToChitEditorCommand))]
         private BitmapSource? _slicerImage;
 
         [ObservableProperty]
@@ -320,6 +322,7 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(SliceGridCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceAllBandsCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceActiveBandCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SendBandToChitEditorCommand))]
         private bool _isSlicing = false;
 
         [ObservableProperty]
@@ -1192,6 +1195,362 @@ namespace pdf_to_Tiles.ViewModels
         private void CancelSlice()
         {
             _sliceCts?.Cancel();
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSliceGrid))]
+        private async Task SendBandToChitEditorAsync()
+        {
+            if (_deskewedMat == null || _deskewedMat.IsDisposed || SelectedProfile == null)
+            {
+                return;
+            }
+
+            IsSlicing = true;
+            SliceProgressPercent = 0;
+            SliceProgressText = "Slicing 2×10 band into memory for Chit Editor...";
+            StatusMessage = "Slicing 2×10 band into memory for Chit Editor...";
+
+            _sliceCts = new CancellationTokenSource();
+            var progress = new Progress<SliceProgressReport>(report =>
+            {
+                SliceProgressPercent = report.Percent;
+                SliceProgressText = report.StatusText;
+                StatusMessage = report.StatusText;
+            });
+
+            try
+            {
+                var profileCopy = SelectedProfile.Clone();
+                string currentSide = SelectedSide;
+                int bandIdx = ActiveBandIndex;
+
+                var chits = await GridSlicerService.SliceBandedGridToMemoryAsync(
+                    _deskewedMat,
+                    profileCopy,
+                    currentSide,
+                    bandIdx,
+                    progress,
+                    _sliceCts.Token
+                );
+
+                // Dispose existing loaded chits to prevent memory leaks
+                foreach (var oldChit in LoadedChits)
+                {
+                    oldChit.Dispose();
+                }
+                LoadedChits.Clear();
+
+                foreach (var chit in chits)
+                {
+                    LoadedChits.Add(chit);
+                }
+
+                if (LoadedChits.Count > 0)
+                {
+                    SelectedChit = LoadedChits[0];
+                    SelectedChit.IsSelected = true;
+                }
+
+                SelectedTabIndex = 2; // Switch directly to Tab 3: Chit Editor
+                StatusMessage = $"Loaded {LoadedChits.Count} chits into Chit Editor.";
+                SliceProgressText = $"Loaded {LoadedChits.Count} chits into Chit Editor.";
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "In-memory slicing cancelled.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error loading chits: {ex.Message}";
+                SliceProgressText = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                IsSlicing = false;
+                _sliceCts?.Dispose();
+                _sliceCts = null;
+            }
+        }
+
+        #endregion
+
+        #region Tab 3: Chit Editor Properties & Commands
+
+        public ObservableCollection<ChitItem> LoadedChits { get; } = new();
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasSelectedChit))]
+        [NotifyCanExecuteChangedFor(nameof(UndoChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RedoChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyBevelCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ResetSelectedChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
+        private ChitItem? _selectedChit;
+
+        partial void OnSelectedChitChanged(ChitItem? value)
+        {
+            if (value != null)
+            {
+                foreach (var chit in LoadedChits)
+                {
+                    chit.IsSelected = ReferenceEquals(chit, value);
+                }
+
+                ChitEditorWidth = value.PixelWidth;
+                ChitEditorHeight = value.PixelHeight;
+            }
+        }
+
+        public bool HasSelectedChit => SelectedChit != null;
+
+        [ObservableProperty]
+        private int _chitEditorWidth = 50;
+
+        [ObservableProperty]
+        private int _chitEditorHeight = 50;
+
+        [ObservableProperty]
+        private int _chitEditorBevelSize = 4;
+
+        [ObservableProperty]
+        private int _chitEditorClipSize = 2;
+
+        [ObservableProperty]
+        private int _chitEditorClearSize = 1;
+
+        [ObservableProperty]
+        private Color _transparentColor = Colors.Cyan;
+
+        [ObservableProperty]
+        private double _chitEditorZoomScale = 1.0;
+
+        [ObservableProperty]
+        private double _chitInspectionZoomScale = 4.0;
+
+        [ObservableProperty]
+        private bool _applyToAllChits = false;
+
+        public IReadOnlyList<int> AvailableBevelSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        public IReadOnlyList<int> AvailableClipSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        public IReadOnlyList<int> AvailableClearSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+        private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed;
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void UndoChit()
+        {
+            SelectedChit?.Undo();
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void RedoChit()
+        {
+            SelectedChit?.Redo();
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyBevel()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, ChitEditorBevelSize);
+                chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
+            }
+            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} chits." : $"Applied {ChitEditorBevelSize}px bevel to chit #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyClip()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            Vec4b key = ColorToVec4b(TransparentColor);
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, key);
+                chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
+            }
+            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} chits." : $"Applied {ChitEditorClipSize}px corner clip to chit #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyClear()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            Vec4b key = ColorToVec4b(TransparentColor);
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var cleared = ChitEditorService.ApplyClearBorder(chit.WorkingMat, ChitEditorClearSize, key);
+                chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
+            }
+            StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} chits." : $"Cleared {ChitEditorClearSize}px outer border on chit #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyStretch()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight);
+                chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
+            }
+            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyResize()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            Vec4b key = ColorToVec4b(TransparentColor);
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var resized = ChitEditorService.ApplyResize(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight, key);
+                chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
+            }
+            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ResetSelectedChit()
+        {
+            SelectedChit?.ResetToOriginal();
+            StatusMessage = $"Reset chit #{SelectedChit?.Index} to original slice.";
+        }
+
+        [RelayCommand]
+        private void ResetAllChits()
+        {
+            foreach (var chit in LoadedChits)
+            {
+                chit.ResetToOriginal();
+            }
+            StatusMessage = $"Reset all {LoadedChits.Count} chits to original slices.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ExportSelectedChit()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                Title = "Save Chit as PNG",
+                Filter = "PNG Image (*.png)|*.png",
+                FileName = SelectedChit.PieceName
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                Cv2.ImWrite(saveFileDialog.FileName, SelectedChit.WorkingMat);
+                StatusMessage = $"Saved chit #{SelectedChit.Index} to {saveFileDialog.FileName}";
+            }
+        }
+
+        [RelayCommand]
+        private async Task ExportAllEditedChitsAsync()
+        {
+            if (LoadedChits.Count == 0) return;
+
+            var folderDialog = new OpenFolderDialog
+            {
+                Title = "Select Destination Folder for Edited PNG Chits",
+                InitialDirectory = !string.IsNullOrEmpty(LoadedFilePath) ? Path.GetDirectoryName(LoadedFilePath) : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
+            };
+
+            if (folderDialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            string targetDir = folderDialog.FolderName;
+            int total = LoadedChits.Count;
+            int count = 0;
+
+            await Task.Run(() =>
+            {
+                foreach (var chit in LoadedChits)
+                {
+                    if (chit.WorkingMat != null && !chit.WorkingMat.IsDisposed)
+                    {
+                        string outPath = Path.Combine(targetDir, chit.PieceName);
+                        Cv2.ImWrite(outPath, chit.WorkingMat);
+                        count++;
+                    }
+                }
+            });
+
+            StatusMessage = $"Successfully exported all {count} edited chits to: {targetDir}";
+        }
+
+        [RelayCommand]
+        private void SelectNextChit()
+        {
+            if (LoadedChits.Count == 0) return;
+            int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : -1;
+            int nextIdx = (idx + 1) % LoadedChits.Count;
+            SelectedChit = LoadedChits[nextIdx];
+        }
+
+        [RelayCommand]
+        private void SelectPrevChit()
+        {
+            if (LoadedChits.Count == 0) return;
+            int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : 0;
+            int prevIdx = (idx - 1 + LoadedChits.Count) % LoadedChits.Count;
+            SelectedChit = LoadedChits[prevIdx];
+        }
+
+        [RelayCommand]
+        private void SetTransparentColor(string colorHex)
+        {
+            try
+            {
+                var color = (Color)ColorConverter.ConvertFromString(colorHex);
+                TransparentColor = color;
+                StatusMessage = $"Transparent color set to {colorHex}";
+            }
+            catch
+            {
+                // Ignore parse errors
+            }
+        }
+
+        [RelayCommand]
+        private void CycleTransparentColor()
+        {
+            // Cycles between common keying colors: Cyan, Magenta, Green, Black, Transparent White
+            if (TransparentColor == Colors.Cyan) TransparentColor = Colors.Magenta;
+            else if (TransparentColor == Colors.Magenta) TransparentColor = Color.FromRgb(0, 255, 0); // Lime
+            else if (TransparentColor == Color.FromRgb(0, 255, 0)) TransparentColor = Colors.Black;
+            else if (TransparentColor == Colors.Black) TransparentColor = Colors.White;
+            else TransparentColor = Colors.Cyan;
+
+            StatusMessage = $"Transparent key color set to {TransparentColor}";
+        }
+
+        private static Vec4b ColorToVec4b(Color color)
+        {
+            return new Vec4b(color.B, color.G, color.R, color.A);
         }
 
         #endregion
