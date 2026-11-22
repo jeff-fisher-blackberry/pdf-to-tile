@@ -53,6 +53,7 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.IsFineTuningDividers):
                 case nameof(MainViewModel.PreviewRowIndex):
                 case nameof(MainViewModel.PreviewColIndex):
+                case nameof(MainViewModel.PreviewChitNumber):
                 case nameof(MainViewModel.SelectedProfile):
                     UpdateGridOverlay();
                     break;

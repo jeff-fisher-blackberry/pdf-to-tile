@@ -189,12 +189,12 @@
                         <Button Content="-"
                                 Width="30"
                                 Command="{Binding ZoomOutCommand}"
-                                ToolTip="Zoom out" />
+                                ToolTip="Zoom out (1%)" />
 
                         <Button Content="+"
                                 Width="30"
                                 Command="{Binding ZoomInCommand}"
-                                ToolTip="Zoom in" />
+                                ToolTip="Zoom in (1%)" />
 
                         <TextBlock Text="Zoom:" Margin="8,0,2,0" />
                         <TextBlock Text="{Binding ZoomPercentageText}" FontWeight="Bold" Width="55" />
@@ -346,12 +346,12 @@
                         <Button Content="-"
                                 Width="30"
                                 Command="{Binding SlicerZoomOutCommand}"
-                                ToolTip="Zoom out" />
+                                ToolTip="Zoom out (1%)" />
 
                         <Button Content="+"
                                 Width="30"
                                 Command="{Binding SlicerZoomInCommand}"
-                                ToolTip="Zoom in" />
+                                ToolTip="Zoom in (1%)" />
 
                         <TextBlock Text="Zoom:" Margin="8,0,2,0" />
                         <TextBlock Text="{Binding SlicerZoomPercentageText}" FontWeight="Bold" Width="55" />
@@ -387,17 +387,26 @@
                                     <StackPanel HorizontalAlignment="Center">
                                         <TextBlock Text="SINGLE CHIT CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
 
-                                        <!-- Banded mode Row/Col selector -->
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6"
-                                                    Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="Row:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <ComboBox ItemsSource="{Binding AvailablePreviewRows}" SelectedItem="{Binding SelectedPreviewRowDisplay}" Width="44" Margin="0,0,10,0" />
-                                            <TextBlock Text="Col:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <ComboBox ItemsSource="{Binding AvailablePreviewCols}" SelectedItem="{Binding SelectedPreviewColDisplay}" Width="48" />
-                                        </StackPanel>
+                                        <!-- Banded mode Chit 1..20 cycling stepper & dropdown -->
+                                        <Grid Margin="0,2,0,6" Width="200" Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousChitCommand}" Width="48" Padding="2,3" ToolTip="Previous Chit (1..20 with wrap-around)" />
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="Chit:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+                                                <ComboBox ItemsSource="{Binding AvailableChitNumbers}" SelectedItem="{Binding PreviewChitNumber}" Width="52" VerticalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextChitCommand}" Width="48" Padding="2,3" ToolTip="Next Chit (1..20 with wrap-around)" />
+                                        </Grid>
 
                                         <TextBlock Text="{Binding PreviewCellText}"
-                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
 
                                         <Border BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"

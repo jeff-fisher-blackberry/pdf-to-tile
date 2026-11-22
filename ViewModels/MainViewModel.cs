@@ -244,12 +244,17 @@ namespace pdf_to_Tiles.ViewModels
         // Single Chit Cut Preview Coordinates
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _previewChitNumber = 1; // 1 to 20
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
         private int _previewRowIndex = 0; // 0 = Row 1, 1 = Row 2
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
         private int _previewColIndex = 0; // 0 = Col 1 ... 9 = Col 10
 
+        public IReadOnlyList<int> AvailableChitNumbers { get; } = Enumerable.Range(1, 20).ToList();
         public IReadOnlyList<int> AvailablePreviewRows { get; } = new List<int> { 1, 2 };
         public IReadOnlyList<int> AvailablePreviewCols { get; } = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
@@ -283,7 +288,9 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (IsBandedMode)
                 {
-                    return $"Band {ActiveBandIndex + 1}, Row {PreviewRowIndex + 1}, Col {PreviewColIndex + 1}";
+                    int row = ((PreviewChitNumber - 1) / 10) + 1;
+                    int col = ((PreviewChitNumber - 1) % 10) + 1;
+                    return $"Chit {PreviewChitNumber} of 20 — Band {ActiveBandIndex + 1}, Row {row}, Col {col}";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
             }
@@ -497,14 +504,14 @@ namespace pdf_to_Tiles.ViewModels
         private void ZoomIn()
         {
             IsFitToPage = false;
-            ZoomScale = Math.Min(Math.Round(ZoomScale * 1.25, 4), 10.0);
+            ZoomScale = Math.Min(Math.Round(ZoomScale + 0.01, 2), 5.0);
         }
 
         [RelayCommand]
         private void ZoomOut()
         {
             IsFitToPage = false;
-            ZoomScale = Math.Max(Math.Round(ZoomScale / 1.25, 4), 0.05);
+            ZoomScale = Math.Max(Math.Round(ZoomScale - 0.01, 2), 0.05);
         }
 
         [RelayCommand(CanExecute = nameof(CanCapturePage))]
@@ -781,6 +788,49 @@ namespace pdf_to_Tiles.ViewModels
         partial void OnPreviewRowIndexChanged(int value) => UpdateChitPreview();
         partial void OnPreviewColIndexChanged(int value) => UpdateChitPreview();
 
+        partial void OnPreviewChitNumberChanged(int value)
+        {
+            int clamped = Math.Clamp(value, 1, 20);
+            if (clamped != value)
+            {
+                PreviewChitNumber = clamped;
+                return;
+            }
+
+            _previewRowIndex = (clamped - 1) / 10;
+            _previewColIndex = (clamped - 1) % 10;
+            OnPropertyChanged(nameof(PreviewRowIndex));
+            OnPropertyChanged(nameof(PreviewColIndex));
+            OnPropertyChanged(nameof(PreviewCellText));
+            UpdateChitPreview();
+        }
+
+        [RelayCommand]
+        private void PreviousChit()
+        {
+            if (PreviewChitNumber > 1)
+            {
+                PreviewChitNumber--;
+            }
+            else
+            {
+                PreviewChitNumber = 20; // wrap-around to 20
+            }
+        }
+
+        [RelayCommand]
+        private void NextChit()
+        {
+            if (PreviewChitNumber < 20)
+            {
+                PreviewChitNumber++;
+            }
+            else
+            {
+                PreviewChitNumber = 1; // wrap-around to 1
+            }
+        }
+
         partial void OnGridLeftPercentChanged(double value) => SyncUniformBoundsAndPreview();
         partial void OnGridTopPercentChanged(double value) => SyncUniformBoundsAndPreview();
         partial void OnGridWidthPercentChanged(double value) => SyncUniformBoundsAndPreview();
@@ -1021,14 +1071,14 @@ namespace pdf_to_Tiles.ViewModels
         private void SlicerZoomIn()
         {
             IsSlicerFitToPage = false;
-            SlicerZoomScale = Math.Min(Math.Round(SlicerZoomScale * 1.25, 4), 10.0);
+            SlicerZoomScale = Math.Min(Math.Round(SlicerZoomScale + 0.01, 2), 5.0);
         }
 
         [RelayCommand]
         private void SlicerZoomOut()
         {
             IsSlicerFitToPage = false;
-            SlicerZoomScale = Math.Max(Math.Round(SlicerZoomScale / 1.25, 4), 0.05);
+            SlicerZoomScale = Math.Max(Math.Round(SlicerZoomScale - 0.01, 2), 0.05);
         }
 
         [RelayCommand(CanExecute = nameof(CanSliceGrid))]
