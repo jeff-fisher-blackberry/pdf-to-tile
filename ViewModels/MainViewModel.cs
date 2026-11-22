@@ -17,13 +17,14 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-22-11.2";
+        private const string AppBaseTitle = "PDF to Tiles 2026-22-11.3";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
         private Mat? _masterMat;
         private Mat? _deskewedMat;
         private CancellationTokenSource? _sliceCts;
+        private bool _isSyncingBand = false;
 
         public Func<(double Width, double Height)>? GetPdfViewportSize { get; set; }
         public Func<(double Width, double Height)>? GetSlicerViewportSize { get; set; }
@@ -100,12 +101,14 @@ namespace pdf_to_Tiles.ViewModels
 
         #endregion
 
-        #region Phase 2: Deskew & Grid Slicer Properties
+        #region Phase 2 & 2.5: Deskew & Grid Slicer Properties
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(HasSlicerImage))]
         [NotifyCanExecuteChangedFor(nameof(AutoDetectTiltCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceGridCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SliceAllBandsCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SliceActiveBandCommand))]
         private BitmapSource? _slicerImage;
 
         [ObservableProperty]
@@ -147,7 +150,12 @@ namespace pdf_to_Tiles.ViewModels
         public ObservableCollection<SheetProfile> AvailableProfiles { get; } = new();
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsBandedMode))]
+        [NotifyPropertyChangedFor(nameof(IsUniformGridMode))]
         private SheetProfile? _selectedProfile;
+
+        public bool IsBandedMode => SelectedProfile?.SlicingMode == GridSlicingMode.Banded2x10;
+        public bool IsUniformGridMode => !IsBandedMode;
 
         [ObservableProperty]
         private int _profileRows = 10;
@@ -155,7 +163,7 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private int _profileColumns = 10;
 
-        // Relative Grid bounds (0 to 100%)
+        // Legacy Relative Grid bounds (0 to 100%) for UniformGrid mode
         [ObservableProperty]
         private double _gridLeftPercent = 5.0;
 
@@ -167,6 +175,119 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         private double _gridHeightPercent = 84.0;
+
+        // Discrete 2x10 Band Properties
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandDisplayIndex))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        [NotifyCanExecuteChangedFor(nameof(PreviousBandCommand))]
+        [NotifyCanExecuteChangedFor(nameof(NextBandCommand))]
+        private int _activeBandIndex = 0;
+
+        public int ActiveBandDisplayIndex => ActiveBandIndex + 1;
+
+        [ObservableProperty]
+        private string _activeBandName = "Band 1: Red Intruders";
+
+        [ObservableProperty]
+        private int _totalBands = 5;
+
+        [ObservableProperty]
+        private double _activeBandLeftPercent = 5.0;
+
+        [ObservableProperty]
+        private double _activeBandTopPercent = 6.5;
+
+        [ObservableProperty]
+        private double _activeBandWidthPercent = 92.1;
+
+        [ObservableProperty]
+        private double _activeBandHeightPercent = 14.2;
+
+        [ObservableProperty]
+        private double _activeBandRowSplitPercent = 50.0;
+
+        // Column Divider Fine-Tuning
+        [ObservableProperty]
+        private bool _isFineTuningDividers = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(SelectedDividerPositionText))]
+        private int _selectedDividerIndex = 0; // 0 to 8 for Dividers 1 to 9
+
+        public IReadOnlyList<string> AvailableDividerNames { get; } = new List<string>
+        {
+            "Divider 1 (Cols 1|2)",
+            "Divider 2 (Cols 2|3)",
+            "Divider 3 (Cols 3|4)",
+            "Divider 4 (Cols 4|5)",
+            "Divider 5 (Cols 5|6)",
+            "Divider 6 (Cols 6|7)",
+            "Divider 7 (Cols 7|8)",
+            "Divider 8 (Cols 8|9)",
+            "Divider 9 (Cols 9|10)"
+        };
+
+        public string SelectedDividerPositionText
+        {
+            get
+            {
+                var band = GetActiveBand();
+                if (band?.ColumnDividers != null && SelectedDividerIndex >= 0 && SelectedDividerIndex < band.ColumnDividers.Count)
+                {
+                    return $"{band.ColumnDividers[SelectedDividerIndex] * 100.0:F1}%";
+                }
+                return "10.0%";
+            }
+        }
+
+        // Single Chit Cut Preview Coordinates
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _previewRowIndex = 0; // 0 = Row 1, 1 = Row 2
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _previewColIndex = 0; // 0 = Col 1 ... 9 = Col 10
+
+        public IReadOnlyList<int> AvailablePreviewRows { get; } = new List<int> { 1, 2 };
+        public IReadOnlyList<int> AvailablePreviewCols { get; } = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+        public int SelectedPreviewRowDisplay
+        {
+            get => PreviewRowIndex + 1;
+            set
+            {
+                if (value >= 1 && value <= 2)
+                {
+                    PreviewRowIndex = value - 1;
+                }
+            }
+        }
+
+        public int SelectedPreviewColDisplay
+        {
+            get => PreviewColIndex + 1;
+            set
+            {
+                if (value >= 1 && value <= 10)
+                {
+                    PreviewColIndex = value - 1;
+                }
+            }
+        }
+
+        public string PreviewCellText
+        {
+            get
+            {
+                if (IsBandedMode)
+                {
+                    return $"Band {ActiveBandIndex + 1}, Row {PreviewRowIndex + 1}, Col {PreviewColIndex + 1}";
+                }
+                return "Cell (Row 1, Col 1) with red cut boundary";
+            }
+        }
 
         [ObservableProperty]
         private double _inwardInsetPx = 4.0;
@@ -190,6 +311,8 @@ namespace pdf_to_Tiles.ViewModels
         // Batch Slicing Execution State
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(SliceGridCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SliceAllBandsCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SliceActiveBandCommand))]
         private bool _isSlicing = false;
 
         [ObservableProperty]
@@ -210,6 +333,7 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             SelectedProfile = AvailableProfiles.FirstOrDefault();
+            SyncFromActiveBand();
         }
 
         #region PDF Viewer Handlers
@@ -436,7 +560,7 @@ namespace pdf_to_Tiles.ViewModels
 
         #endregion
 
-        #region Phase 2: Slicer & Deskew Handlers
+        #region Phase 2 & 2.5: Slicer & Deskew Handlers
 
         [RelayCommand(CanExecute = nameof(CanCapturePage))]
         private async Task SendPageToSlicerAsync()
@@ -454,17 +578,11 @@ namespace pdf_to_Tiles.ViewModels
                 int pageIndex = CurrentPageNumber - 1;
                 int dpi = SelectedDpi;
 
-                // Render high-DPI image in memory
-                string tempPngPath = Path.Combine(Path.GetTempPath(), $"pdf_to_tiles_p{CurrentPageNumber}_{Guid.NewGuid():N}.png");
+                string tempPngPath = Path.Combine(Path.GetTempPath(), $"PdfToTiles_Capture_{Guid.NewGuid():N}.png");
                 await Task.Run(() => PdfPageRenderer.ExportPageToPng(_pdfBytes, pageIndex, dpi, tempPngPath));
 
-                // Load into Mat
                 await LoadImageFileForSlicingAsync(tempPngPath, isTempFile: true);
-
-                // Switch to Deskew & Slicer tab
-                SelectedTabIndex = 1;
-                SelectedSide = SelectedSideTag.Equals("Back", StringComparison.OrdinalIgnoreCase) ? "Back" : "Front";
-                StatusMessage = $"Page {CurrentPageNumber} transferred to Slicer ({SlicerPixelWidth} × {SlicerPixelHeight} px @ {dpi} DPI).";
+                SelectedTabIndex = 1; // Switch tab to Deskew & Grid Slicer
             }
             catch (Exception ex)
             {
@@ -481,7 +599,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             var openFileDialog = new OpenFileDialog
             {
-                Title = "Open Counter Sheet Image for Slicing",
+                Title = "Open Counter Sheet Image for Deskew & Slicing",
                 Filter = "Image Files (*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp|All Files (*.*)|*.*",
                 CheckFileExists = true
             };
@@ -494,7 +612,7 @@ namespace pdf_to_Tiles.ViewModels
             await LoadImageFileForSlicingAsync(openFileDialog.FileName, isTempFile: false);
         }
 
-        private async Task LoadImageFileForSlicingAsync(string filePath, bool isTempFile)
+        public async Task LoadImageFileForSlicingAsync(string filePath, bool isTempFile)
         {
             IsLoading = true;
             StatusMessage = $"Loading {Path.GetFileName(filePath)}...";
@@ -544,6 +662,69 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
+        public Band2x10Definition? GetActiveBand()
+        {
+            if (SelectedProfile == null) return null;
+            var bands = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                ? SelectedProfile.BackBands
+                : SelectedProfile.FrontBands;
+
+            if (bands == null || bands.Count == 0) return null;
+            int idx = Math.Clamp(ActiveBandIndex, 0, bands.Count - 1);
+            return bands[idx];
+        }
+
+        private void SyncFromActiveBand()
+        {
+            var bands = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                ? SelectedProfile?.BackBands
+                : SelectedProfile?.FrontBands;
+
+            TotalBands = bands != null && bands.Count > 0 ? bands.Count : 5;
+            if (ActiveBandIndex >= TotalBands)
+            {
+                ActiveBandIndex = Math.Max(0, TotalBands - 1);
+            }
+
+            var band = GetActiveBand();
+            if (band == null) return;
+
+            _isSyncingBand = true;
+            try
+            {
+                ActiveBandName = band.Name;
+                ActiveBandLeftPercent = Math.Round(band.Bounds.Left * 100, 2);
+                ActiveBandTopPercent = Math.Round(band.Bounds.Top * 100, 2);
+                ActiveBandWidthPercent = Math.Round(band.Bounds.Width * 100, 2);
+                ActiveBandHeightPercent = Math.Round(band.Bounds.Height * 100, 2);
+                ActiveBandRowSplitPercent = Math.Round(band.RowSplitRatio * 100, 1);
+                OnPropertyChanged(nameof(SelectedDividerPositionText));
+                OnPropertyChanged(nameof(PreviewCellText));
+            }
+            finally
+            {
+                _isSyncingBand = false;
+            }
+
+            UpdateChitPreview();
+        }
+
+        private void SyncToActiveBand()
+        {
+            if (_isSyncingBand) return;
+
+            var band = GetActiveBand();
+            if (band == null) return;
+
+            band.Bounds.Left = Math.Clamp(ActiveBandLeftPercent / 100.0, 0.0, 0.99);
+            band.Bounds.Top = Math.Clamp(ActiveBandTopPercent / 100.0, 0.0, 0.99);
+            band.Bounds.Width = Math.Clamp(ActiveBandWidthPercent / 100.0, 0.01, 1.0 - band.Bounds.Left);
+            band.Bounds.Height = Math.Clamp(ActiveBandHeightPercent / 100.0, 0.01, 1.0 - band.Bounds.Top);
+            band.RowSplitRatio = Math.Clamp(ActiveBandRowSplitPercent / 100.0, 0.1, 0.9);
+
+            UpdateChitPreview();
+        }
+
         partial void OnSelectedProfileChanged(SheetProfile? value)
         {
             if (value != null)
@@ -560,7 +741,10 @@ namespace pdf_to_Tiles.ViewModels
                 GridWidthPercent = Math.Round(bounds.Width * 100, 2);
                 GridHeightPercent = Math.Round(bounds.Height * 100, 2);
 
-                UpdateChitPreview();
+                OnPropertyChanged(nameof(IsBandedMode));
+                OnPropertyChanged(nameof(IsUniformGridMode));
+
+                SyncFromActiveBand();
             }
         }
 
@@ -577,7 +761,7 @@ namespace pdf_to_Tiles.ViewModels
                 GridWidthPercent = Math.Round(bounds.Width * 100, 2);
                 GridHeightPercent = Math.Round(bounds.Height * 100, 2);
 
-                UpdateChitPreview();
+                SyncFromActiveBand();
             }
         }
 
@@ -586,17 +770,28 @@ namespace pdf_to_Tiles.ViewModels
             _ = ApplyDeskewRotationAsync();
         }
 
-        partial void OnGridLeftPercentChanged(double value) => SyncProfileBoundsAndPreview();
-        partial void OnGridTopPercentChanged(double value) => SyncProfileBoundsAndPreview();
-        partial void OnGridWidthPercentChanged(double value) => SyncProfileBoundsAndPreview();
-        partial void OnGridHeightPercentChanged(double value) => SyncProfileBoundsAndPreview();
-        partial void OnInwardInsetPxChanged(double value) => SyncProfileBoundsAndPreview();
-        partial void OnProfileRowsChanged(int value) => SyncProfileBoundsAndPreview();
-        partial void OnProfileColumnsChanged(int value) => SyncProfileBoundsAndPreview();
+        partial void OnActiveBandIndexChanged(int value) => SyncFromActiveBand();
+        partial void OnActiveBandLeftPercentChanged(double value) => SyncToActiveBand();
+        partial void OnActiveBandTopPercentChanged(double value) => SyncToActiveBand();
+        partial void OnActiveBandWidthPercentChanged(double value) => SyncToActiveBand();
+        partial void OnActiveBandHeightPercentChanged(double value) => SyncToActiveBand();
+        partial void OnActiveBandRowSplitPercentChanged(double value) => SyncToActiveBand();
 
-        private void SyncProfileBoundsAndPreview()
+        partial void OnSelectedDividerIndexChanged(int value) => OnPropertyChanged(nameof(SelectedDividerPositionText));
+        partial void OnPreviewRowIndexChanged(int value) => UpdateChitPreview();
+        partial void OnPreviewColIndexChanged(int value) => UpdateChitPreview();
+
+        partial void OnGridLeftPercentChanged(double value) => SyncUniformBoundsAndPreview();
+        partial void OnGridTopPercentChanged(double value) => SyncUniformBoundsAndPreview();
+        partial void OnGridWidthPercentChanged(double value) => SyncUniformBoundsAndPreview();
+        partial void OnGridHeightPercentChanged(double value) => SyncUniformBoundsAndPreview();
+        partial void OnInwardInsetPxChanged(double value) => UpdateChitPreview();
+        partial void OnProfileRowsChanged(int value) => SyncUniformBoundsAndPreview();
+        partial void OnProfileColumnsChanged(int value) => SyncUniformBoundsAndPreview();
+
+        private void SyncUniformBoundsAndPreview()
         {
-            if (SelectedProfile != null)
+            if (SelectedProfile != null && !IsBandedMode)
             {
                 var targetBounds = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
                     ? SelectedProfile.BackBounds
@@ -616,6 +811,72 @@ namespace pdf_to_Tiles.ViewModels
 
             UpdateChitPreview();
         }
+
+        #region Band Navigation & Divider Tuning Commands
+
+        [RelayCommand(CanExecute = nameof(CanGoPreviousBand))]
+        private void PreviousBand()
+        {
+            if (ActiveBandIndex > 0)
+            {
+                ActiveBandIndex--;
+            }
+        }
+
+        private bool CanGoPreviousBand() => ActiveBandIndex > 0;
+
+        [RelayCommand(CanExecute = nameof(CanGoNextBand))]
+        private void NextBand()
+        {
+            if (ActiveBandIndex < TotalBands - 1)
+            {
+                ActiveBandIndex++;
+            }
+        }
+
+        private bool CanGoNextBand() => ActiveBandIndex < TotalBands - 1;
+
+        [RelayCommand]
+        private void NudgeDividerNegative()
+        {
+            var band = GetActiveBand();
+            if (band?.ColumnDividers != null && SelectedDividerIndex >= 0 && SelectedDividerIndex < band.ColumnDividers.Count)
+            {
+                double minPos = SelectedDividerIndex == 0 ? 0.02 : band.ColumnDividers[SelectedDividerIndex - 1] + 0.005;
+                double newPos = Math.Round(band.ColumnDividers[SelectedDividerIndex] - 0.002, 4);
+                band.ColumnDividers[SelectedDividerIndex] = Math.Max(minPos, newPos);
+                OnPropertyChanged(nameof(SelectedDividerPositionText));
+                UpdateChitPreview();
+            }
+        }
+
+        [RelayCommand]
+        private void NudgeDividerPositive()
+        {
+            var band = GetActiveBand();
+            if (band?.ColumnDividers != null && SelectedDividerIndex >= 0 && SelectedDividerIndex < band.ColumnDividers.Count)
+            {
+                double maxPos = SelectedDividerIndex == band.ColumnDividers.Count - 1 ? 0.98 : band.ColumnDividers[SelectedDividerIndex + 1] - 0.005;
+                double newPos = Math.Round(band.ColumnDividers[SelectedDividerIndex] + 0.002, 4);
+                band.ColumnDividers[SelectedDividerIndex] = Math.Min(maxPos, newPos);
+                OnPropertyChanged(nameof(SelectedDividerPositionText));
+                UpdateChitPreview();
+            }
+        }
+
+        [RelayCommand]
+        private void ResetDividersToEven()
+        {
+            var band = GetActiveBand();
+            if (band != null)
+            {
+                band.ColumnDividers = Band2x10Definition.GetDefaultEvenDividers(10);
+                OnPropertyChanged(nameof(SelectedDividerPositionText));
+                UpdateChitPreview();
+            }
+        }
+
+        #endregion
 
         private async Task ApplyDeskewRotationAsync()
         {
@@ -699,8 +960,18 @@ namespace pdf_to_Tiles.ViewModels
 
             try
             {
-                using var previewMat = GridSlicerService.ExtractCellPreview(_deskewedMat, SelectedProfile, SelectedSide, 0, 0);
-                ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
+                if (IsBandedMode)
+                {
+                    using var previewMat = GridSlicerService.ExtractBandedCellPreview(
+                        _deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex);
+                    ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
+                }
+                else
+                {
+                    using var previewMat = GridSlicerService.ExtractCellPreview(
+                        _deskewedMat, SelectedProfile, SelectedSide, 0, 0);
+                    ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
+                }
             }
             catch
             {
@@ -761,7 +1032,24 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanSliceGrid))]
+        private async Task SliceAllBandsAsync()
+        {
+            await ExecuteSlicingAsync(singleBand: false);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSliceGrid))]
+        private async Task SliceActiveBandAsync()
+        {
+            await ExecuteSlicingAsync(singleBand: true);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSliceGrid))]
         private async Task SliceGridAsync()
+        {
+            await ExecuteSlicingAsync(singleBand: false);
+        }
+
+        private async Task ExecuteSlicingAsync(bool singleBand)
         {
             if (_deskewedMat == null || _deskewedMat.IsDisposed || SelectedProfile == null)
             {
@@ -780,12 +1068,21 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             string targetDir = folderDialog.FolderName;
-            int pieceCount = SelectedProfile.Rows * SelectedProfile.Columns;
+
+            int pieceCount;
+            if (IsBandedMode)
+            {
+                pieceCount = singleBand ? 20 : (TotalBands * 2 * 10);
+            }
+            else
+            {
+                pieceCount = SelectedProfile.Rows * SelectedProfile.Columns;
+            }
 
             IsSlicing = true;
             SliceProgressPercent = 0;
             SliceProgressText = $"Preparing to slice {pieceCount} pieces...";
-            StatusMessage = $"Slicing grid into {pieceCount} individual PNG pieces...";
+            StatusMessage = $"Slicing {(singleBand ? "active band" : "all bands")} into {pieceCount} PNG pieces...";
 
             _sliceCts = new CancellationTokenSource();
 
@@ -801,14 +1098,30 @@ namespace pdf_to_Tiles.ViewModels
                 var profileCopy = SelectedProfile.Clone();
                 string currentSide = SelectedSide;
 
-                await GridSlicerService.SliceGridAsync(
-                    _deskewedMat,
-                    profileCopy,
-                    currentSide,
-                    targetDir,
-                    progress,
-                    _sliceCts.Token
-                );
+                if (IsBandedMode)
+                {
+                    int? bandIndex = singleBand ? ActiveBandIndex : null;
+                    await GridSlicerService.SliceBandedGridAsync(
+                        _deskewedMat,
+                        profileCopy,
+                        currentSide,
+                        targetDir,
+                        progress,
+                        _sliceCts.Token,
+                        bandIndex
+                    );
+                }
+                else
+                {
+                    await GridSlicerService.SliceGridAsync(
+                        _deskewedMat,
+                        profileCopy,
+                        currentSide,
+                        targetDir,
+                        progress,
+                        _sliceCts.Token
+                    );
+                }
 
                 StatusMessage = $"Successfully exported all {pieceCount} pieces to: {targetDir}";
                 SliceProgressText = $"Completed! {pieceCount} pieces saved to {targetDir}";

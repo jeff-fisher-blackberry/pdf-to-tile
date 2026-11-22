@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace pdf_to_Tiles.Models
 {
@@ -57,6 +59,13 @@ namespace pdf_to_Tiles.Models
     public class SheetProfile
     {
         public string Name { get; set; } = "SPI WorldKiller 1980 (10x10)";
+
+        /// <summary>
+        /// Strategy used for slicing: Banded2x10 (discrete 2x10 strips) or UniformGrid (legacy continuous grid).
+        /// </summary>
+        public GridSlicingMode SlicingMode { get; set; } = GridSlicingMode.Banded2x10;
+
+        // Legacy Uniform Grid fields (preserved for generic sheets and backward compatibility)
         public int Rows { get; set; } = 10;
         public int Columns { get; set; } = 10;
 
@@ -75,6 +84,10 @@ namespace pdf_to_Tiles.Models
             Width = 0.90,
             Height = 0.84
         };
+
+        // Discrete 2x10 bands (independent front and back press alignment)
+        public List<Band2x10Definition> FrontBands { get; set; } = new();
+        public List<Band2x10Definition> BackBands { get; set; } = new();
 
         /// <summary>
         /// Inward pixel inset (e.g. 2-6 px at 600 DPI) to prevent adjacent chit artwork or die-cut line bleed.
@@ -101,10 +114,13 @@ namespace pdf_to_Tiles.Models
             return new SheetProfile
             {
                 Name = Name,
+                SlicingMode = SlicingMode,
                 Rows = Rows,
                 Columns = Columns,
                 FrontBounds = FrontBounds.Clone(),
                 BackBounds = BackBounds.Clone(),
+                FrontBands = FrontBands.Select(b => b.Clone()).ToList(),
+                BackBands = BackBands.Select(b => b.Clone()).ToList(),
                 InwardInsetPx = InwardInsetPx,
                 BackOrientation = BackOrientation,
                 NamingPrefix = NamingPrefix,
