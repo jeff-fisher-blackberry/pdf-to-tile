@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.7";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.8";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1432,6 +1432,11 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
         private ChitItem? _selectedChit;
 
+        partial void OnSelectedChitChanging(ChitItem? oldValue, ChitItem? newValue)
+        {
+            oldValue?.SetPreviewMat(null);
+        }
+
         partial void OnSelectedChitChanged(ChitItem? value)
         {
             if (value != null)
@@ -1448,6 +1453,9 @@ namespace pdf_to_Tiles.ViewModels
                 {
                     AutoSampleEdgeColorInternal(value);
                 }
+
+                _lastCommittedSignature = null;
+                UpdateLiveEdgeCleanPreview();
             }
         }
 
@@ -1522,6 +1530,63 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         private bool _linkEdgeCleanSides = false;
+
+        partial void OnChitEdgeCleanTopDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanBottomDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanLeftDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanRightDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanToleranceChanged(int value) => UpdateLiveEdgeCleanPreview();
+        partial void OnSelectedEdgeCleanModeChanged(string value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanColorChanged(Color value) => UpdateLiveEdgeCleanPreview();
+        partial void OnPreserveTransparentCornersChanged(bool value) => UpdateLiveEdgeCleanPreview();
+
+        private string? _lastCommittedSignature;
+
+        private string GetCurrentEdgeCleanSignature()
+        {
+            return $"{ChitEdgeCleanTopDepth}_{ChitEdgeCleanBottomDepth}_{ChitEdgeCleanLeftDepth}_{ChitEdgeCleanRightDepth}_{ChitEdgeCleanTolerance}_{SelectedEdgeCleanMode}_{ChitEdgeCleanColor.R}_{ChitEdgeCleanColor.G}_{ChitEdgeCleanColor.B}_{PreserveTransparentCorners}";
+        }
+
+        private void UpdateLiveEdgeCleanPreview()
+        {
+            if (SelectedChit == null || SelectedChit.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed)
+            {
+                return;
+            }
+
+            int top = ChitEdgeCleanTopDepth;
+            int bottom = ChitEdgeCleanBottomDepth;
+            int left = ChitEdgeCleanLeftDepth;
+            int right = ChitEdgeCleanRightDepth;
+
+            string currentSig = GetCurrentEdgeCleanSignature();
+            if ((top == 0 && bottom == 0 && left == 0 && right == 0) || currentSig == _lastCommittedSignature)
+            {
+                SelectedChit.SetPreviewMat(null);
+                return;
+            }
+
+            try
+            {
+                Vec4b targetBg = ColorToVec4b(ChitEdgeCleanColor);
+                using Mat previewMat = ChitEditorService.ApplyEdgeCleanup(
+                    SelectedChit.WorkingMat,
+                    top,
+                    bottom,
+                    left,
+                    right,
+                    ChitEdgeCleanTolerance,
+                    ChitEdgeCleanMode,
+                    targetBg,
+                    PreserveTransparentCorners);
+
+                SelectedChit.SetPreviewMat(previewMat);
+            }
+            catch
+            {
+                SelectedChit.SetPreviewMat(null);
+            }
+        }
 
         partial void OnLinkEdgeCleanSidesChanged(bool value)
         {
@@ -1662,13 +1727,19 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void UndoChit()
         {
-            SelectedChit?.Undo();
+            if (SelectedChit == null) return;
+            _lastCommittedSignature = null;
+            SelectedChit.Undo();
+            UpdateLiveEdgeCleanPreview();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void RedoChit()
         {
-            SelectedChit?.Redo();
+            if (SelectedChit == null) return;
+            _lastCommittedSignature = null;
+            SelectedChit.Redo();
+            UpdateLiveEdgeCleanPreview();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -1683,6 +1754,8 @@ namespace pdf_to_Tiles.ViewModels
                 var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, ChitEditorBevelSize);
                 chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
             }
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} chits." : $"Applied {ChitEditorBevelSize}px bevel to chit #{SelectedChit.Index}.";
         }
 
@@ -1699,6 +1772,8 @@ namespace pdf_to_Tiles.ViewModels
                 var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, key);
                 chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
             }
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} chits." : $"Applied {ChitEditorClipSize}px corner clip to chit #{SelectedChit.Index}.";
         }
 
@@ -1715,6 +1790,8 @@ namespace pdf_to_Tiles.ViewModels
                 var cleared = ChitEditorService.ApplyClearBorder(chit.WorkingMat, ChitEditorClearSize, key);
                 chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
             }
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} chits." : $"Cleared {ChitEditorClearSize}px outer border on chit #{SelectedChit.Index}.";
         }
 
@@ -1730,6 +1807,8 @@ namespace pdf_to_Tiles.ViewModels
                 var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight);
                 chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
             }
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
@@ -1746,6 +1825,8 @@ namespace pdf_to_Tiles.ViewModels
                 var resized = ChitEditorService.ApplyResize(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight, key);
                 chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
             }
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
@@ -1804,6 +1885,12 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(cleaned, recordHistory: true, TransparentColor);
             }
 
+            // Mark current settings as committed into WorkingMat to avoid double-application
+            _lastCommittedSignature = GetCurrentEdgeCleanSignature();
+
+            // Refresh preview display so it points to the newly committed WorkingMat without double-applying
+            SelectedChit.SetPreviewMat(null);
+
             StatusMessage = ApplyToAllChits
                 ? $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to all {targets.Count} chits."
                 : $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to chit #{SelectedChit.Index}.";
@@ -1812,17 +1899,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ResetSelectedChit()
         {
-            SelectedChit?.ResetToOriginal();
-            StatusMessage = $"Reset chit #{SelectedChit?.Index} to original slice.";
+            if (SelectedChit == null) return;
+            _lastCommittedSignature = null;
+            SelectedChit.ResetToOriginal();
+            UpdateLiveEdgeCleanPreview();
+            StatusMessage = $"Reset chit #{SelectedChit.Index} to original slice.";
         }
 
         [RelayCommand]
         private void ResetAllChits()
         {
+            _lastCommittedSignature = null;
             foreach (var chit in LoadedChits)
             {
                 chit.ResetToOriginal();
             }
+            UpdateLiveEdgeCleanPreview();
             StatusMessage = $"Reset all {LoadedChits.Count} chits to original slices.";
         }
 

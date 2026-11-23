@@ -292,11 +292,7 @@
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        HorizontalAlignment="Center"
-                                       Margin="0,10,0,4" />
-                            <TextBlock Text="Click 'Open PDF...' to open a rulebook or counter sheet (non-locking)"
-                                       FontSize="13"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       HorizontalAlignment="Center" />
+                                       Margin="0,10,0,0" />
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
@@ -696,8 +692,6 @@
                                         Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="GRID BOUNDING BOX (% OF SHEET)" Style="{StaticResource SectionHeaderStyle}" />
-                                        <TextBlock Text="Isolates counter matrix from scanner margins &amp; labels."
-                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
 
                                         <!-- Left (X) -->
                                         <Grid Margin="0,2">
@@ -905,11 +899,7 @@
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            HorizontalAlignment="Center"
-                                           Margin="0,10,0,4" />
-                                <TextBlock Text="Click 'Open Image...' or select a page in the PDF Viewer and click 'Send Page to Slicer'"
-                                           FontSize="13"
-                                           Foreground="{DynamicResource TextMutedBrush}"
-                                           HorizontalAlignment="Center" />
+                                           Margin="0,10,0,0" />
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
@@ -983,7 +973,6 @@
                                         Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="TILE TOOLS (WORKING AREA)" Style="{StaticResource SectionHeaderStyle}" />
-                                        <TextBlock Text="Edit dimensions, borders, and transparency of active chit." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" />
 
                                         <!-- Row 1: Dimensions (Width x Height) + Undo/Redo + Clip -->
                                         <Grid Margin="0,0,0,8">
@@ -1389,23 +1378,6 @@
                                         </Border>
                                     </StackPanel>
                                 </Border>
-                            </StackPanel>
-
-                            <!-- Empty State for Chit Editor -->
-                            <StackPanel HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Visibility="{Binding HasSelectedChit, Converter={StaticResource BoolInvert}}">
-                                <TextBlock Text="✂" FontSize="64" HorizontalAlignment="Center" Opacity="0.4" />
-                                <TextBlock Text="No Chits Loaded in Editor"
-                                           FontSize="20"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,10,0,4" />
-                                <TextBlock Text="Go to 'Deskew &amp; Grid Slicer' and click 'Send 2×10 Band to Chit Editor' to begin"
-                                           FontSize="13"
-                                           Foreground="{DynamicResource TextMutedBrush}"
-                                           HorizontalAlignment="Center" />
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>

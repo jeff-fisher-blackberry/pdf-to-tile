@@ -251,6 +251,29 @@ namespace pdf_to_Tiles.Models
             ThumbnailSource = MatToFrozenBitmapSource(thumbMat);
         }
 
+        /// <summary>
+        /// Sets a non-destructive live preview bitmap on the chit without modifying WorkingMat or recording history.
+        /// If previewMat is null, resets PreviewSource back to the committed WorkingMat bitmap.
+        /// </summary>
+        public void SetPreviewMat(Mat? previewMat)
+        {
+            lock (_lock)
+            {
+                if (previewMat != null && !previewMat.IsDisposed && previewMat.Width > 0 && previewMat.Height > 0)
+                {
+                    PreviewSource = MatToFrozenBitmapSource(previewMat);
+                }
+                else if (WorkingMat != null && !WorkingMat.IsDisposed && WorkingMat.Width > 0 && WorkingMat.Height > 0)
+                {
+                    PreviewSource = MatToFrozenBitmapSource(WorkingMat);
+                }
+                else
+                {
+                    PreviewSource = null;
+                }
+            }
+        }
+
         private static BitmapSource MatToFrozenBitmapSource(Mat bgraMat)
         {
             int width = bgraMat.Width;
