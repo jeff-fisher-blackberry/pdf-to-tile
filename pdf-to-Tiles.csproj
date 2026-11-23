@@ -7,11 +7,16 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>2026-23-11.6</Version>
-    <InformationalVersion>2026-23-11.6</InformationalVersion>
-    <AssemblyVersion>2026.23.11.6</AssemblyVersion>
-    <FileVersion>2026.23.11.6</FileVersion>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>2026-23-11.7</Version>
+    <InformationalVersion>2026-23-11.7</InformationalVersion>
+    <AssemblyVersion>2026.23.11.7</AssemblyVersion>
+    <FileVersion>2026.23.11.7</FileVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />

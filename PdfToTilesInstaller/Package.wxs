@@ -2,12 +2,15 @@
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="PDF to Tiles"
            Manufacturer="Cyberboard Tools"
-           Version="26.23.11.6"
+           Version="26.23.11.7"
            UpgradeCode="FF1FAC66-A55B-4F14-9C53-3F058C9742AB"
            Scope="perMachine">
     
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="..\Assets\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="PDF to Tiles" />
