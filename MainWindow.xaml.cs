@@ -20,6 +20,7 @@ namespace pdf_to_Tiles
         public MainWindow()
         {
             InitializeComponent();
+            PreviewKeyDown += MainWindow_PreviewKeyDown;
 
             if (DataContext is MainViewModel vm)
             {
@@ -357,11 +358,56 @@ namespace pdf_to_Tiles
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape && DataContext is MainViewModel vm && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
+            if (DataContext is not MainViewModel vm)
+            {
+                return;
+            }
+
+            // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking
+            if (e.Key == Key.Escape && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
             {
                 vm.IsSettingUpperLeftCorner = false;
                 vm.IsSettingLowerRightCorner = false;
                 e.Handled = true;
+                return;
+            }
+
+            // Tab 3 (Chit Editor): Ctrl+X, Ctrl+C, Ctrl+V for working chit
+            if (vm.SelectedTabIndex == 2)
+            {
+                // Do not intercept if user is typing or editing inside a TextBox
+                if (e.OriginalSource is TextBox)
+                {
+                    return;
+                }
+
+                if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+                {
+                    if (e.Key == Key.X)
+                    {
+                        if (vm.CutChitCommand.CanExecute(null))
+                        {
+                            vm.CutChitCommand.Execute(null);
+                            e.Handled = true;
+                        }
+                    }
+                    else if (e.Key == Key.C)
+                    {
+                        if (vm.CopyChitCommand.CanExecute(null))
+                        {
+                            vm.CopyChitCommand.Execute(null);
+                            e.Handled = true;
+                        }
+                    }
+                    else if (e.Key == Key.V)
+                    {
+                        if (vm.PasteChitCommand.CanExecute(null))
+                        {
+                            vm.PasteChitCommand.Execute(null);
+                            e.Handled = true;
+                        }
+                    }
+                }
             }
         }
 

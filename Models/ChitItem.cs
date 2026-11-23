@@ -274,7 +274,7 @@ namespace pdf_to_Tiles.Models
             }
         }
 
-        private static BitmapSource MatToFrozenBitmapSource(Mat bgraMat)
+        public static BitmapSource MatToFrozenBitmapSource(Mat bgraMat)
         {
             int width = bgraMat.Width;
             int height = bgraMat.Height;

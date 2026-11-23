@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.13";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.14";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1694,6 +1694,9 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyPropertyChangedFor(nameof(HasSelectedChit))]
         [NotifyCanExecuteChangedFor(nameof(UndoChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(RedoChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(CutChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(CopyChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(PasteChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyBevelCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
@@ -2139,6 +2142,257 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed;
+        private bool CanPasteChit() => SelectedChit != null;
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void CutChit()
+        {
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+
+            // 1. Copy active chit image to clipboard
+            if (!CopyChitToClipboardInternal(SelectedChit.WorkingMat))
+            {
+                StatusMessage = "Cut failed: Unable to access Windows clipboard.";
+                return;
+            }
+
+            int w = Math.Max(8, SelectedChit.WorkingMat.Width);
+            int h = Math.Max(8, SelectedChit.WorkingMat.Height);
+
+            // 2. Clear to transparent canvas
+            var blankMat = new Mat(h, w, MatType.CV_8UC4, new Scalar(0, 0, 0, 0));
+            SelectedChit.UpdateWorkingMat(blankMat, recordHistory: true, Colors.Transparent);
+
+            _lastCommittedSignature = null;
+            UpdateLiveEdgeCleanPreview();
+            StatusMessage = $"Cut chit #{SelectedChit.Index} to clipboard ({w} × {h} px).";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void CopyChit()
+        {
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+
+            if (CopyChitToClipboardInternal(SelectedChit.WorkingMat))
+            {
+                StatusMessage = $"Copied chit #{SelectedChit.Index} to clipboard ({SelectedChit.WorkingMat.Width} × {SelectedChit.WorkingMat.Height} px).";
+            }
+            else
+            {
+                StatusMessage = "Copy failed: Unable to access Windows clipboard.";
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanPasteChit))]
+        private void PasteChit()
+        {
+            if (SelectedChit == null) return;
+
+            Mat? pastedMat = null;
+            try
+            {
+                pastedMat = GetMatFromClipboard();
+                if (pastedMat == null)
+                {
+                    StatusMessage = "Clipboard does not contain a supported image format.";
+                    return;
+                }
+
+                if (pastedMat.Width < 8 || pastedMat.Height < 8)
+                {
+                    pastedMat.Dispose();
+                    StatusMessage = "Pasted image is too small (minimum 8×8 px).";
+                    return;
+                }
+
+                var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    var chit = targets[i];
+                    var matToApply = (i == targets.Count - 1) ? pastedMat : pastedMat.Clone();
+                    chit.UpdateWorkingMat(matToApply, recordHistory: true, Colors.Transparent);
+                }
+
+                ChitEditorWidth = pastedMat.Width;
+                ChitEditorHeight = pastedMat.Height;
+                ClampCurrentEdgeCleanDepths();
+
+                _lastCommittedSignature = null;
+                UpdateLiveEdgeCleanPreview();
+
+                StatusMessage = ApplyToAllChits
+                    ? $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) to all {targets.Count} chits."
+                    : $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) into chit #{SelectedChit.Index}.";
+            }
+            catch (Exception ex)
+            {
+                pastedMat?.Dispose();
+                StatusMessage = $"Paste failed: {ex.Message}";
+            }
+        }
+
+        private static bool CopyChitToClipboardInternal(Mat mat)
+        {
+            if (mat == null || mat.IsDisposed) return false;
+
+            try
+            {
+                var bitmapSource = ChitItem.MatToFrozenBitmapSource(mat);
+                byte[] pngBytes = mat.ToBytes(".png");
+
+                var dataObj = new System.Windows.DataObject();
+                dataObj.SetImage(bitmapSource);
+
+                using (var ms = new MemoryStream(pngBytes))
+                {
+                    dataObj.SetData("PNG", ms, false);
+                    SetClipboardDataSafe(dataObj);
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void SetClipboardDataSafe(System.Windows.DataObject dataObj)
+        {
+            for (int retry = 0; retry < 5; retry++)
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetDataObject(dataObj, true);
+                    return;
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+        }
+
+        private static Mat? GetMatFromClipboard()
+        {
+            for (int retry = 0; retry < 5; retry++)
+            {
+                try
+                {
+                    var dataObj = System.Windows.Clipboard.GetDataObject();
+                    if (dataObj == null) return null;
+
+                    // 1. First priority: Check for 32-bit PNG stream for lossless alpha
+                    if (dataObj.GetDataPresent("PNG"))
+                    {
+                        var pngData = dataObj.GetData("PNG");
+                        if (pngData is Stream stream)
+                        {
+                            using var ms = new MemoryStream();
+                            stream.CopyTo(ms);
+                            byte[] bytes = ms.ToArray();
+                            if (bytes.Length > 0)
+                            {
+                                var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
+                                if (decoded != null && !decoded.Empty())
+                                {
+                                    return EnsureBgraMat(decoded);
+                                }
+                            }
+                        }
+                        else if (pngData is byte[] bytes && bytes.Length > 0)
+                        {
+                            var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
+                            if (decoded != null && !decoded.Empty())
+                            {
+                                return EnsureBgraMat(decoded);
+                            }
+                        }
+                    }
+
+                    // 2. Second priority: Standard BitmapSource image
+                    if (dataObj.GetDataPresent(System.Windows.DataFormats.Bitmap) || System.Windows.Clipboard.ContainsImage())
+                    {
+                        var imageSource = System.Windows.Clipboard.GetImage();
+                        if (imageSource != null)
+                        {
+                            return BitmapSourceToBgraMat(imageSource);
+                        }
+                    }
+
+                    // 3. Third priority: File drop list (image file copied in Windows Explorer)
+                    if (dataObj.GetDataPresent(System.Windows.DataFormats.FileDrop))
+                    {
+                        if (dataObj.GetData(System.Windows.DataFormats.FileDrop) is string[] files && files.Length > 0)
+                        {
+                            string filePath = files[0];
+                            string ext = Path.GetExtension(filePath).ToLowerInvariant();
+                            if (ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tif" or ".tiff")
+                            {
+                                var loaded = Cv2.ImRead(filePath, ImreadModes.Unchanged);
+                                if (loaded != null && !loaded.Empty())
+                                {
+                                    return EnsureBgraMat(loaded);
+                                }
+                            }
+                        }
+                    }
+
+                    return null;
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+            return null;
+        }
+
+        private static Mat EnsureBgraMat(Mat src)
+        {
+            if (src.Type() == MatType.CV_8UC4)
+            {
+                return src;
+            }
+
+            var bgra = new Mat();
+            if (src.Type() == MatType.CV_8UC3)
+            {
+                Cv2.CvtColor(src, bgra, ColorConversionCodes.BGR2BGRA);
+            }
+            else if (src.Type() == MatType.CV_8UC1)
+            {
+                Cv2.CvtColor(src, bgra, ColorConversionCodes.GRAY2BGRA);
+            }
+            else
+            {
+                src.ConvertTo(src, MatType.CV_8U);
+                if (src.Channels() == 1) Cv2.CvtColor(src, bgra, ColorConversionCodes.GRAY2BGRA);
+                else if (src.Channels() == 3) Cv2.CvtColor(src, bgra, ColorConversionCodes.BGR2BGRA);
+                else src.CopyTo(bgra);
+            }
+            src.Dispose();
+            return bgra;
+        }
+
+        private static Mat BitmapSourceToBgraMat(BitmapSource source)
+        {
+            FormatConvertedBitmap formatted = new FormatConvertedBitmap();
+            formatted.BeginInit();
+            formatted.Source = source;
+            formatted.DestinationFormat = PixelFormats.Bgra32;
+            formatted.EndInit();
+            formatted.Freeze();
+
+            int width = formatted.PixelWidth;
+            int height = formatted.PixelHeight;
+            int stride = width * 4;
+            byte[] pixelBytes = new byte[height * stride];
+            formatted.CopyPixels(pixelBytes, stride, 0);
+
+            Mat mat = new Mat(height, width, MatType.CV_8UC4);
+            System.Runtime.InteropServices.Marshal.Copy(pixelBytes, 0, mat.Data, pixelBytes.Length);
+            return mat;
+        }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void UndoChit()
