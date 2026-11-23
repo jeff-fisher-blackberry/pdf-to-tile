@@ -1189,6 +1189,11 @@
 
                                         <!-- Row 6: Checkbox Options -->
                                         <WrapPanel Margin="0,2,0,0">
+                                            <CheckBox Content="Link sides"
+                                                      IsChecked="{Binding LinkEdgeCleanSides}"
+                                                      FontSize="11"
+                                                      Margin="0,0,10,0"
+                                                      ToolTip="When checked, adjusting any side adjusts all four sides together" />
                                             <CheckBox Content="Preserve corner clips"
                                                       IsChecked="{Binding PreserveTransparentCorners}"
                                                       FontSize="11"

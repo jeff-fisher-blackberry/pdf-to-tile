@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.5";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.6";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1520,6 +1520,26 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private bool _lockEdgeCleanColor = false;
 
+        [ObservableProperty]
+        private bool _linkEdgeCleanSides = false;
+
+        partial void OnLinkEdgeCleanSidesChanged(bool value)
+        {
+            if (value)
+            {
+                SetAllDepths(ChitEdgeCleanTopDepth);
+            }
+        }
+
+        private void SetAllDepths(int val)
+        {
+            int clamped = Math.Clamp(val, 0, 10);
+            ChitEdgeCleanTopDepth = clamped;
+            ChitEdgeCleanBottomDepth = clamped;
+            ChitEdgeCleanLeftDepth = clamped;
+            ChitEdgeCleanRightDepth = clamped;
+        }
+
         public IReadOnlyList<int> AvailableEdgeCleanDepths { get; } = new[] { 1, 2, 3, 4, 5, 6, 8, 10 };
 
         public IReadOnlyList<string> AvailableEdgeCleanModes { get; } = new[]
@@ -1539,7 +1559,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ChitEditorZoomIn()
         {
-            ChitEditorZoomScale = Math.Min(Math.Round(ChitEditorZoomScale + 0.01, 2), 5.0);
+            ChitEditorZoomScale = Math.Min(Math.Round(ChitEditorZoomScale + 0.01, 2), 4.0);
         }
 
         [RelayCommand]
@@ -1555,28 +1575,60 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand]
-        private void ChitEdgeCleanTopStepUp() => ChitEdgeCleanTopDepth = Math.Min(ChitEdgeCleanTopDepth + 1, 10);
+        private void ChitEdgeCleanTopStepUp()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanTopDepth + 1);
+            else ChitEdgeCleanTopDepth = Math.Min(ChitEdgeCleanTopDepth + 1, 10);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanTopStepDown() => ChitEdgeCleanTopDepth = Math.Max(ChitEdgeCleanTopDepth - 1, 0);
+        private void ChitEdgeCleanTopStepDown()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanTopDepth - 1);
+            else ChitEdgeCleanTopDepth = Math.Max(ChitEdgeCleanTopDepth - 1, 0);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanBottomStepUp() => ChitEdgeCleanBottomDepth = Math.Min(ChitEdgeCleanBottomDepth + 1, 10);
+        private void ChitEdgeCleanBottomStepUp()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanBottomDepth + 1);
+            else ChitEdgeCleanBottomDepth = Math.Min(ChitEdgeCleanBottomDepth + 1, 10);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanBottomStepDown() => ChitEdgeCleanBottomDepth = Math.Max(ChitEdgeCleanBottomDepth - 1, 0);
+        private void ChitEdgeCleanBottomStepDown()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanBottomDepth - 1);
+            else ChitEdgeCleanBottomDepth = Math.Max(ChitEdgeCleanBottomDepth - 1, 0);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanLeftStepUp() => ChitEdgeCleanLeftDepth = Math.Min(ChitEdgeCleanLeftDepth + 1, 10);
+        private void ChitEdgeCleanLeftStepUp()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanLeftDepth + 1);
+            else ChitEdgeCleanLeftDepth = Math.Min(ChitEdgeCleanLeftDepth + 1, 10);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanLeftStepDown() => ChitEdgeCleanLeftDepth = Math.Max(ChitEdgeCleanLeftDepth - 1, 0);
+        private void ChitEdgeCleanLeftStepDown()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanLeftDepth - 1);
+            else ChitEdgeCleanLeftDepth = Math.Max(ChitEdgeCleanLeftDepth - 1, 0);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanRightStepUp() => ChitEdgeCleanRightDepth = Math.Min(ChitEdgeCleanRightDepth + 1, 10);
+        private void ChitEdgeCleanRightStepUp()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanRightDepth + 1);
+            else ChitEdgeCleanRightDepth = Math.Min(ChitEdgeCleanRightDepth + 1, 10);
+        }
 
         [RelayCommand]
-        private void ChitEdgeCleanRightStepDown() => ChitEdgeCleanRightDepth = Math.Max(ChitEdgeCleanRightDepth - 1, 0);
+        private void ChitEdgeCleanRightStepDown()
+        {
+            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanRightDepth - 1);
+            else ChitEdgeCleanRightDepth = Math.Max(ChitEdgeCleanRightDepth - 1, 0);
+        }
 
         [RelayCommand]
         private void ChitEdgeCleanTolIncrement() => ChitEdgeCleanTolerance = Math.Min(ChitEdgeCleanTolerance + 5, 200);
