@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.3";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.4";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -955,6 +955,118 @@ namespace pdf_to_Tiles.ViewModels
                 UpdateChitPreview();
             }
         }
+
+        #region Bounding Box Nudge Commands (Axis-Isolated & Direction-Corrected)
+
+        [RelayCommand]
+        private void NudgeActiveBandLeftNegative()
+        {
+            ActiveBandLeftPercent = Math.Clamp(Math.Round(ActiveBandLeftPercent - 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandLeftPositive()
+        {
+            ActiveBandLeftPercent = Math.Clamp(Math.Round(ActiveBandLeftPercent + 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandTopUp()
+        {
+            // Up arrow moves band UP -> Top decreases
+            ActiveBandTopPercent = Math.Clamp(Math.Round(ActiveBandTopPercent - 0.1, 1), 0.0, 90.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandTopDown()
+        {
+            // Down arrow moves band DOWN -> Top increases
+            ActiveBandTopPercent = Math.Clamp(Math.Round(ActiveBandTopPercent + 0.1, 1), 0.0, 90.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandWidthLeft()
+        {
+            // Left arrow moves right boundary LEFT -> Width decreases
+            ActiveBandWidthPercent = Math.Clamp(Math.Round(ActiveBandWidthPercent - 0.1, 1), 50.0, 100.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandWidthRight()
+        {
+            // Right arrow moves right boundary RIGHT -> Width increases
+            ActiveBandWidthPercent = Math.Clamp(Math.Round(ActiveBandWidthPercent + 0.1, 1), 50.0, 100.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandHeightUp()
+        {
+            // Up arrow moves bottom boundary UP -> Height decreases
+            ActiveBandHeightPercent = Math.Clamp(Math.Round(ActiveBandHeightPercent - 0.1, 1), 5.0, 35.0);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandHeightDown()
+        {
+            // Down arrow moves bottom boundary DOWN -> Height increases
+            ActiveBandHeightPercent = Math.Clamp(Math.Round(ActiveBandHeightPercent + 0.1, 1), 5.0, 35.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridLeftNegative()
+        {
+            GridLeftPercent = Math.Clamp(Math.Round(GridLeftPercent - 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridLeftPositive()
+        {
+            GridLeftPercent = Math.Clamp(Math.Round(GridLeftPercent + 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridTopUp()
+        {
+            // Up arrow moves grid UP -> Top decreases
+            GridTopPercent = Math.Clamp(Math.Round(GridTopPercent - 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridTopDown()
+        {
+            // Down arrow moves grid DOWN -> Top increases
+            GridTopPercent = Math.Clamp(Math.Round(GridTopPercent + 0.1, 1), 0.0, 50.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridWidthLeft()
+        {
+            // Left arrow moves right boundary LEFT -> Width decreases
+            GridWidthPercent = Math.Clamp(Math.Round(GridWidthPercent - 0.1, 1), 50.0, 100.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridWidthRight()
+        {
+            // Right arrow moves right boundary RIGHT -> Width increases
+            GridWidthPercent = Math.Clamp(Math.Round(GridWidthPercent + 0.1, 1), 50.0, 100.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridHeightUp()
+        {
+            // Up arrow moves bottom boundary UP -> Height decreases
+            GridHeightPercent = Math.Clamp(Math.Round(GridHeightPercent - 0.1, 1), 50.0, 100.0);
+        }
+
+        [RelayCommand]
+        private void NudgeGridHeightDown()
+        {
+            // Down arrow moves bottom boundary DOWN -> Height increases
+            GridHeightPercent = Math.Clamp(Math.Round(GridHeightPercent + 0.1, 1), 50.0, 100.0);
+        }
+
+        #endregion
 
         #endregion
 

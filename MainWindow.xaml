@@ -487,49 +487,77 @@
                                         <!-- Band Left (X) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Left (X):" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding ActiveBandLeftPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding ActiveBandLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Left (X):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeActiveBandLeftNegativeCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge left boundary left (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="0" Maximum="50" Value="{Binding ActiveBandLeftPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="LeftSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeActiveBandLeftPositiveCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge left boundary right (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Band Top (Y) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Top (Y):" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="0" Maximum="90" Value="{Binding ActiveBandTopPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding ActiveBandTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Top (Y):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeActiveBandTopUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge top boundary up (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="0" Maximum="90" Value="{Binding ActiveBandTopPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="TopSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeActiveBandTopDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge top boundary down (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Band Width -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Width:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="50" Maximum="100" Value="{Binding ActiveBandWidthPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding ActiveBandWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Width:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeActiveBandWidthLeftCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge right boundary left / shrink width (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="50" Maximum="100" Value="{Binding ActiveBandWidthPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="WidthSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeActiveBandWidthRightCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge right boundary right / expand width (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Band Height -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Height:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="5" Maximum="35" Value="{Binding ActiveBandHeightPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding ActiveBandHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Height:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeActiveBandHeightUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge bottom boundary up / shrink height (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="5" Maximum="35" Value="{Binding ActiveBandHeightPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="HeightSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeActiveBandHeightDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge bottom boundary down / expand height (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Row Split (Ratio between Row 1 and Row 2) -->
@@ -673,49 +701,77 @@
                                         <!-- Left (X) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Left (X):" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding GridLeftPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding GridLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Left (X):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeGridLeftNegativeCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge matrix left boundary left (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="0" Maximum="50" Value="{Binding GridLeftPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="LeftSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeGridLeftPositiveCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge matrix left boundary right (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding GridLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Top (Y) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Top (Y):" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding GridTopPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding GridTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Top (Y):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeGridTopUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge matrix top boundary up (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="0" Maximum="50" Value="{Binding GridTopPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="TopSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeGridTopDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge matrix top boundary down (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding GridTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Width -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Width:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="50" Maximum="100" Value="{Binding GridWidthPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding GridWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Width:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeGridWidthLeftCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge matrix right boundary left / shrink width (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="50" Maximum="100" Value="{Binding GridWidthPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="WidthSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeGridWidthRightCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge matrix right boundary right / expand width (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding GridWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Height -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Height:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="50" Maximum="100" Value="{Binding GridHeightPercent}" SmallChange="0.1" LargeChange="1.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding GridHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Height:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeGridHeightUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge matrix bottom boundary up / shrink height (-0.1%)" />
+                                            <Slider Grid.Column="2" Minimum="50" Maximum="100" Value="{Binding GridHeightPercent}" SmallChange="0.1" LargeChange="1.0"
+                                                    PreviewKeyDown="HeightSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                            <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeGridHeightDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge matrix bottom boundary down / expand height (+0.1%)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding GridHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>

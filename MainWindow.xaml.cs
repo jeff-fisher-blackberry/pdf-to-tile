@@ -330,6 +330,78 @@ namespace pdf_to_Tiles
             }
         }
 
+        private void LeftSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Up || e.Key == Key.Down)
+            {
+                e.Handled = true; // Enforce axis isolation: Left only responds to Left/Right
+            }
+        }
+
+        private void WidthSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Up || e.Key == Key.Down)
+            {
+                e.Handled = true; // Enforce axis isolation: Width only responds to Left/Right
+            }
+        }
+
+        private void TopSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Left || e.Key == Key.Right)
+            {
+                e.Handled = true; // Enforce axis isolation: Top only responds to Up/Down
+                return;
+            }
+
+            if (e.Key == Key.Up)
+            {
+                // Pressing Up moves boundary UP -> Top decreases
+                if (sender is Slider slider)
+                {
+                    slider.Value = Math.Max(slider.Minimum, Math.Round(slider.Value - slider.SmallChange, 1));
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Down)
+            {
+                // Pressing Down moves boundary DOWN -> Top increases
+                if (sender is Slider slider)
+                {
+                    slider.Value = Math.Min(slider.Maximum, Math.Round(slider.Value + slider.SmallChange, 1));
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void HeightSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Left || e.Key == Key.Right)
+            {
+                e.Handled = true; // Enforce axis isolation: Height only responds to Up/Down
+                return;
+            }
+
+            if (e.Key == Key.Up)
+            {
+                // Pressing Up moves bottom boundary UP -> Height decreases
+                if (sender is Slider slider)
+                {
+                    slider.Value = Math.Max(slider.Minimum, Math.Round(slider.Value - slider.SmallChange, 1));
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Down)
+            {
+                // Pressing Down moves bottom boundary DOWN -> Height increases
+                if (sender is Slider slider)
+                {
+                    slider.Value = Math.Min(slider.Maximum, Math.Round(slider.Value + slider.SmallChange, 1));
+                    e.Handled = true;
+                }
+            }
+        }
+
         protected override void OnDeactivated(EventArgs e)
         {
             base.OnDeactivated(e);

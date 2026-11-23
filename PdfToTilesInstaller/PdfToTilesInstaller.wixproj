@@ -1,0 +1,25 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'Any CPU'">x64</Platform>
+    <Platforms>x64</Platforms>
+    <OutputName>PDF to Tiles-2026-23-11.4</OutputName>
+    <DefineConstants>PublishDir=..\bin\x64\$(Configuration)\net8.0-windows\win-x64-publish</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <!-- Enforce build dependency order so pdf-to-Tiles completes before installer packaging -->
+  <ItemGroup>
+    <ProjectReference Include="..\pdf-to-Tiles.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- Ensure pdf-to-Tiles is published with native win-x64 runtime binaries before creating the MSI package -->
+  <Target Name="PublishApp" BeforeTargets="BeforeBuild">
+    <Exec Command="dotnet publish &quot;..\pdf-to-Tiles.csproj&quot; -c $(Configuration) -r win-x64 --no-self-contained -o &quot;..\bin\x64\$(Configuration)\net8.0-windows\win-x64-publish&quot;" />
+  </Target>
+</Project>

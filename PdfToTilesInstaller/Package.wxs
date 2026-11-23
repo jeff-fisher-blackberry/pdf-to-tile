@@ -1,0 +1,104 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="PDF to Tiles"
+           Manufacturer="Cyberboard Tools"
+           Version="26.23.11.4"
+           UpgradeCode="FF1FAC66-A55B-4F14-9C53-3F058C9742AB"
+           Scope="perMachine">
+    
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PDF to Tiles" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="PDF to Tiles">
+        <Component Id="ApplicationShortcut" Guid="0AC2C91D-B056-42F7-9C58-0A98BACC7745">
+          <Shortcut Id="ApplicationStartMenuShortcut"
+                    Name="PDF to Tiles"
+                    Description="Wargame Counter Sheet Slicing, Deskewing, and Chit Refinement"
+                    Target="[!PdfToTilesExe]"
+                    WorkingDirectory="INSTALLFOLDER" />
+          <RemoveFolder Id="CleanUpProgramMenuFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\Cyberboard Tools\PDF to Tiles" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="ApplicationDesktopShortcut" Guid="DE7E20DB-C29D-45CB-942C-44ABC3A5295D">
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Name="PDF to Tiles"
+                  Description="Wargame Counter Sheet Slicing, Deskewing, and Chit Refinement"
+                  Target="[!PdfToTilesExe]"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Cyberboard Tools\PDF to Tiles" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
+      <Component Id="PdfToTilesExeComp" Guid="E87635FE-4C84-424B-987F-7B8DF0192F23">
+        <File Id="PdfToTilesExe" Source="$(var.PublishDir)\pdf-to-Tiles.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="PdfToTilesDllComp" Guid="2C47DA9F-1B31-4753-90AC-D2D6CEB65A61">
+        <File Source="$(var.PublishDir)\pdf-to-Tiles.dll" />
+      </Component>
+      <Component Id="PdfToTilesDepsComp" Guid="F563AF23-39B9-4D1F-8BF4-F27ADA5B0D23">
+        <File Source="$(var.PublishDir)\pdf-to-Tiles.deps.json" />
+      </Component>
+      <Component Id="PdfToTilesRuntimeConfigComp" Guid="E3A6E4C6-8055-4543-BE55-82440CD9D938">
+        <File Source="$(var.PublishDir)\pdf-to-Tiles.runtimeconfig.json" />
+      </Component>
+      <Component Id="CommunityToolkitMvvmComp" Guid="BD7575AE-C4AA-42E1-894D-A19AA5E7558D">
+        <File Source="$(var.PublishDir)\CommunityToolkit.Mvvm.dll" />
+      </Component>
+      <Component Id="PDFtoImageComp" Guid="D0A88C42-69DC-4086-87A3-3413C5D166B8">
+        <File Source="$(var.PublishDir)\PDFtoImage.dll" />
+      </Component>
+      <Component Id="SkiaSharpComp" Guid="27499AC1-F448-4BE2-8C55-A1784DD15E69">
+        <File Source="$(var.PublishDir)\SkiaSharp.dll" />
+      </Component>
+      <Component Id="LibSkiaSharpComp" Guid="C35B8BC7-76B5-4D2F-9D22-8F857B68F16C">
+        <File Source="$(var.PublishDir)\libSkiaSharp.dll" />
+      </Component>
+      <Component Id="OpenCvSharpComp" Guid="D786B150-C7FB-4507-8AC1-776304EC824F">
+        <File Source="$(var.PublishDir)\OpenCvSharp.dll" />
+      </Component>
+      <Component Id="OpenCvSharpExternComp" Guid="36510511-2F54-4E3D-A57C-61CF2C1B4007">
+        <File Source="$(var.PublishDir)\OpenCvSharpExtern.dll" />
+      </Component>
+      <Component Id="OpencvVideoioComp" Guid="F83CBB61-2F6C-4CF9-95CD-AA90CF35419B">
+        <File Source="$(var.PublishDir)\opencv_videoio_ffmpeg4100_64.dll" />
+      </Component>
+      <Component Id="PdfiumComp" Guid="98BAC398-A940-4374-8B9C-4CD84DA992D4">
+        <File Source="$(var.PublishDir)\pdfium.dll" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="MainFeature" Title="PDF to Tiles" Level="1">
+      <ComponentGroupRef Id="AppComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="ApplicationDesktopShortcut" />
+    </Feature>
+
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start PDF to Tiles" />
+
+    <CustomAction Id="LaunchApplication" 
+                  FileRef="PdfToTilesExe" 
+                  ExeCommand="" 
+                  Execute="immediate" 
+                  Return="asyncNoWait" />
+
+    <UI>
+      <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2" Condition="WIX_UPGRADE_DETECTED" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="WIX_UPGRADE_DETECTED" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT (REMOVE=&quot;ALL&quot;)" />
+    </UI>
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+  </Package>
+</Wix>

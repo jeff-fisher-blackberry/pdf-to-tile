@@ -16,3 +16,10 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Installer & Packages
+*.msi
+*.msm
+*.wixobj
+*.wixpdb
+win-x64-publish/

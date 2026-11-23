@@ -1,10 +1,10 @@
-# AGENT.md — PDF to Tiles (`pdf-to-Tiles`)
+# AGENT.md â€” PDF to Tiles (`pdf-to-Tiles`)
 
 ## 1. Project Overview
 - **Application:** PDF to Tiles (`C:\Users\jefff\source\repos\pdf-to-Tiles`)
 - **Remote Repository:** `https://github.com/jeff-fisher-blackberry/pdf-to-tile`
 - **Stack:** C# / .NET Windows desktop application (WPF on `.NET 9.0` / `.NET 8.0` `net9.0-windows` x64, MVVM with `CommunityToolkit.Mvvm`, `PDFtoImage` for PDF rendering, and `OpenCvSharp4` + `OpenCvSharp4.runtime.win` for deskewing and slicing).
-- **Primary Purpose:** Open board/wargame PDF rulebooks and counter sheets (starting with Redmond A. Simonsen's 1980 SPI wargame *WorldKiller* — 100-piece / 10×10 die-cut counter sheet, front and back), inspect pages interactively, export full pages to lossless high-DPI PNGs (300–600 DPI), straighten/deskew tilted scans, and slice configurable grids into individual front/back piece `.png` files.
+- **Primary Purpose:** Open board/wargame PDF rulebooks and counter sheets (starting with Redmond A. Simonsen's 1980 SPI wargame *WorldKiller* â€” 100-piece / 10Ã—10 die-cut counter sheet, front and back), inspect pages interactively, export full pages to lossless high-DPI PNGs (300â€“600 DPI), straighten/deskew tilted scans, and slice configurable grids into individual front/back piece `.png` files.
 
 ---
 
@@ -12,14 +12,14 @@
 Keep UI orchestration strictly separated from PDF rendering and image processing:
 1. **PDF Viewer & Non-Locking Page Navigation (`PdfPageRenderer`):**
    - Load PDF bytes into memory or open with `FileShare.ReadWrite` so the source PDF on disk is never locked while viewing or re-exporting.
-   - Render low-DPI previews (120–150 DPI) for responsive UI zoom/pan navigation and high-DPI bitmaps (300–600 DPI) on demand for lossless `.png` capture and slicing.
+   - Render low-DPI previews (120â€“150 DPI) for responsive UI zoom/pan navigation and high-DPI bitmaps (300â€“600 DPI) on demand for lossless `.png` capture and slicing.
 2. **Deskew & Straighten (`DeskewService`):**
-   - Auto-detect rotational tilt on scanned counter sheets (e.g., Hough line transform, `MinAreaRect`, or projection-profile variance) with manual fine-angle override (`±0.1°` increments).
+   - Auto-detect rotational tilt on scanned counter sheets (e.g., Hough line transform, `MinAreaRect`, or projection-profile variance) with manual fine-angle override (`Â±0.1Â°` increments).
    - Rotate around image center using high-quality bicubic/Lanczos4 interpolation (`InterpolationFlags.Lanczos4`) with clean border padding.
 3. **Configurable Grid Slicing & Front/Back Pairing (`GridBoundsDetector`, `GridSlicerService`, `SheetProfile`):**
    - Support reusable JSON sheet presets (`SheetProfile`: rows, columns, outer grid crop bounds, inward pixel inset, and back-side orientation mapping).
    - Bound the inner counter matrix explicitly (do **not** blindly divide full scanned pages containing scanner margins or staple marks by rows/cols).
-   - Apply a configurable inward pixel inset (`2–6 px` scaled by DPI) so die-cut lines and adjacent counter borders do not bleed into sliced pieces.
+   - Apply a configurable inward pixel inset (`2â€“6 px` scaled by DPI) so die-cut lines and adjacent counter borders do not bleed into sliced pieces.
    - Support front/back orientation mapping modes (`Direct`, `HorizontalFlip`, `VerticalFlip`, `Rotate180`) so `Front_R01_C01.png` pairs accurately with its true reverse side `Back_R01_C01.png`.
 
 ---
@@ -29,7 +29,7 @@ Keep UI orchestration strictly separated from PDF rendering and image processing
 ### Strict Scope & Zero-Drift Policy
 - **Authorized Scope Only:** Modify only the specific files required by the active task. Do not refactor, reformat, or "clean up" unrelated files or working features.
 - **No Unsolicited Builds or Runs:** Do not run `dotnet build`, `dotnet test`, or launch the app automatically upon opening the workspace unless requested or required as a final verification gate after approved edits.
-- **No Indefinite Retry Loops:** Never exceed 3 consecutive tool/terminal retries on a failing command—stop immediately and report the exact error logs.
+- **No Indefinite Retry Loops:** Never exceed 3 consecutive tool/terminal retries on a failing commandâ€”stop immediately and report the exact error logs.
 
 ### Research & "Gotchas" Rule (`docs\research\`)
 - Whenever asked to perform research, audit code, or design an implementation plan before coding:
@@ -39,7 +39,7 @@ Keep UI orchestration strictly separated from PDF rendering and image processing
   4. Wait for explicit user approval before executing code changes.
 
 ### Imaging, Memory & Resource Safety
-- **Deterministic Disposal:** Always wrap `OpenCvSharp.Mat`, `SKBitmap`, `Stream`, `Graphics`, and temporary image buffers in `using` blocks. High-DPI (`600 DPI`) scans exceed `5000 × 7000` pixels (~150–250 MB per uncompressed buffer); dispose intermediate `Mat` instances immediately after each pipeline stage.
+- **Deterministic Disposal:** Always wrap `OpenCvSharp.Mat`, `SKBitmap`, `Stream`, `Graphics`, and temporary image buffers in `using` blocks. High-DPI (`600 DPI`) scans exceed `5000 Ã— 7000` pixels (~150â€“250 MB per uncompressed buffer); dispose intermediate `Mat` instances immediately after each pipeline stage.
 - **Zero/Negative Dimension Guards:** Validate `Width > 0 && Height > 0` before cropping, rotating, or encoding any image slice.
 
 ---
@@ -57,3 +57,13 @@ Keep UI orchestration strictly separated from PDF rendering and image processing
   ```powershell
   Get-Process | Where-Object { $_.ProcessName -like "*PdfToTiles*" -or $_.ProcessName -like "*pdf-to-Tiles*" } | Stop-Process -Force -ErrorAction SilentlyContinue
   Start-Sleep -Milliseconds 500
+
+
+### WiX v5 MSI Installer Build & Packaging (`PdfToTilesInstaller`)
+- **Installer Project:** `PdfToTilesInstaller\PdfToTilesInstaller.wixproj` (WiX Toolset SDK `5.0.2`, `WixToolset.UI.wixext`).
+- **Build & Publish Command:**
+  ```powershell
+  dotnet build "PdfToTilesInstaller\PdfToTilesInstaller.wixproj" -c Release -p:Platform=x64
+  ```
+- **Output Artifact:** Built installer is output to `PdfToTilesInstaller\bin\x64\Release\PDF to Tiles-<version>.msi`.
+- **Target Runtime Prerequisite:** .NET Desktop Runtime 8.0 (x64).
