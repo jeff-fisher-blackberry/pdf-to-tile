@@ -946,16 +946,14 @@
                     </WrapPanel>
                 </Border>
 
-                <!-- Main 3-Column Working Workspace -->
+                <!-- Main 3-Section Working Workspace: Fixed Left Controls Panel, Fluid Center Canvas, Resizable Right Strip -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <!-- Left Controls Panel -->
-                        <ColumnDefinition Width="330" MinWidth="280" MaxWidth="450" />
-                        <!-- Splitter 1 -->
-                        <ColumnDefinition Width="4" />
+                        <!-- Left Controls Panel: Locked fixed width (non-resizable) -->
+                        <ColumnDefinition Width="330" MinWidth="330" MaxWidth="330" />
                         <!-- Center Working Canvas -->
                         <ColumnDefinition Width="*" MinWidth="400" />
-                        <!-- Splitter 2 -->
+                        <!-- Splitter for Right Tile Strip -->
                         <ColumnDefinition Width="4" />
                         <!-- Right Tile Strip -->
                         <ColumnDefinition Width="270" MinWidth="220" MaxWidth="400" />
@@ -1238,11 +1236,8 @@
                         </ScrollViewer>
                     </Border>
 
-                    <!-- Splitter 1 -->
-                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" />
-
-                    <!-- COLUMN 2: CENTER WORKING CHIT CANVAS -->
-                    <ScrollViewer Grid.Column="2"
+                    <!-- COLUMN 1: CENTER WORKING CHIT CANVAS -->
+                    <ScrollViewer Grid.Column="1"
                                   Background="{DynamicResource ViewportBackgroundBrush}"
                                   HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Auto"
@@ -1386,11 +1381,11 @@
                         </Grid>
                     </ScrollViewer>
 
-                    <!-- Splitter 2 -->
-                    <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" />
+                    <!-- Splitter for Right Tile Strip -->
+                    <GridSplitter Grid.Column="2" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" />
 
-                    <!-- COLUMN 4: RIGHT TILE STRIP -->
-                    <Border Grid.Column="4"
+                    <!-- COLUMN 3: RIGHT TILE STRIP -->
+                    <Border Grid.Column="3"
                             Background="{DynamicResource PanelBackgroundBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1,0,0,0">
