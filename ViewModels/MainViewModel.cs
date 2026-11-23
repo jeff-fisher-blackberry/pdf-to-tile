@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.4";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.5";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1472,7 +1472,10 @@ namespace pdf_to_Tiles.ViewModels
         private Color _transparentColor = Colors.Cyan;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ChitEditorZoomPercentageText))]
         private double _chitEditorZoomScale = 1.0;
+
+        public string ChitEditorZoomPercentageText => $"{Math.Round(ChitEditorZoomScale * 100):F0}%";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ChitInspectionZoomPercentageText))]
@@ -1492,6 +1495,18 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         private int _chitEdgeCleanDepth = 2;
+
+        [ObservableProperty]
+        private int _chitEdgeCleanTopDepth = 2;
+
+        [ObservableProperty]
+        private int _chitEdgeCleanBottomDepth = 2;
+
+        [ObservableProperty]
+        private int _chitEdgeCleanLeftDepth = 2;
+
+        [ObservableProperty]
+        private int _chitEdgeCleanRightDepth = 2;
 
         [ObservableProperty]
         private int _chitEdgeCleanTolerance = 35;
@@ -1520,6 +1535,54 @@ namespace pdf_to_Tiles.ViewModels
             "Solid Flood" => EdgeCleanMode.SolidFlood,
             _ => EdgeCleanMode.TargetedReplace
         };
+
+        [RelayCommand]
+        private void ChitEditorZoomIn()
+        {
+            ChitEditorZoomScale = Math.Min(Math.Round(ChitEditorZoomScale + 0.01, 2), 5.0);
+        }
+
+        [RelayCommand]
+        private void ChitEditorZoomOut()
+        {
+            ChitEditorZoomScale = Math.Max(Math.Round(ChitEditorZoomScale - 0.01, 2), 0.10);
+        }
+
+        [RelayCommand]
+        private void ChitEditorZoomReset()
+        {
+            ChitEditorZoomScale = 1.0;
+        }
+
+        [RelayCommand]
+        private void ChitEdgeCleanTopStepUp() => ChitEdgeCleanTopDepth = Math.Min(ChitEdgeCleanTopDepth + 1, 10);
+
+        [RelayCommand]
+        private void ChitEdgeCleanTopStepDown() => ChitEdgeCleanTopDepth = Math.Max(ChitEdgeCleanTopDepth - 1, 0);
+
+        [RelayCommand]
+        private void ChitEdgeCleanBottomStepUp() => ChitEdgeCleanBottomDepth = Math.Min(ChitEdgeCleanBottomDepth + 1, 10);
+
+        [RelayCommand]
+        private void ChitEdgeCleanBottomStepDown() => ChitEdgeCleanBottomDepth = Math.Max(ChitEdgeCleanBottomDepth - 1, 0);
+
+        [RelayCommand]
+        private void ChitEdgeCleanLeftStepUp() => ChitEdgeCleanLeftDepth = Math.Min(ChitEdgeCleanLeftDepth + 1, 10);
+
+        [RelayCommand]
+        private void ChitEdgeCleanLeftStepDown() => ChitEdgeCleanLeftDepth = Math.Max(ChitEdgeCleanLeftDepth - 1, 0);
+
+        [RelayCommand]
+        private void ChitEdgeCleanRightStepUp() => ChitEdgeCleanRightDepth = Math.Min(ChitEdgeCleanRightDepth + 1, 10);
+
+        [RelayCommand]
+        private void ChitEdgeCleanRightStepDown() => ChitEdgeCleanRightDepth = Math.Max(ChitEdgeCleanRightDepth - 1, 0);
+
+        [RelayCommand]
+        private void ChitEdgeCleanTolIncrement() => ChitEdgeCleanTolerance = Math.Min(ChitEdgeCleanTolerance + 5, 200);
+
+        [RelayCommand]
+        private void ChitEdgeCleanTolDecrement() => ChitEdgeCleanTolerance = Math.Max(ChitEdgeCleanTolerance - 5, 5);
 
         [RelayCommand]
         private void ChitInspectionZoomIn()
@@ -1637,7 +1700,12 @@ namespace pdf_to_Tiles.ViewModels
         private void AutoSampleEdgeColorInternal(ChitItem chit)
         {
             if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) return;
-            Vec4b dominant = ChitEditorService.SampleDominantBackgroundColor(chit.WorkingMat, ChitEdgeCleanDepth);
+            Vec4b dominant = ChitEditorService.SampleDominantBackgroundColor(
+                chit.WorkingMat,
+                ChitEdgeCleanTopDepth,
+                ChitEdgeCleanBottomDepth,
+                ChitEdgeCleanLeftDepth,
+                ChitEdgeCleanRightDepth);
             ChitEdgeCleanColor = Color.FromRgb(dominant.Item2, dominant.Item1, dominant.Item0);
         }
 
@@ -1663,11 +1731,19 @@ namespace pdf_to_Tiles.ViewModels
                 // When applying to all chits, dynamically auto-sample each chit's background color per chit (unless locked)
                 Vec4b targetBg = (!ApplyToAllChits || LockEdgeCleanColor)
                     ? ColorToVec4b(ChitEdgeCleanColor)
-                    : ChitEditorService.SampleDominantBackgroundColor(chit.WorkingMat, ChitEdgeCleanDepth);
+                    : ChitEditorService.SampleDominantBackgroundColor(
+                        chit.WorkingMat,
+                        ChitEdgeCleanTopDepth,
+                        ChitEdgeCleanBottomDepth,
+                        ChitEdgeCleanLeftDepth,
+                        ChitEdgeCleanRightDepth);
 
                 var cleaned = ChitEditorService.ApplyEdgeCleanup(
                     chit.WorkingMat,
-                    ChitEdgeCleanDepth,
+                    ChitEdgeCleanTopDepth,
+                    ChitEdgeCleanBottomDepth,
+                    ChitEdgeCleanLeftDepth,
+                    ChitEdgeCleanRightDepth,
                     ChitEdgeCleanTolerance,
                     ChitEdgeCleanMode,
                     targetBg,
@@ -1677,8 +1753,8 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             StatusMessage = ApplyToAllChits
-                ? $"Applied {SelectedEdgeCleanMode} edge clean ({ChitEdgeCleanDepth}px) to all {targets.Count} chits."
-                : $"Applied {SelectedEdgeCleanMode} edge clean ({ChitEdgeCleanDepth}px) to chit #{SelectedChit.Index}.";
+                ? $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to all {targets.Count} chits."
+                : $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to chit #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]

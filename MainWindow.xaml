@@ -1062,12 +1062,11 @@
                                                    FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,6" />
 
-                                        <!-- Row 4: Background Color Swatch + Auto + Depth + Clean -->
+                                        <!-- Row 4: Background Color Swatch + Auto (Left) and Clean Button (Right) -->
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
@@ -1084,19 +1083,91 @@
                                                         ToolTip="Auto-sample dominant background color from active chit" />
                                             </StackPanel>
 
-                                            <!-- Depth Dropdown + Clean Button Right -->
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
-                                                <TextBlock Text="Depth:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                <ComboBox ItemsSource="{Binding AvailableEdgeCleanDepths}"
-                                                          SelectedItem="{Binding ChitEdgeCleanDepth}"
-                                                          Width="42" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <Button Grid.Column="3" Content="Clean" Command="{Binding ApplyEdgeCleanCommand}" Width="64" Height="28"
+                                            <!-- Clean Button Right -->
+                                            <Button Grid.Column="2" Content="Clean" Command="{Binding ApplyEdgeCleanCommand}" Width="64" Height="28"
                                                     Style="{StaticResource AccentButtonStyle}"
                                                     ToolTip="Heal cut marks and edge artifacts with matching background color" />
                                         </Grid>
 
-                                        <!-- Row 5: Mode Selector + Tolerance Slider -->
+                                        <!-- Per-Side Depth Steppers: Top, Bottom, Left, Right -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="4" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Top Depth -->
+                                            <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Top:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ChitEdgeCleanTopDepth, StringFormat={}{0}px}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Content="-" Command="{Binding ChitEdgeCleanTopStepDownCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Decrease top cleanup depth (1px)" />
+                                                    <Button Grid.Column="3" Content="+" Command="{Binding ChitEdgeCleanTopStepUpCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Increase top cleanup depth (1px)" />
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Bottom Depth -->
+                                            <Border Grid.Row="0" Grid.Column="2" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Btm:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ChitEdgeCleanBottomDepth, StringFormat={}{0}px}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Content="-" Command="{Binding ChitEdgeCleanBottomStepDownCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Decrease bottom cleanup depth (1px)" />
+                                                    <Button Grid.Column="3" Content="+" Command="{Binding ChitEdgeCleanBottomStepUpCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Increase bottom cleanup depth (1px)" />
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Left Depth -->
+                                            <Border Grid.Row="2" Grid.Column="0" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Left:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ChitEdgeCleanLeftDepth, StringFormat={}{0}px}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Content="-" Command="{Binding ChitEdgeCleanLeftStepDownCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Decrease left cleanup depth (1px)" />
+                                                    <Button Grid.Column="3" Content="+" Command="{Binding ChitEdgeCleanLeftStepUpCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Increase left cleanup depth (1px)" />
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Right Depth -->
+                                            <Border Grid.Row="2" Grid.Column="2" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Rgt:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ChitEdgeCleanRightDepth, StringFormat={}{0}px}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Content="-" Command="{Binding ChitEdgeCleanRightStepDownCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Decrease right cleanup depth (1px)" />
+                                                    <Button Grid.Column="3" Content="+" Command="{Binding ChitEdgeCleanRightStepUpCommand}" Width="18" Height="20" Padding="0" Margin="2,0,0,0" ToolTip="Increase right cleanup depth (1px)" />
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Row 5: Mode Selector + Tolerance Steppers -->
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
@@ -1105,15 +1176,14 @@
 
                                             <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableEdgeCleanModes}"
                                                       SelectedItem="{Binding SelectedEdgeCleanMode}"
-                                                      Width="120" VerticalAlignment="Center"
+                                                      Width="116" VerticalAlignment="Center"
                                                       ToolTip="Targeted Replace: overwrite defect pixels; Smart Inpaint: seamless texture blend; Solid Flood: fill entire border" />
 
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="6,0,0,0">
                                                 <TextBlock Text="Tol:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,3,0" />
-                                                <Slider Minimum="10" Maximum="120" Value="{Binding ChitEdgeCleanTolerance}"
-                                                        SmallChange="5" LargeChange="15" Width="68" VerticalAlignment="Center"
-                                                        ToolTip="Color distance tolerance (lower = stricter, higher = more pixels replaced)" />
-                                                <TextBlock Text="{Binding ChitEdgeCleanTolerance}" Width="24" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Right" />
+                                                <Button Content="-" Command="{Binding ChitEdgeCleanTolDecrementCommand}" Width="20" Height="22" Padding="0" ToolTip="Decrease tolerance (-5)" Margin="0,0,2,0" />
+                                                <TextBlock Text="{Binding ChitEdgeCleanTolerance}" Width="26" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" />
+                                                <Button Content="+" Command="{Binding ChitEdgeCleanTolIncrementCommand}" Width="20" Height="22" Padding="0" ToolTip="Increase tolerance (+5)" Margin="2,0,0,0" />
                                             </StackPanel>
                                         </Grid>
 
@@ -1182,7 +1252,7 @@
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
                             <!-- Populated Chit State -->
                             <StackPanel Visibility="{Binding HasSelectedChit, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Center">
-                                <!-- 100% Actual Size Area -->
+                                <!-- Working Chit Area with 1% Step Zoom -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
@@ -1191,9 +1261,33 @@
                                         Margin="0,0,0,16"
                                         HorizontalAlignment="Center">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="WORKING CHIT (100% ACTUAL SIZE)"
-                                                   FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                        <!-- Header with 1% Step Zoom Controls -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="16" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="WORKING CHIT"
+                                                       FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center" />
+
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="-" Command="{Binding ChitEditorZoomOutCommand}"
+                                                        Width="24" Height="22" Padding="0" Margin="1,0"
+                                                        ToolTip="Zoom out 1% (-0.01)" />
+                                                <Button Content="+" Command="{Binding ChitEditorZoomInCommand}"
+                                                        Width="24" Height="22" Padding="0" Margin="1,0"
+                                                        ToolTip="Zoom in 1% (+0.01)" />
+                                                <Button Content="100%" Command="{Binding ChitEditorZoomResetCommand}"
+                                                        Width="40" Height="22" Padding="0" Margin="3,0,1,0"
+                                                        ToolTip="Reset zoom to 100%" />
+                                                <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
+                                                           FontSize="11" FontWeight="Bold" Width="36"
+                                                           VerticalAlignment="Center" TextAlignment="Right" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Grid>
 
                                         <Border BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
@@ -1207,7 +1301,11 @@
                                                    MouseDown="ChitPreview_MouseDown"
                                                    Cursor="Cross"
                                                    ToolTip="Click to sample background color for Edge Cleanup"
-                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor">
+                                                <Image.LayoutTransform>
+                                                    <ScaleTransform ScaleX="{Binding ChitEditorZoomScale}" ScaleY="{Binding ChitEditorZoomScale}" />
+                                                </Image.LayoutTransform>
+                                            </Image>
                                         </Border>
 
                                         <TextBlock Text="{Binding SelectedChit.DimensionsText}"
@@ -1216,13 +1314,14 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Zoomed Pixel Inspection Area -->
+                                <!-- Zoomed Pixel Inspection Area (Hidden, preserved for future reactivation) -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6"
                                         Padding="16"
-                                        HorizontalAlignment="Center">
+                                        HorizontalAlignment="Center"
+                                        Visibility="Collapsed">
                                     <StackPanel HorizontalAlignment="Center">
                                         <TextBlock Text="ZOOMED PIXEL INSPECTION"
                                                    FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"

@@ -385,12 +385,24 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Samples the dominant background color along the inner perimeter of the chit.
+        /// </summary>
+        public static Vec4b SampleDominantBackgroundColor(Mat src, int topDepth, int bottomDepth, int leftDepth, int rightDepth)
+        {
+            int maxDepth = Math.Max(Math.Max(topDepth, bottomDepth), Math.Max(leftDepth, rightDepth));
+            return SampleDominantBackgroundColor(src, Math.Max(1, maxDepth));
+        }
+
+        /// <summary>
         /// Cleans cut marks, die-cut border nicks, and scanner edge artifacts along the perimeter of the chit
-        /// by replacing or inpainting offending pixels with the counter's background color.
+        /// by replacing or inpainting offending pixels with the counter's background color, using independent per-side depths.
         /// </summary>
         public static Mat ApplyEdgeCleanup(
             Mat src,
-            int depth,
+            int topDepth,
+            int bottomDepth,
+            int leftDepth,
+            int rightDepth,
             int tolerance,
             EdgeCleanMode mode,
             Vec4b? targetBgColor = null,
@@ -401,19 +413,33 @@ namespace pdf_to_Tiles.Services
                 throw new ArgumentException("Invalid source image matrix for edge cleanup.", nameof(src));
             }
 
-            int d = Math.Clamp(depth, 1, Math.Min(src.Width / 3, src.Height / 3));
+            int width = src.Width;
+            int height = src.Height;
+
+            int topD = Math.Clamp(topDepth, 0, height / 2);
+            int bottomD = Math.Clamp(bottomDepth, 0, height / 2);
+            int leftD = Math.Clamp(leftDepth, 0, width / 2);
+            int rightD = Math.Clamp(rightDepth, 0, width / 2);
+
+            int maxD = Math.Max(Math.Max(topD, bottomD), Math.Max(leftD, rightD));
             int tol = Math.Clamp(tolerance, 5, 200);
             int tolSq = tol * tol;
 
-            Vec4b bg = targetBgColor ?? SampleDominantBackgroundColor(src, d);
+            Vec4b bg = targetBgColor ?? SampleDominantBackgroundColor(src, Math.Max(1, maxD));
 
             Mat dst = src.Clone();
-            int width = dst.Width;
-            int height = dst.Height;
+
+            if (maxD == 0)
+            {
+                return dst;
+            }
 
             bool IsInOuterBand(int x, int y)
             {
-                return x < d || x >= width - d || y < d || y >= height - d;
+                return (topD > 0 && y < topD)
+                    || (bottomD > 0 && y >= height - bottomD)
+                    || (leftD > 0 && x < leftD)
+                    || (rightD > 0 && x >= width - rightD);
             }
 
             if (mode == EdgeCleanMode.SolidFlood)
@@ -500,7 +526,7 @@ namespace pdf_to_Tiles.Services
                 Cv2.ExtractChannel(dst, alpha, 3);
 
                 using Mat inpaintedBgr = new Mat();
-                Cv2.Inpaint(bgr, mask, inpaintedBgr, inpaintRadius: 3, InpaintMethod.Telea);
+                Cv2.Inpaint(bgr, mask, inpaintedBgr, inpaintRadius: Math.Max(1.0, (double)Math.Max(1, maxD)), InpaintMethod.Telea);
 
                 using Mat chB = new Mat();
                 using Mat chG = new Mat();
@@ -516,6 +542,21 @@ namespace pdf_to_Tiles.Services
             }
 
             return dst;
+        }
+
+        /// <summary>
+        /// Cleans cut marks, die-cut border nicks, and scanner edge artifacts along the perimeter of the chit
+        /// by replacing or inpainting offending pixels with the counter's background color, using a uniform depth for all sides.
+        /// </summary>
+        public static Mat ApplyEdgeCleanup(
+            Mat src,
+            int depth,
+            int tolerance,
+            EdgeCleanMode mode,
+            Vec4b? targetBgColor = null,
+            bool preserveTransparentCorners = true)
+        {
+            return ApplyEdgeCleanup(src, depth, depth, depth, depth, tolerance, mode, targetBgColor, preserveTransparentCorners);
         }
     }
 }
