@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.12";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.13";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -212,13 +212,60 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private double _activeBandRowSplitPercent = 50.0;
 
+        // Native integer pixel properties
+        [ObservableProperty]
+        private int _activeBandLeftPx = 0;
+
+        [ObservableProperty]
+        private int _activeBandTopPx = 0;
+
+        [ObservableProperty]
+        private int _activeBandWidthPx = 100;
+
+        [ObservableProperty]
+        private int _activeBandHeightPx = 100;
+
+        [ObservableProperty]
+        private int _activeBandRowSplitPx = 50;
+
+        // Formatted pixel text properties for editable textboxes
+        [ObservableProperty]
+        private string _activeBandLeftText = "0 px";
+
+        [ObservableProperty]
+        private string _activeBandTopText = "0 px";
+
+        [ObservableProperty]
+        private string _activeBandWidthText = "100 px";
+
+        [ObservableProperty]
+        private string _activeBandHeightText = "100 px";
+
+        [ObservableProperty]
+        private string _activeBandRowSplitText = "50 px";
+
+        // Readouts
+        public int ActiveBandRightPx => ActiveBandLeftPx + ActiveBandWidthPx;
+        public int ActiveBandBottomPx => ActiveBandTopPx + ActiveBandHeightPx;
+        public string ActiveBandDimensionsText => $"{ActiveBandWidthPx} × {ActiveBandHeightPx} px";
+        public string ActiveBandBoundsSummaryText => $"({ActiveBandLeftPx}, {ActiveBandTopPx}) to ({ActiveBandRightPx}, {ActiveBandBottomPx}) px";
+        public string ActiveBandDimensionsSummaryText => $"{ActiveBandWidthPx} × {ActiveBandHeightPx} px (20 Chits, ~{Math.Max(1, ActiveBandWidthPx / 10)} × {Math.Max(1, ActiveBandHeightPx / 2)} px)";
+        public string ActiveBandLeftPercentText => $"({ActiveBandLeftPercent:F1}%)";
+        public string ActiveBandTopPercentText => $"({ActiveBandTopPercent:F1}%)";
+        public string ActiveBandWidthPercentText => $"({ActiveBandWidthPercent:F1}%)";
+        public string ActiveBandHeightPercentText => $"({ActiveBandHeightPercent:F1}%)";
+        public string ActiveBandRowSplitPercentText => $"({ActiveBandRowSplitPercent:F1}%)";
+
         // Column Divider Fine-Tuning
         [ObservableProperty]
         private bool _isFineTuningDividers = false;
 
-        // Interactive Corner Picking
+        // Interactive Dual-Corner Picking
         [ObservableProperty]
         private bool _isSettingUpperLeftCorner = false;
+
+        [ObservableProperty]
+        private bool _isSettingLowerRightCorner = false;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SelectedDividerPositionText))]
@@ -671,6 +718,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 DeskewAngle = 0.0;
                 await ApplyDeskewRotationAsync();
+                SyncFromActiveBand();
 
                 if (IsSlicerFitToWidth && GetSlicerViewportSize != null)
                 {
@@ -729,6 +777,9 @@ namespace pdf_to_Tiles.ViewModels
             var band = GetActiveBand();
             if (band == null) return;
 
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+
             _isSyncingBand = true;
             try
             {
@@ -738,6 +789,29 @@ namespace pdf_to_Tiles.ViewModels
                 ActiveBandWidthPercent = Math.Round(band.Bounds.Width * 100, 2);
                 ActiveBandHeightPercent = Math.Round(band.Bounds.Height * 100, 2);
                 ActiveBandRowSplitPercent = Math.Round(band.RowSplitRatio * 100, 1);
+
+                ActiveBandLeftPx = (int)Math.Round(band.Bounds.Left * w);
+                ActiveBandTopPx = (int)Math.Round(band.Bounds.Top * h);
+                ActiveBandWidthPx = Math.Max(20, (int)Math.Round(band.Bounds.Width * w));
+                ActiveBandHeightPx = Math.Max(4, (int)Math.Round(band.Bounds.Height * h));
+                ActiveBandRowSplitPx = Math.Max(2, (int)Math.Round(band.RowSplitRatio * ActiveBandHeightPx));
+
+                ActiveBandLeftText = $"{ActiveBandLeftPx} px";
+                ActiveBandTopText = $"{ActiveBandTopPx} px";
+                ActiveBandWidthText = $"{ActiveBandWidthPx} px";
+                ActiveBandHeightText = $"{ActiveBandHeightPx} px";
+                ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+
+                OnPropertyChanged(nameof(ActiveBandRightPx));
+                OnPropertyChanged(nameof(ActiveBandBottomPx));
+                OnPropertyChanged(nameof(ActiveBandDimensionsText));
+                OnPropertyChanged(nameof(ActiveBandBoundsSummaryText));
+                OnPropertyChanged(nameof(ActiveBandDimensionsSummaryText));
+                OnPropertyChanged(nameof(ActiveBandLeftPercentText));
+                OnPropertyChanged(nameof(ActiveBandTopPercentText));
+                OnPropertyChanged(nameof(ActiveBandWidthPercentText));
+                OnPropertyChanged(nameof(ActiveBandHeightPercentText));
+                OnPropertyChanged(nameof(ActiveBandRowSplitPercentText));
                 OnPropertyChanged(nameof(SelectedDividerPositionText));
                 OnPropertyChanged(nameof(PreviewCellText));
             }
@@ -756,11 +830,60 @@ namespace pdf_to_Tiles.ViewModels
             var band = GetActiveBand();
             if (band == null) return;
 
-            band.Bounds.Left = Math.Clamp(ActiveBandLeftPercent / 100.0, 0.0, 0.99);
-            band.Bounds.Top = Math.Clamp(ActiveBandTopPercent / 100.0, 0.0, 0.99);
-            band.Bounds.Width = Math.Clamp(ActiveBandWidthPercent / 100.0, 0.01, 1.0 - band.Bounds.Left);
-            band.Bounds.Height = Math.Clamp(ActiveBandHeightPercent / 100.0, 0.01, 1.0 - band.Bounds.Top);
-            band.RowSplitRatio = Math.Clamp(ActiveBandRowSplitPercent / 100.0, 0.1, 0.9);
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+
+            // Clamping rules removing the 50% minimum width floor
+            int targetLeftPx = Math.Clamp(ActiveBandLeftPx, 0, Math.Max(0, w - 20));
+            int targetTopPx = Math.Clamp(ActiveBandTopPx, 0, Math.Max(0, h - 4));
+            int targetWidthPx = Math.Clamp(ActiveBandWidthPx, 20, Math.Max(20, w - targetLeftPx));
+            int targetHeightPx = Math.Clamp(ActiveBandHeightPx, 4, Math.Max(4, h - targetTopPx));
+            int targetRowSplitPx = Math.Clamp(ActiveBandRowSplitPx, 2, Math.Max(2, targetHeightPx - 2));
+
+            band.Bounds.Left = Math.Clamp((double)targetLeftPx / w, 0.0, 0.9999);
+            band.Bounds.Top = Math.Clamp((double)targetTopPx / h, 0.0, 0.9999);
+            band.Bounds.Width = Math.Clamp((double)targetWidthPx / w, 20.0 / w, 1.0 - band.Bounds.Left);
+            band.Bounds.Height = Math.Clamp((double)targetHeightPx / h, 4.0 / h, 1.0 - band.Bounds.Top);
+            band.RowSplitRatio = Math.Clamp((double)targetRowSplitPx / targetHeightPx, 0.05, 0.95);
+
+            _isSyncingBand = true;
+            try
+            {
+                ActiveBandLeftPercent = Math.Round(band.Bounds.Left * 100, 2);
+                ActiveBandTopPercent = Math.Round(band.Bounds.Top * 100, 2);
+                ActiveBandWidthPercent = Math.Round(band.Bounds.Width * 100, 2);
+                ActiveBandHeightPercent = Math.Round(band.Bounds.Height * 100, 2);
+                ActiveBandRowSplitPercent = Math.Round(band.RowSplitRatio * 100, 1);
+
+                ActiveBandLeftPx = targetLeftPx;
+                ActiveBandTopPx = targetTopPx;
+                ActiveBandWidthPx = targetWidthPx;
+                ActiveBandHeightPx = targetHeightPx;
+                ActiveBandRowSplitPx = targetRowSplitPx;
+
+                ActiveBandLeftText = $"{ActiveBandLeftPx} px";
+                ActiveBandTopText = $"{ActiveBandTopPx} px";
+                ActiveBandWidthText = $"{ActiveBandWidthPx} px";
+                ActiveBandHeightText = $"{ActiveBandHeightPx} px";
+                ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+
+                OnPropertyChanged(nameof(ActiveBandRightPx));
+                OnPropertyChanged(nameof(ActiveBandBottomPx));
+                OnPropertyChanged(nameof(ActiveBandDimensionsText));
+                OnPropertyChanged(nameof(ActiveBandBoundsSummaryText));
+                OnPropertyChanged(nameof(ActiveBandDimensionsSummaryText));
+                OnPropertyChanged(nameof(ActiveBandLeftPercentText));
+                OnPropertyChanged(nameof(ActiveBandTopPercentText));
+                OnPropertyChanged(nameof(ActiveBandWidthPercentText));
+                OnPropertyChanged(nameof(ActiveBandHeightPercentText));
+                OnPropertyChanged(nameof(ActiveBandRowSplitPercentText));
+                OnPropertyChanged(nameof(SelectedDividerPositionText));
+                OnPropertyChanged(nameof(PreviewCellText));
+            }
+            finally
+            {
+                _isSyncingBand = false;
+            }
 
             UpdateChitPreview();
         }
@@ -812,9 +935,10 @@ namespace pdf_to_Tiles.ViewModels
 
         partial void OnSelectedTabIndexChanged(int value)
         {
-            if (value != 1 && IsSettingUpperLeftCorner)
+            if (value != 1)
             {
-                IsSettingUpperLeftCorner = false;
+                if (IsSettingUpperLeftCorner) IsSettingUpperLeftCorner = false;
+                if (IsSettingLowerRightCorner) IsSettingLowerRightCorner = false;
             }
         }
 
@@ -822,7 +946,24 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (value)
             {
+                if (IsSettingLowerRightCorner) IsSettingLowerRightCorner = false;
                 StatusMessage = "Crosshair active: Click on the counter sheet to set the upper-left corner of the 2×10 band.";
+            }
+            else
+            {
+                if (StatusMessage.StartsWith("Crosshair active:", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusMessage = "Ready.";
+                }
+            }
+        }
+
+        partial void OnIsSettingLowerRightCornerChanged(bool value)
+        {
+            if (value)
+            {
+                if (IsSettingUpperLeftCorner) IsSettingUpperLeftCorner = false;
+                StatusMessage = "Crosshair active: Click on the counter sheet to set the lower-right corner of the 2×10 band.";
             }
             else
             {
@@ -839,6 +980,12 @@ namespace pdf_to_Tiles.ViewModels
         partial void OnActiveBandWidthPercentChanged(double value) => SyncToActiveBand();
         partial void OnActiveBandHeightPercentChanged(double value) => SyncToActiveBand();
         partial void OnActiveBandRowSplitPercentChanged(double value) => SyncToActiveBand();
+
+        partial void OnActiveBandLeftPxChanged(int value) => SyncToActiveBand();
+        partial void OnActiveBandTopPxChanged(int value) => SyncToActiveBand();
+        partial void OnActiveBandWidthPxChanged(int value) => SyncToActiveBand();
+        partial void OnActiveBandHeightPxChanged(int value) => SyncToActiveBand();
+        partial void OnActiveBandRowSplitPxChanged(int value) => SyncToActiveBand();
 
         partial void OnSelectedDividerIndexChanged(int value) => OnPropertyChanged(nameof(SelectedDividerPositionText));
         partial void OnPreviewRowIndexChanged(int value) => UpdateChitPreview();
@@ -987,55 +1134,119 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void NudgeActiveBandLeftNegative()
         {
-            ActiveBandLeftPercent = Math.Clamp(Math.Round(ActiveBandLeftPercent - 0.1, 1), 0.0, 50.0);
+            ActiveBandLeftPx = Math.Max(0, ActiveBandLeftPx - 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandLeftPositive()
         {
-            ActiveBandLeftPercent = Math.Clamp(Math.Round(ActiveBandLeftPercent + 0.1, 1), 0.0, 50.0);
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int maxLeft = Math.Max(0, w - ActiveBandWidthPx);
+            ActiveBandLeftPx = Math.Min(maxLeft, ActiveBandLeftPx + 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandTopUp()
         {
-            // Up arrow moves band UP -> Top decreases
-            ActiveBandTopPercent = Math.Clamp(Math.Round(ActiveBandTopPercent - 0.1, 1), 0.0, 90.0);
+            ActiveBandTopPx = Math.Max(0, ActiveBandTopPx - 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandTopDown()
         {
-            // Down arrow moves band DOWN -> Top increases
-            ActiveBandTopPercent = Math.Clamp(Math.Round(ActiveBandTopPercent + 0.1, 1), 0.0, 90.0);
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+            int maxTop = Math.Max(0, h - ActiveBandHeightPx);
+            ActiveBandTopPx = Math.Min(maxTop, ActiveBandTopPx + 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandWidthLeft()
         {
-            // Left arrow moves right boundary LEFT -> Width decreases
-            ActiveBandWidthPercent = Math.Clamp(Math.Round(ActiveBandWidthPercent - 0.1, 1), 50.0, 100.0);
+            ActiveBandWidthPx = Math.Max(20, ActiveBandWidthPx - 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandWidthRight()
         {
-            // Right arrow moves right boundary RIGHT -> Width increases
-            ActiveBandWidthPercent = Math.Clamp(Math.Round(ActiveBandWidthPercent + 0.1, 1), 50.0, 100.0);
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int maxWidth = Math.Max(20, w - ActiveBandLeftPx);
+            ActiveBandWidthPx = Math.Min(maxWidth, ActiveBandWidthPx + 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandHeightUp()
         {
-            // Up arrow moves bottom boundary UP -> Height decreases
-            ActiveBandHeightPercent = Math.Clamp(Math.Round(ActiveBandHeightPercent - 0.1, 1), 5.0, 35.0);
+            ActiveBandHeightPx = Math.Max(4, ActiveBandHeightPx - 1);
         }
 
         [RelayCommand]
         private void NudgeActiveBandHeightDown()
         {
-            // Down arrow moves bottom boundary DOWN -> Height increases
-            ActiveBandHeightPercent = Math.Clamp(Math.Round(ActiveBandHeightPercent + 0.1, 1), 5.0, 35.0);
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+            int maxHeight = Math.Max(4, h - ActiveBandTopPx);
+            ActiveBandHeightPx = Math.Min(maxHeight, ActiveBandHeightPx + 1);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandRowSplitUp()
+        {
+            ActiveBandRowSplitPx = Math.Max(2, ActiveBandRowSplitPx - 1);
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandRowSplitDown()
+        {
+            int maxSplit = Math.Max(2, ActiveBandHeightPx - 2);
+            ActiveBandRowSplitPx = Math.Min(maxSplit, ActiveBandRowSplitPx + 1);
+        }
+
+        public void ApplyActiveBandLeftInput(string? raw)
+        {
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int max = Math.Max(0, w - 20);
+            ActiveBandLeftPx = ParsePixelInput(raw, ActiveBandLeftPx, 0, max);
+        }
+
+        public void ApplyActiveBandTopInput(string? raw)
+        {
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+            int max = Math.Max(0, h - 4);
+            ActiveBandTopPx = ParsePixelInput(raw, ActiveBandTopPx, 0, max);
+        }
+
+        public void ApplyActiveBandWidthInput(string? raw)
+        {
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int max = Math.Max(20, w - ActiveBandLeftPx);
+            ActiveBandWidthPx = ParsePixelInput(raw, ActiveBandWidthPx, 20, max);
+        }
+
+        public void ApplyActiveBandHeightInput(string? raw)
+        {
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+            int max = Math.Max(4, h - ActiveBandTopPx);
+            ActiveBandHeightPx = ParsePixelInput(raw, ActiveBandHeightPx, 4, max);
+        }
+
+        public void ApplyActiveBandRowSplitInput(string? raw)
+        {
+            int max = Math.Max(2, ActiveBandHeightPx - 2);
+            ActiveBandRowSplitPx = ParsePixelInput(raw, ActiveBandRowSplitPx, 2, max);
+        }
+
+        private static int ParsePixelInput(string? raw, int currentVal, int minVal, int maxVal)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return currentVal;
+            string text = raw.Trim().ToLowerInvariant().Replace("px", "").Trim();
+            if (int.TryParse(text, out int val))
+            {
+                return Math.Clamp(val, minVal, maxVal);
+            }
+            if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+            {
+                return Math.Clamp((int)Math.Round(dVal), minVal, maxVal);
+            }
+            return currentVal;
         }
 
         [RelayCommand]

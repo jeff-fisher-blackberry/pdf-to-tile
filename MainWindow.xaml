@@ -475,103 +475,137 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="2×10 BAND BOUNDING BOX (% OF SHEET)" Style="{StaticResource SectionHeaderStyle}" />
+                                        <TextBlock Text="2×10 BAND BOUNDING BOX (PIXELS)" Style="{StaticResource SectionHeaderStyle}" />
 
-                                        <!-- Set upper left corner crosshair picker -->
-                                        <CheckBox Content="Set upper left corner"
-                                                  IsChecked="{Binding IsSettingUpperLeftCorner, Mode=TwoWay}"
-                                                  Margin="0,4,0,8"
-                                                  FontWeight="SemiBold"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  ToolTip="When checked, click the counter sheet to set the upper-left (X, Y) corner of the 2×10 band" />
+                                        <!-- Corner crosshair pickers: Upper-Left & Lower-Right -->
+                                        <Grid Margin="0,4,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0" Content="Set upper-left"
+                                                      IsChecked="{Binding IsSettingUpperLeftCorner, Mode=TwoWay}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip="When checked, click the counter sheet to set the upper-left (X, Y) corner of the 2×10 band" />
+                                            <CheckBox Grid.Column="1" Content="Set lower-right"
+                                                      IsChecked="{Binding IsSettingLowerRightCorner, Mode=TwoWay}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip="When checked, click the counter sheet to set the lower-right (X, Y) corner of the 2×10 band" />
+                                        </Grid>
 
                                         <!-- Band Left (X) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Left (X):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeActiveBandLeftNegativeCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge left boundary left (-0.1%)" />
-                                            <Slider Grid.Column="2" Minimum="0" Maximum="50" Value="{Binding ActiveBandLeftPercent}" SmallChange="0.1" LargeChange="1.0"
-                                                    PreviewKeyDown="LeftSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Nudge left boundary left (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandLeftTextBox" Text="{Binding ActiveBandLeftText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandLeftTextBox_KeyDown" LostFocus="BandLeftTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
                                             <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeActiveBandLeftPositiveCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge left boundary right (+0.1%)" />
-                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandLeftPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge left boundary right (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandLeftPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
 
                                         <!-- Band Top (Y) -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Top (Y):" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeActiveBandTopUpCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge top boundary up (-0.1%)" />
-                                            <Slider Grid.Column="2" Minimum="0" Maximum="90" Value="{Binding ActiveBandTopPercent}" SmallChange="0.1" LargeChange="1.0"
-                                                    PreviewKeyDown="TopSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Nudge top boundary up (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandTopTextBox" Text="{Binding ActiveBandTopText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandTopTextBox_KeyDown" LostFocus="BandTopTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
                                             <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeActiveBandTopDownCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge top boundary down (+0.1%)" />
-                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandTopPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge top boundary down (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandTopPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
 
                                         <!-- Band Width -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Width:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <RepeatButton Grid.Column="1" Content="◀" Command="{Binding NudgeActiveBandWidthLeftCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge right boundary left / shrink width (-0.1%)" />
-                                            <Slider Grid.Column="2" Minimum="50" Maximum="100" Value="{Binding ActiveBandWidthPercent}" SmallChange="0.1" LargeChange="1.0"
-                                                    PreviewKeyDown="WidthSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Nudge right boundary left (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandWidthTextBox" Text="{Binding ActiveBandWidthText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandWidthTextBox_KeyDown" LostFocus="BandWidthTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
                                             <RepeatButton Grid.Column="3" Content="▶" Command="{Binding NudgeActiveBandWidthRightCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge right boundary right / expand width (+0.1%)" />
-                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandWidthPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge right boundary right (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandWidthPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
 
                                         <!-- Band Height -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="42" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Height:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                             <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeActiveBandHeightUpCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="0,0,4,0" ToolTip="Nudge bottom boundary up / shrink height (-0.1%)" />
-                                            <Slider Grid.Column="2" Minimum="5" Maximum="35" Value="{Binding ActiveBandHeightPercent}" SmallChange="0.1" LargeChange="1.0"
-                                                    PreviewKeyDown="HeightSlider_PreviewKeyDown" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Nudge bottom boundary up (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandHeightTextBox" Text="{Binding ActiveBandHeightText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandHeightTextBox_KeyDown" LostFocus="BandHeightTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
                                             <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeActiveBandHeightDownCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge bottom boundary down / expand height (+0.1%)" />
-                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge bottom boundary down (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandHeightPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
 
-                                        <!-- Row Split (Ratio between Row 1 and Row 2) -->
+                                        <!-- Row Split -->
                                         <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Row Split:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="30" Maximum="70" Value="{Binding ActiveBandRowSplitPercent}" SmallChange="0.5" LargeChange="2.0" />
-                                            <TextBlock Grid.Column="2" Text="{Binding ActiveBandRowSplitPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="0" Text="Row Split:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <RepeatButton Grid.Column="1" Content="▲" Command="{Binding NudgeActiveBandRowSplitUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Nudge row split line up (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandRowSplitTextBox" Text="{Binding ActiveBandRowSplitText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandRowSplitTextBox_KeyDown" LostFocus="BandRowSplitTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
+                                            <RepeatButton Grid.Column="3" Content="▼" Command="{Binding NudgeActiveBandRowSplitDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge row split line down (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandRowSplitPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
+
+                                        <!-- Dimension & Bounds Summary -->
+                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,6,0,0" Padding="0,6,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding ActiveBandBoundsSummaryText, StringFormat='{}Bounds: {0}'}"
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBlock Text="{Binding ActiveBandDimensionsSummaryText}"
+                                                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </Border>
 

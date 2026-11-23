@@ -78,10 +78,12 @@ namespace pdf_to_Tiles
                     break;
 
                 case nameof(MainViewModel.IsSettingUpperLeftCorner):
+                case nameof(MainViewModel.IsSettingLowerRightCorner):
                 case nameof(MainViewModel.SelectedTabIndex):
-                    if (DataContext is MainViewModel vmTab && vmTab.SelectedTabIndex != 1 && vmTab.IsSettingUpperLeftCorner)
+                    if (DataContext is MainViewModel vmTab && vmTab.SelectedTabIndex != 1)
                     {
-                        vmTab.IsSettingUpperLeftCorner = false;
+                        if (vmTab.IsSettingUpperLeftCorner) vmTab.IsSettingUpperLeftCorner = false;
+                        if (vmTab.IsSettingLowerRightCorner) vmTab.IsSettingLowerRightCorner = false;
                     }
                     UpdateSlicerCursor();
                     break;
@@ -355,9 +357,10 @@ namespace pdf_to_Tiles
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape && DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner)
+            if (e.Key == Key.Escape && DataContext is MainViewModel vm && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
             {
                 vm.IsSettingUpperLeftCorner = false;
+                vm.IsSettingLowerRightCorner = false;
                 e.Handled = true;
             }
         }
@@ -437,15 +440,16 @@ namespace pdf_to_Tiles
         protected override void OnDeactivated(EventArgs e)
         {
             base.OnDeactivated(e);
-            if (DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner)
+            if (DataContext is MainViewModel vm && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
             {
                 vm.IsSettingUpperLeftCorner = false;
+                vm.IsSettingLowerRightCorner = false;
             }
         }
 
         private void UpdateSlicerCursor()
         {
-            if (DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner && vm.SelectedTabIndex == 1)
+            if (DataContext is MainViewModel vm && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner) && vm.SelectedTabIndex == 1)
             {
                 if (SlicerScrollViewer != null) SlicerScrollViewer.Cursor = Cursors.Cross;
                 if (SlicerGridCanvas != null) SlicerGridCanvas.Cursor = Cursors.Cross;
@@ -466,14 +470,15 @@ namespace pdf_to_Tiles
 
         private void SlicerScrollViewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (DataContext is not MainViewModel vm || !vm.IsSettingUpperLeftCorner)
+            if (DataContext is not MainViewModel vm || (!vm.IsSettingUpperLeftCorner && !vm.IsSettingLowerRightCorner))
             {
                 return;
             }
 
-            if (SlicerImageDisplay == null || SlicerImageDisplay.ActualWidth <= 0 || SlicerImageDisplay.ActualHeight <= 0)
+            if (SlicerImageDisplay == null || SlicerImageDisplay.ActualWidth <= 0 || SlicerImageDisplay.ActualHeight <= 0 || vm.SlicerPixelWidth <= 0 || vm.SlicerPixelHeight <= 0)
             {
                 vm.IsSettingUpperLeftCorner = false;
+                vm.IsSettingLowerRightCorner = false;
                 return;
             }
 
@@ -484,36 +489,83 @@ namespace pdf_to_Tiles
             // Only capture clicks within the bounds of the sheet
             if (clickPos.X >= 0 && clickPos.X <= imgW && clickPos.Y >= 0 && clickPos.Y <= imgH)
             {
-                double normX = Math.Clamp(clickPos.X / imgW, 0.0, 1.0);
-                double normY = Math.Clamp(clickPos.Y / imgH, 0.0, 1.0);
+                int clickPxX = (int)Math.Clamp(Math.Round(clickPos.X / imgW * vm.SlicerPixelWidth), 0, vm.SlicerPixelWidth);
+                int clickPxY = (int)Math.Clamp(Math.Round(clickPos.Y / imgH * vm.SlicerPixelHeight), 0, vm.SlicerPixelHeight);
 
-                double targetLeftPercent = normX * 100.0;
-                double targetTopPercent = normY * 100.0;
-
-                double currentWidth = vm.ActiveBandWidthPercent;
-                double currentHeight = vm.ActiveBandHeightPercent;
-
-                // Bounds safety: clamp coordinates so dimensions never become negative or push past 100%
-                double clampedLeft = Math.Clamp(targetLeftPercent, 0.0, 50.0);
-                if (clampedLeft + currentWidth > 100.0)
+                if (vm.IsSettingUpperLeftCorner)
                 {
-                    vm.ActiveBandWidthPercent = Math.Round(Math.Max(10.0, 100.0 - clampedLeft), 1);
-                }
+                    int currentRight = vm.ActiveBandLeftPx + vm.ActiveBandWidthPx;
+                    int currentBottom = vm.ActiveBandTopPx + vm.ActiveBandHeightPx;
 
-                double clampedTop = Math.Clamp(targetTopPercent, 0.0, 90.0);
-                if (clampedTop + currentHeight > 100.0)
+                    int newLeft = Math.Clamp(clickPxX, 0, Math.Max(0, vm.SlicerPixelWidth - 20));
+                    int newTop = Math.Clamp(clickPxY, 0, Math.Max(0, vm.SlicerPixelHeight - 4));
+
+                    vm.ActiveBandLeftPx = newLeft;
+                    vm.ActiveBandTopPx = newTop;
+
+                    if (currentRight > newLeft + 20)
+                    {
+                        vm.ActiveBandWidthPx = currentRight - newLeft;
+                    }
+                    else
+                    {
+                        vm.ActiveBandWidthPx = Math.Max(20, Math.Min(vm.ActiveBandWidthPx, vm.SlicerPixelWidth - newLeft));
+                    }
+
+                    if (currentBottom > newTop + 4)
+                    {
+                        vm.ActiveBandHeightPx = currentBottom - newTop;
+                    }
+                    else
+                    {
+                        vm.ActiveBandHeightPx = Math.Max(4, Math.Min(vm.ActiveBandHeightPx, vm.SlicerPixelHeight - newTop));
+                    }
+
+                    vm.StatusMessage = $"Set upper-left corner to ({vm.ActiveBandLeftPx}, {vm.ActiveBandTopPx}) px. Size: {vm.ActiveBandDimensionsText}.";
+                    vm.IsSettingUpperLeftCorner = false;
+                    e.Handled = true;
+                }
+                else if (vm.IsSettingLowerRightCorner)
                 {
-                    vm.ActiveBandHeightPercent = Math.Round(Math.Max(5.0, 100.0 - clampedTop), 1);
+                    int clickRight = Math.Clamp(clickPxX, 0, vm.SlicerPixelWidth);
+                    int clickBottom = Math.Clamp(clickPxY, 0, vm.SlicerPixelHeight);
+
+                    // X axis: if click is to the right of LeftPx, extend width; if to the left, swap!
+                    if (clickRight >= vm.ActiveBandLeftPx + 20)
+                    {
+                        vm.ActiveBandWidthPx = clickRight - vm.ActiveBandLeftPx;
+                    }
+                    else if (clickRight < vm.ActiveBandLeftPx)
+                    {
+                        int oldLeft = vm.ActiveBandLeftPx;
+                        vm.ActiveBandLeftPx = clickRight;
+                        vm.ActiveBandWidthPx = Math.Max(20, oldLeft - clickRight);
+                    }
+                    else
+                    {
+                        vm.ActiveBandWidthPx = 20;
+                    }
+
+                    // Y axis: if click is below TopPx, extend height; if above, swap!
+                    if (clickBottom >= vm.ActiveBandTopPx + 4)
+                    {
+                        vm.ActiveBandHeightPx = clickBottom - vm.ActiveBandTopPx;
+                    }
+                    else if (clickBottom < vm.ActiveBandTopPx)
+                    {
+                        int oldTop = vm.ActiveBandTopPx;
+                        vm.ActiveBandTopPx = clickBottom;
+                        vm.ActiveBandHeightPx = Math.Max(4, oldTop - clickBottom);
+                    }
+                    else
+                    {
+                        vm.ActiveBandHeightPx = 4;
+                    }
+
+                    vm.StatusMessage = $"Set lower-right corner to ({vm.ActiveBandRightPx}, {vm.ActiveBandBottomPx}) px. Size: {vm.ActiveBandDimensionsText}.";
+                    vm.IsSettingLowerRightCorner = false;
+                    e.Handled = true;
                 }
-
-                vm.ActiveBandLeftPercent = Math.Round(clampedLeft, 1);
-                vm.ActiveBandTopPercent = Math.Round(clampedTop, 1);
-
-                vm.StatusMessage = $"Set upper-left corner to ({vm.ActiveBandLeftPercent:F1}%, {vm.ActiveBandTopPercent:F1}%).";
-
-                // Automatically uncheck and restore cursor
-                vm.IsSettingUpperLeftCorner = false;
-                e.Handled = true;
             }
         }
 
@@ -570,6 +622,106 @@ namespace pdf_to_Tiles
             {
                 vm.ApplyChitEditorZoomInput(textBox.Text);
                 textBox.Text = vm.ChitEditorZoomInputText;
+            }
+        }
+
+        private void BandLeftTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandLeftInput(tb.Text);
+                tb.Text = vm.ActiveBandLeftText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandLeftTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandLeftInput(tb.Text);
+                tb.Text = vm.ActiveBandLeftText;
+            }
+        }
+
+        private void BandTopTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandTopInput(tb.Text);
+                tb.Text = vm.ActiveBandTopText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandTopTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandTopInput(tb.Text);
+                tb.Text = vm.ActiveBandTopText;
+            }
+        }
+
+        private void BandWidthTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandWidthInput(tb.Text);
+                tb.Text = vm.ActiveBandWidthText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandWidthTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandWidthInput(tb.Text);
+                tb.Text = vm.ActiveBandWidthText;
+            }
+        }
+
+        private void BandHeightTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandHeightInput(tb.Text);
+                tb.Text = vm.ActiveBandHeightText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandHeightTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandHeightInput(tb.Text);
+                tb.Text = vm.ActiveBandHeightText;
+            }
+        }
+
+        private void BandRowSplitTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandRowSplitInput(tb.Text);
+                tb.Text = vm.ActiveBandRowSplitText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandRowSplitTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandRowSplitInput(tb.Text);
+                tb.Text = vm.ActiveBandRowSplitText;
             }
         }
     }
