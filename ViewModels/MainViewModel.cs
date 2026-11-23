@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.10";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.11";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1920,10 +1920,10 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                 var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, ChitEditorBevelSize);
-                chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
+                chit.UpdateWorkingMat(beveled, recordHistory: true, Colors.Transparent);
             }
-            _lastCommittedSignature = null;
-            UpdateLiveEdgeCleanPreview();
+            _lastCommittedSignature = GetCurrentEdgeCleanSignature();
+            SelectedChit.SetPreviewMat(null);
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} chits." : $"Applied {ChitEditorBevelSize}px bevel to chit #{SelectedChit.Index}.";
         }
 
@@ -1932,16 +1932,16 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit?.WorkingMat == null) return;
             var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-            Vec4b key = ColorToVec4b(TransparentColor);
+            Vec4b transparentPixel = new Vec4b(0, 0, 0, 0);
 
             foreach (var chit in targets)
             {
                 if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, key);
-                chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
+                var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, transparentPixel);
+                chit.UpdateWorkingMat(clipped, recordHistory: true, Colors.Transparent);
             }
-            _lastCommittedSignature = null;
-            UpdateLiveEdgeCleanPreview();
+            _lastCommittedSignature = GetCurrentEdgeCleanSignature();
+            SelectedChit.SetPreviewMat(null);
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} chits." : $"Applied {ChitEditorClipSize}px corner clip to chit #{SelectedChit.Index}.";
         }
 

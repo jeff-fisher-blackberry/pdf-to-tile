@@ -23,7 +23,8 @@ namespace pdf_to_Tiles.Services
 
         /// <summary>
         /// Applies a directional 3D raised-edge gradient bevel (highlight from top-left, shadow on bottom-right)
-        /// around the perimeter of the chit.
+        /// around the perimeter of the chit using 45° mitered edge classification.
+        /// Preserves existing transparent pixels (A = 0) so corner clips are not overwritten.
         /// </summary>
         public static Mat ApplyBevel(Mat src, int borderSize, Vec4b? highlightColor = null, Vec4b? shadowColor = null)
         {
@@ -45,85 +46,99 @@ namespace pdf_to_Tiles.Services
 
             var indexer = dst.GetGenericIndexer<Vec4b>();
 
-            // 1. Top Edge Highlight
-            for (int y = 0; y < b; y++)
+            // Process only the perimeter band [0..b) on all four borders
+            for (int y = 0; y < height; y++)
             {
-                float t = 1.0f - ((float)y / b);
-                float strength = t * 0.70f;
-                int startX = y;
-                int endX = width - 1 - y;
+                int dt = y;
+                int db = height - 1 - y;
+                bool isVertBorder = (dt < b || db < b);
 
-                for (int x = startX; x <= endX; x++)
+                for (int x = 0; x < width; x++)
                 {
+                    int dl = x;
+                    int dr = width - 1 - x;
+
+                    // If not in vertical border and not in horizontal border, skip interior
+                    if (!isVertBorder && dl >= b && dr >= b)
+                    {
+                        // Fast skip across the interior row
+                        x = width - b - 1;
+                        continue;
+                    }
+
+                    int minD = Math.Min(Math.Min(dt, db), Math.Min(dl, dr));
+                    if (minD >= b) continue;
+
                     Vec4b p = indexer[y, x];
-                    if (p.Item3 == 0) continue; // Skip fully transparent pixels
+                    if (p.Item3 == 0) continue; // Skip fully transparent pixels (preserves corner clips)
 
-                    byte nb = (byte)Math.Clamp(Math.Round(p.Item0 * (1f - strength) + hi.Item0 * strength), 0, 255);
-                    byte ng = (byte)Math.Clamp(Math.Round(p.Item1 * (1f - strength) + hi.Item1 * strength), 0, 255);
-                    byte nr = (byte)Math.Clamp(Math.Round(p.Item2 * (1f - strength) + hi.Item2 * strength), 0, 255);
-                    indexer[y, x] = new Vec4b(nb, ng, nr, p.Item3);
-                }
-            }
+                    Vec4b targetColor;
 
-            // 2. Left Edge Highlight
-            for (int x = 0; x < b; x++)
-            {
-                float t = 1.0f - ((float)x / b);
-                float strength = t * 0.70f;
-                int startY = x;
-                int endY = height - 1 - x;
+                    // 45° Miter classification based on distance to nearest edges
+                    bool isUpperHalf = (dt <= db);
+                    bool isLeftHalf = (dl <= dr);
 
-                for (int y = startY; y <= endY; y++)
-                {
-                    Vec4b p = indexer[y, x];
-                    if (p.Item3 == 0) continue;
+                    if (isUpperHalf && isLeftHalf)
+                    {
+                        // Top-Left quadrant: both Top and Left are highlight edges
+                        targetColor = hi;
+                    }
+                    else if (!isUpperHalf && !isLeftHalf)
+                    {
+                        // Bottom-Right quadrant: both Bottom and Right are shadow edges
+                        targetColor = sh;
+                    }
+                    else if (isUpperHalf && !isLeftHalf)
+                    {
+                        // Top-Right quadrant: Top (highlight) meets Right (shadow) along 45° miter (dt == dr)
+                        if (dt < dr)
+                        {
+                            targetColor = hi;
+                        }
+                        else if (dr < dt)
+                        {
+                            targetColor = sh;
+                        }
+                        else
+                        {
+                            // Exact 45° diagonal seam: neutral transition
+                            targetColor = new Vec4b(
+                                (byte)((hi.Item0 + sh.Item0) / 2),
+                                (byte)((hi.Item1 + sh.Item1) / 2),
+                                (byte)((hi.Item2 + sh.Item2) / 2),
+                                255);
+                        }
+                    }
+                    else
+                    {
+                        // Bottom-Left quadrant: Left (highlight) meets Bottom (shadow) along 45° miter (dl == db)
+                        if (dl < db)
+                        {
+                            targetColor = hi;
+                        }
+                        else if (db < dl)
+                        {
+                            targetColor = sh;
+                        }
+                        else
+                        {
+                            // Exact 45° diagonal seam: neutral transition
+                            targetColor = new Vec4b(
+                                (byte)((hi.Item0 + sh.Item0) / 2),
+                                (byte)((hi.Item1 + sh.Item1) / 2),
+                                (byte)((hi.Item2 + sh.Item2) / 2),
+                                255);
+                        }
+                    }
 
-                    byte nb = (byte)Math.Clamp(Math.Round(p.Item0 * (1f - strength) + hi.Item0 * strength), 0, 255);
-                    byte ng = (byte)Math.Clamp(Math.Round(p.Item1 * (1f - strength) + hi.Item1 * strength), 0, 255);
-                    byte nr = (byte)Math.Clamp(Math.Round(p.Item2 * (1f - strength) + hi.Item2 * strength), 0, 255);
-                    indexer[y, x] = new Vec4b(nb, ng, nr, p.Item3);
-                }
-            }
+                    float t = 1.0f - ((float)minD / b);
+                    float strength = t * 0.70f;
 
-            // 3. Bottom Edge Shadow
-            for (int d = 0; d < b; d++)
-            {
-                int y = height - 1 - d;
-                float t = 1.0f - ((float)d / b);
-                float strength = t * 0.70f;
-                int startX = d;
-                int endX = width - 1 - d;
+                    byte nb = (byte)Math.Clamp(Math.Round(p.Item0 * (1f - strength) + targetColor.Item0 * strength), 0, 255);
+                    byte ng = (byte)Math.Clamp(Math.Round(p.Item1 * (1f - strength) + targetColor.Item1 * strength), 0, 255);
+                    byte nr = (byte)Math.Clamp(Math.Round(p.Item2 * (1f - strength) + targetColor.Item2 * strength), 0, 255);
 
-                for (int x = startX; x <= endX; x++)
-                {
-                    Vec4b p = indexer[y, x];
-                    if (p.Item3 == 0) continue;
-
-                    byte nb = (byte)Math.Clamp(Math.Round(p.Item0 * (1f - strength) + sh.Item0 * strength), 0, 255);
-                    byte ng = (byte)Math.Clamp(Math.Round(p.Item1 * (1f - strength) + sh.Item1 * strength), 0, 255);
-                    byte nr = (byte)Math.Clamp(Math.Round(p.Item2 * (1f - strength) + sh.Item2 * strength), 0, 255);
-                    indexer[y, x] = new Vec4b(nb, ng, nr, p.Item3);
-                }
-            }
-
-            // 4. Right Edge Shadow
-            for (int d = 0; d < b; d++)
-            {
-                int x = width - 1 - d;
-                float t = 1.0f - ((float)d / b);
-                float strength = t * 0.70f;
-                int startY = d;
-                int endY = height - 1 - d;
-
-                for (int y = startY; y <= endY; y++)
-                {
-                    Vec4b p = indexer[y, x];
-                    if (p.Item3 == 0) continue;
-
-                    byte nb = (byte)Math.Clamp(Math.Round(p.Item0 * (1f - strength) + sh.Item0 * strength), 0, 255);
-                    byte ng = (byte)Math.Clamp(Math.Round(p.Item1 * (1f - strength) + sh.Item1 * strength), 0, 255);
-                    byte nr = (byte)Math.Clamp(Math.Round(p.Item2 * (1f - strength) + sh.Item2 * strength), 0, 255);
-                    indexer[y, x] = new Vec4b(nb, ng, nr, p.Item3);
+                    indexer[y, x] = new Vec4b(nb, ng, nr, p.Item3); // Preserve original alpha
                 }
             }
 
@@ -131,7 +146,7 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Clips/rounds the 4 corner pixels of the chit using transparency or a specified key color.
+        /// Clips/rounds the 4 corner pixels of the chit using true 32-bit transparency (A = 0) or an optional specified key color.
         /// </summary>
         public static Mat ApplyCornerClip(Mat src, int cornerSize, Vec4b? clipColor = null)
         {
@@ -152,30 +167,19 @@ namespace pdf_to_Tiles.Services
             {
                 for (int x = 0; x < c; x++)
                 {
-                    // Upper-Left corner
                     if (x + y < c)
                     {
+                        // Upper-Left corner
                         indexer[y, x] = clr;
-                    }
 
-                    // Upper-Right corner
-                    int dxR = width - 1 - x;
-                    if (x + y < c)
-                    {
-                        indexer[y, dxR] = clr;
-                    }
+                        // Upper-Right corner
+                        indexer[y, width - 1 - x] = clr;
 
-                    // Lower-Left corner
-                    int dyB = height - 1 - y;
-                    if (x + y < c)
-                    {
-                        indexer[dyB, x] = clr;
-                    }
+                        // Lower-Left corner
+                        indexer[height - 1 - y, x] = clr;
 
-                    // Lower-Right corner
-                    if (x + y < c)
-                    {
-                        indexer[dyB, dxR] = clr;
+                        // Lower-Right corner
+                        indexer[height - 1 - y, width - 1 - x] = clr;
                     }
                 }
             }
