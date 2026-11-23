@@ -317,8 +317,9 @@ namespace pdf_to_Tiles.Services
             int width = src.Width;
             int height = src.Height;
 
-            int innerStart = Math.Clamp(depth + 1, 1, Math.Min(width / 3, height / 3));
-            int innerEnd = Math.Clamp(depth + 4, innerStart, Math.Min(width / 2, height / 2));
+            int maxDim = Math.Min(width, height);
+            int innerStart = Math.Clamp(depth + 1, 1, Math.Max(1, maxDim / 2 - 2));
+            int innerEnd = Math.Clamp(Math.Max(innerStart, depth + 4), innerStart, Math.Max(innerStart, maxDim / 2 - 1));
 
             var indexer = src.GetGenericIndexer<Vec4b>();
 
@@ -330,6 +331,7 @@ namespace pdf_to_Tiles.Services
 
             void ProcessPixel(int x, int y)
             {
+                if (x < 0 || x >= width || y < 0 || y >= height) return;
                 Vec4b p = indexer[y, x];
                 if (p.Item3 == 0) return; // Skip transparent pixels
 
@@ -416,10 +418,22 @@ namespace pdf_to_Tiles.Services
             int width = src.Width;
             int height = src.Height;
 
-            int topD = Math.Clamp(topDepth, 0, height / 2);
-            int bottomD = Math.Clamp(bottomDepth, 0, height / 2);
-            int leftD = Math.Clamp(leftDepth, 0, width / 2);
-            int rightD = Math.Clamp(rightDepth, 0, width / 2);
+            int maxVert = Math.Max(0, height / 2);
+            int maxHoriz = Math.Max(0, width / 2);
+
+            int topD = Math.Clamp(topDepth, 0, maxVert);
+            int bottomD = Math.Clamp(bottomDepth, 0, maxVert);
+            if (topD + bottomD >= height)
+            {
+                bottomD = Math.Max(0, height - topD - 1);
+            }
+
+            int leftD = Math.Clamp(leftDepth, 0, maxHoriz);
+            int rightD = Math.Clamp(rightDepth, 0, maxHoriz);
+            if (leftD + rightD >= width)
+            {
+                rightD = Math.Max(0, width - leftD - 1);
+            }
 
             int maxD = Math.Max(Math.Max(topD, bottomD), Math.Max(leftD, rightD));
             int tol = Math.Clamp(tolerance, 5, 200);

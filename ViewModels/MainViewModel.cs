@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.8";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.9";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1448,6 +1448,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 ChitEditorWidth = value.PixelWidth;
                 ChitEditorHeight = value.PixelHeight;
+                ClampCurrentEdgeCleanDepths();
 
                 if (!LockEdgeCleanColor && value.WorkingMat != null && !value.WorkingMat.IsDisposed)
                 {
@@ -1588,6 +1589,51 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
+        public int MaxEdgeCleanVerticalDepth => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed
+            ? Math.Max(0, SelectedChit.WorkingMat.Height / 2)
+            : 50;
+
+        public int MaxEdgeCleanHorizontalDepth => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed
+            ? Math.Max(0, SelectedChit.WorkingMat.Width / 2)
+            : 50;
+
+        private void ClampEdgeCleanDepthsForDimensions(int width, int height)
+        {
+            if (width <= 0 || height <= 0) return;
+
+            int maxVert = Math.Max(0, height / 2);
+            int maxHoriz = Math.Max(0, width / 2);
+
+            int top = Math.Clamp(ChitEdgeCleanTopDepth, 0, maxVert);
+            int bottom = Math.Clamp(ChitEdgeCleanBottomDepth, 0, maxVert);
+            while (top + bottom > height - 1 && (top > 0 || bottom > 0))
+            {
+                if (top >= bottom && top > 0) top--;
+                else if (bottom > 0) bottom--;
+            }
+
+            int left = Math.Clamp(ChitEdgeCleanLeftDepth, 0, maxHoriz);
+            int right = Math.Clamp(ChitEdgeCleanRightDepth, 0, maxHoriz);
+            while (left + right > width - 1 && (left > 0 || right > 0))
+            {
+                if (left >= right && left > 0) left--;
+                else if (right > 0) right--;
+            }
+
+            ChitEdgeCleanTopDepth = top;
+            ChitEdgeCleanBottomDepth = bottom;
+            ChitEdgeCleanLeftDepth = left;
+            ChitEdgeCleanRightDepth = right;
+        }
+
+        private void ClampCurrentEdgeCleanDepths()
+        {
+            if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
+            {
+                ClampEdgeCleanDepthsForDimensions(SelectedChit.WorkingMat.Width, SelectedChit.WorkingMat.Height);
+            }
+        }
+
         partial void OnLinkEdgeCleanSidesChanged(bool value)
         {
             if (value)
@@ -1598,11 +1644,15 @@ namespace pdf_to_Tiles.ViewModels
 
         private void SetAllDepths(int val)
         {
-            int clamped = Math.Clamp(val, 0, 10);
+            int maxV = MaxEdgeCleanVerticalDepth;
+            int maxH = MaxEdgeCleanHorizontalDepth;
+            int maxBoth = Math.Min(maxV, maxH);
+            int clamped = Math.Clamp(val, 0, maxBoth);
             ChitEdgeCleanTopDepth = clamped;
             ChitEdgeCleanBottomDepth = clamped;
             ChitEdgeCleanLeftDepth = clamped;
             ChitEdgeCleanRightDepth = clamped;
+            ClampCurrentEdgeCleanDepths();
         }
 
         public IReadOnlyList<int> AvailableEdgeCleanDepths { get; } = new[] { 1, 2, 3, 4, 5, 6, 8, 10 };
@@ -1642,8 +1692,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ChitEdgeCleanTopStepUp()
         {
-            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanTopDepth + 1);
-            else ChitEdgeCleanTopDepth = Math.Min(ChitEdgeCleanTopDepth + 1, 10);
+            int maxV = MaxEdgeCleanVerticalDepth;
+            int maxH = MaxEdgeCleanHorizontalDepth;
+
+            if (LinkEdgeCleanSides)
+            {
+                int maxBoth = Math.Min(maxV, maxH);
+                int target = Math.Min(ChitEdgeCleanTopDepth + 1, maxBoth);
+                SetAllDepths(target);
+            }
+            else
+            {
+                int maxAllowed = SelectedChit?.WorkingMat != null
+                    ? Math.Min(maxV, SelectedChit.WorkingMat.Height - ChitEdgeCleanBottomDepth - 1)
+                    : maxV;
+                ChitEdgeCleanTopDepth = Math.Clamp(ChitEdgeCleanTopDepth + 1, 0, Math.Max(0, maxAllowed));
+            }
         }
 
         [RelayCommand]
@@ -1656,8 +1720,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ChitEdgeCleanBottomStepUp()
         {
-            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanBottomDepth + 1);
-            else ChitEdgeCleanBottomDepth = Math.Min(ChitEdgeCleanBottomDepth + 1, 10);
+            int maxV = MaxEdgeCleanVerticalDepth;
+            int maxH = MaxEdgeCleanHorizontalDepth;
+
+            if (LinkEdgeCleanSides)
+            {
+                int maxBoth = Math.Min(maxV, maxH);
+                int target = Math.Min(ChitEdgeCleanBottomDepth + 1, maxBoth);
+                SetAllDepths(target);
+            }
+            else
+            {
+                int maxAllowed = SelectedChit?.WorkingMat != null
+                    ? Math.Min(maxV, SelectedChit.WorkingMat.Height - ChitEdgeCleanTopDepth - 1)
+                    : maxV;
+                ChitEdgeCleanBottomDepth = Math.Clamp(ChitEdgeCleanBottomDepth + 1, 0, Math.Max(0, maxAllowed));
+            }
         }
 
         [RelayCommand]
@@ -1670,8 +1748,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ChitEdgeCleanLeftStepUp()
         {
-            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanLeftDepth + 1);
-            else ChitEdgeCleanLeftDepth = Math.Min(ChitEdgeCleanLeftDepth + 1, 10);
+            int maxV = MaxEdgeCleanVerticalDepth;
+            int maxH = MaxEdgeCleanHorizontalDepth;
+
+            if (LinkEdgeCleanSides)
+            {
+                int maxBoth = Math.Min(maxV, maxH);
+                int target = Math.Min(ChitEdgeCleanLeftDepth + 1, maxBoth);
+                SetAllDepths(target);
+            }
+            else
+            {
+                int maxAllowed = SelectedChit?.WorkingMat != null
+                    ? Math.Min(maxH, SelectedChit.WorkingMat.Width - ChitEdgeCleanRightDepth - 1)
+                    : maxH;
+                ChitEdgeCleanLeftDepth = Math.Clamp(ChitEdgeCleanLeftDepth + 1, 0, Math.Max(0, maxAllowed));
+            }
         }
 
         [RelayCommand]
@@ -1684,8 +1776,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ChitEdgeCleanRightStepUp()
         {
-            if (LinkEdgeCleanSides) SetAllDepths(ChitEdgeCleanRightDepth + 1);
-            else ChitEdgeCleanRightDepth = Math.Min(ChitEdgeCleanRightDepth + 1, 10);
+            int maxV = MaxEdgeCleanVerticalDepth;
+            int maxH = MaxEdgeCleanHorizontalDepth;
+
+            if (LinkEdgeCleanSides)
+            {
+                int maxBoth = Math.Min(maxV, maxH);
+                int target = Math.Min(ChitEdgeCleanRightDepth + 1, maxBoth);
+                SetAllDepths(target);
+            }
+            else
+            {
+                int maxAllowed = SelectedChit?.WorkingMat != null
+                    ? Math.Min(maxH, SelectedChit.WorkingMat.Width - ChitEdgeCleanLeftDepth - 1)
+                    : maxH;
+                ChitEdgeCleanRightDepth = Math.Clamp(ChitEdgeCleanRightDepth + 1, 0, Math.Max(0, maxAllowed));
+            }
         }
 
         [RelayCommand]
@@ -1808,6 +1914,7 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
+            ClampCurrentEdgeCleanDepths();
             UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
@@ -1826,6 +1933,7 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
+            ClampCurrentEdgeCleanDepths();
             UpdateLiveEdgeCleanPreview();
             StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
