@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using pdf_to_Tiles.Models;
 using pdf_to_Tiles.ViewModels;
@@ -409,6 +410,39 @@ namespace pdf_to_Tiles
                 // Automatically uncheck and restore cursor
                 vm.IsSettingUpperLeftCorner = false;
                 e.Handled = true;
+            }
+        }
+
+        private void ChitPreview_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.SelectedChit?.WorkingMat != null && !vm.SelectedChit.WorkingMat.IsDisposed)
+            {
+                if (sender is Image img && img.Source is BitmapSource)
+                {
+                    Point clickPos = e.GetPosition(img);
+                    double actualW = img.ActualWidth;
+                    double actualH = img.ActualHeight;
+
+                    if (actualW > 0 && actualH > 0)
+                    {
+                        int matW = vm.SelectedChit.WorkingMat.Width;
+                        int matH = vm.SelectedChit.WorkingMat.Height;
+
+                        int px = (int)Math.Clamp(Math.Floor(clickPos.X * matW / actualW), 0, matW - 1);
+                        int py = (int)Math.Clamp(Math.Floor(clickPos.Y * matH / actualH), 0, matH - 1);
+
+                        var indexer = vm.SelectedChit.WorkingMat.GetGenericIndexer<OpenCvSharp.Vec4b>();
+                        OpenCvSharp.Vec4b colorVec = indexer[py, px];
+
+                        if (colorVec.Item3 > 0) // if not fully transparent
+                        {
+                            vm.ChitEdgeCleanColor = Color.FromRgb(colorVec.Item2, colorVec.Item1, colorVec.Item0);
+                            vm.LockEdgeCleanColor = true;
+                            vm.StatusMessage = $"Sampled background color #{vm.ChitEdgeCleanColor.R:X2}{vm.ChitEdgeCleanColor.G:X2}{vm.ChitEdgeCleanColor.B:X2} at ({px}, {py}).";
+                            e.Handled = true;
+                        }
+                    }
+                }
             }
         }
     }

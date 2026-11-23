@@ -4,6 +4,16 @@ using OpenCvSharp;
 namespace pdf_to_Tiles.Services
 {
     /// <summary>
+    /// Modes for color-matched chit edge cleanup.
+    /// </summary>
+    public enum EdgeCleanMode
+    {
+        TargetedReplace,
+        SmartInpaint,
+        SolidFlood
+    }
+
+    /// <summary>
     /// High-performance wargame chit image editing algorithms ported and adapted from GTL Text Editor.
     /// Operates on 4-channel BGRA (CV_8UC4) matrices with minimum dimension guards.
     /// </summary>
@@ -289,6 +299,221 @@ namespace pdf_to_Tiles.Services
             using var srcCrop = new Mat(src, srcRoi);
             using var dstSub = new Mat(dst, dstRoi);
             srcCrop.CopyTo(dstSub);
+
+            return dst;
+        }
+
+        /// <summary>
+        /// Samples an inner perimeter band (depth+1 to depth+4 px) to statistically determine the modal
+        /// (dominant) counter background color, ignoring text, numbers, and transparency.
+        /// </summary>
+        public static Vec4b SampleDominantBackgroundColor(Mat src, int depth = 2)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                return new Vec4b(200, 200, 200, 255);
+            }
+
+            int width = src.Width;
+            int height = src.Height;
+
+            int innerStart = Math.Clamp(depth + 1, 1, Math.Min(width / 3, height / 3));
+            int innerEnd = Math.Clamp(depth + 4, innerStart, Math.Min(width / 2, height / 2));
+
+            var indexer = src.GetGenericIndexer<Vec4b>();
+
+            // 3D quantized histogram: 32 bins per channel (5 bits: >> 3) -> 32,768 bins
+            int[] histogram = new int[32768];
+            long[] sumB = new long[32768];
+            long[] sumG = new long[32768];
+            long[] sumR = new long[32768];
+
+            void ProcessPixel(int x, int y)
+            {
+                Vec4b p = indexer[y, x];
+                if (p.Item3 == 0) return; // Skip transparent pixels
+
+                int bBin = p.Item0 >> 3;
+                int gBin = p.Item1 >> 3;
+                int rBin = p.Item2 >> 3;
+                int binIdx = (bBin << 10) | (gBin << 5) | rBin;
+
+                histogram[binIdx]++;
+                sumB[binIdx] += p.Item0;
+                sumG[binIdx] += p.Item1;
+                sumR[binIdx] += p.Item2;
+            }
+
+            for (int y = innerStart; y <= innerEnd; y++)
+            {
+                for (int x = innerStart; x < width - innerStart; x++)
+                {
+                    ProcessPixel(x, y);                   // Top inner band
+                    ProcessPixel(x, height - 1 - y);       // Bottom inner band
+                }
+            }
+
+            for (int x = innerStart; x <= innerEnd; x++)
+            {
+                for (int y = innerStart; y < height - innerStart; y++)
+                {
+                    ProcessPixel(x, y);                   // Left inner band
+                    ProcessPixel(width - 1 - x, y);       // Right inner band
+                }
+            }
+
+            int maxCount = 0;
+            int modeBin = -1;
+            for (int i = 0; i < 32768; i++)
+            {
+                if (histogram[i] > maxCount)
+                {
+                    maxCount = histogram[i];
+                    modeBin = i;
+                }
+            }
+
+            if (modeBin >= 0 && maxCount > 0)
+            {
+                byte avgB = (byte)Math.Clamp(sumB[modeBin] / maxCount, 0, 255);
+                byte avgG = (byte)Math.Clamp(sumG[modeBin] / maxCount, 0, 255);
+                byte avgR = (byte)Math.Clamp(sumR[modeBin] / maxCount, 0, 255);
+                return new Vec4b(avgB, avgG, avgR, 255);
+            }
+
+            return new Vec4b(200, 200, 200, 255);
+        }
+
+        /// <summary>
+        /// Cleans cut marks, die-cut border nicks, and scanner edge artifacts along the perimeter of the chit
+        /// by replacing or inpainting offending pixels with the counter's background color.
+        /// </summary>
+        public static Mat ApplyEdgeCleanup(
+            Mat src,
+            int depth,
+            int tolerance,
+            EdgeCleanMode mode,
+            Vec4b? targetBgColor = null,
+            bool preserveTransparentCorners = true)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for edge cleanup.", nameof(src));
+            }
+
+            int d = Math.Clamp(depth, 1, Math.Min(src.Width / 3, src.Height / 3));
+            int tol = Math.Clamp(tolerance, 5, 200);
+            int tolSq = tol * tol;
+
+            Vec4b bg = targetBgColor ?? SampleDominantBackgroundColor(src, d);
+
+            Mat dst = src.Clone();
+            int width = dst.Width;
+            int height = dst.Height;
+
+            bool IsInOuterBand(int x, int y)
+            {
+                return x < d || x >= width - d || y < d || y >= height - d;
+            }
+
+            if (mode == EdgeCleanMode.SolidFlood)
+            {
+                var indexer = dst.GetGenericIndexer<Vec4b>();
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (IsInOuterBand(x, y))
+                        {
+                            Vec4b cur = indexer[y, x];
+                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+                            indexer[y, x] = bg;
+                        }
+                    }
+                }
+                return dst;
+            }
+            else if (mode == EdgeCleanMode.TargetedReplace)
+            {
+                var indexer = dst.GetGenericIndexer<Vec4b>();
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (IsInOuterBand(x, y))
+                        {
+                            Vec4b cur = indexer[y, x];
+                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+
+                            int db = cur.Item0 - bg.Item0;
+                            int dg = cur.Item1 - bg.Item1;
+                            int dr = cur.Item2 - bg.Item2;
+                            int distSq = (db * db) + (dg * dg) + (dr * dr);
+
+                            if (distSq > tolSq)
+                            {
+                                indexer[y, x] = bg;
+                            }
+                        }
+                    }
+                }
+                return dst;
+            }
+            else if (mode == EdgeCleanMode.SmartInpaint)
+            {
+                using Mat mask = new Mat(new OpenCvSharp.Size(width, height), MatType.CV_8UC1, new Scalar(0));
+                var maskIndexer = mask.GetGenericIndexer<byte>();
+                var dstIndexer = dst.GetGenericIndexer<Vec4b>();
+
+                bool hasDefects = false;
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (IsInOuterBand(x, y))
+                        {
+                            Vec4b cur = dstIndexer[y, x];
+                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+
+                            int db = cur.Item0 - bg.Item0;
+                            int dg = cur.Item1 - bg.Item1;
+                            int dr = cur.Item2 - bg.Item2;
+                            int distSq = (db * db) + (dg * dg) + (dr * dr);
+
+                            if (distSq > tolSq)
+                            {
+                                maskIndexer[y, x] = 255;
+                                hasDefects = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!hasDefects)
+                {
+                    return dst;
+                }
+
+                using Mat bgr = new Mat();
+                using Mat alpha = new Mat();
+                Cv2.CvtColor(dst, bgr, ColorConversionCodes.BGRA2BGR);
+                Cv2.ExtractChannel(dst, alpha, 3);
+
+                using Mat inpaintedBgr = new Mat();
+                Cv2.Inpaint(bgr, mask, inpaintedBgr, inpaintRadius: 3, InpaintMethod.Telea);
+
+                using Mat chB = new Mat();
+                using Mat chG = new Mat();
+                using Mat chR = new Mat();
+                Cv2.ExtractChannel(inpaintedBgr, chB, 0);
+                Cv2.ExtractChannel(inpaintedBgr, chG, 1);
+                Cv2.ExtractChannel(inpaintedBgr, chR, 2);
+
+                Mat result = new Mat();
+                Cv2.Merge(new[] { chB, chG, chR, alpha }, result);
+                dst.Dispose();
+                return result;
+            }
 
             return dst;
         }

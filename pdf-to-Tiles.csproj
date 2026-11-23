@@ -7,10 +7,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>2026-23-11.2</Version>
-    <InformationalVersion>2026-23-11.2</InformationalVersion>
-    <AssemblyVersion>2026.23.11.2</AssemblyVersion>
-    <FileVersion>2026.23.11.2</FileVersion>
+    <Version>2026-23-11.3</Version>
+    <InformationalVersion>2026-23-11.3</InformationalVersion>
+    <AssemblyVersion>2026.23.11.3</AssemblyVersion>
+    <FileVersion>2026.23.11.3</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.2";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.3";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1314,6 +1314,8 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyEdgeCleanCommand))]
+        [NotifyCanExecuteChangedFor(nameof(AutoSampleEdgeColorCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetSelectedChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
         private ChitItem? _selectedChit;
@@ -1329,6 +1331,11 @@ namespace pdf_to_Tiles.ViewModels
 
                 ChitEditorWidth = value.PixelWidth;
                 ChitEditorHeight = value.PixelHeight;
+
+                if (!LockEdgeCleanColor && value.WorkingMat != null && !value.WorkingMat.IsDisposed)
+                {
+                    AutoSampleEdgeColorInternal(value);
+                }
             }
         }
 
@@ -1367,6 +1374,40 @@ namespace pdf_to_Tiles.ViewModels
         public IReadOnlyList<int> AvailableBevelSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         public IReadOnlyList<int> AvailableClipSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         public IReadOnlyList<int> AvailableClearSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+        [ObservableProperty]
+        private Color _chitEdgeCleanColor = Color.FromRgb(220, 40, 30);
+
+        [ObservableProperty]
+        private int _chitEdgeCleanDepth = 2;
+
+        [ObservableProperty]
+        private int _chitEdgeCleanTolerance = 35;
+
+        [ObservableProperty]
+        private string _selectedEdgeCleanMode = "Targeted Replace";
+
+        [ObservableProperty]
+        private bool _preserveTransparentCorners = true;
+
+        [ObservableProperty]
+        private bool _lockEdgeCleanColor = false;
+
+        public IReadOnlyList<int> AvailableEdgeCleanDepths { get; } = new[] { 1, 2, 3, 4, 5, 6, 8, 10 };
+
+        public IReadOnlyList<string> AvailableEdgeCleanModes { get; } = new[]
+        {
+            "Targeted Replace",
+            "Smart Inpaint",
+            "Solid Flood"
+        };
+
+        public EdgeCleanMode ChitEdgeCleanMode => SelectedEdgeCleanMode switch
+        {
+            "Smart Inpaint" => EdgeCleanMode.SmartInpaint,
+            "Solid Flood" => EdgeCleanMode.SolidFlood,
+            _ => EdgeCleanMode.TargetedReplace
+        };
 
         [RelayCommand]
         private void ChitInspectionZoomIn()
@@ -1479,6 +1520,53 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
             }
             StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+        }
+
+        private void AutoSampleEdgeColorInternal(ChitItem chit)
+        {
+            if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) return;
+            Vec4b dominant = ChitEditorService.SampleDominantBackgroundColor(chit.WorkingMat, ChitEdgeCleanDepth);
+            ChitEdgeCleanColor = Color.FromRgb(dominant.Item2, dominant.Item1, dominant.Item0);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void AutoSampleEdgeColor()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            AutoSampleEdgeColorInternal(SelectedChit);
+            StatusMessage = $"Auto-sampled background color #{ChitEdgeCleanColor.R:X2}{ChitEdgeCleanColor.G:X2}{ChitEdgeCleanColor.B:X2} from chit #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyEdgeClean()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+
+                // When applying to all chits, dynamically auto-sample each chit's background color per chit (unless locked)
+                Vec4b targetBg = (!ApplyToAllChits || LockEdgeCleanColor)
+                    ? ColorToVec4b(ChitEdgeCleanColor)
+                    : ChitEditorService.SampleDominantBackgroundColor(chit.WorkingMat, ChitEdgeCleanDepth);
+
+                var cleaned = ChitEditorService.ApplyEdgeCleanup(
+                    chit.WorkingMat,
+                    ChitEdgeCleanDepth,
+                    ChitEdgeCleanTolerance,
+                    ChitEdgeCleanMode,
+                    targetBg,
+                    PreserveTransparentCorners);
+
+                chit.UpdateWorkingMat(cleaned, recordHistory: true, TransparentColor);
+            }
+
+            StatusMessage = ApplyToAllChits
+                ? $"Applied {SelectedEdgeCleanMode} edge clean ({ChitEdgeCleanDepth}px) to all {targets.Count} chits."
+                : $"Applied {SelectedEdgeCleanMode} edge clean ({ChitEdgeCleanDepth}px) to chit #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
