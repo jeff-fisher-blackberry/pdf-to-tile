@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-22-11.4";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.1";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -212,6 +212,10 @@ namespace pdf_to_Tiles.ViewModels
         // Column Divider Fine-Tuning
         [ObservableProperty]
         private bool _isFineTuningDividers = false;
+
+        // Interactive Corner Picking
+        [ObservableProperty]
+        private bool _isSettingUpperLeftCorner = false;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SelectedDividerPositionText))]
@@ -778,6 +782,29 @@ namespace pdf_to_Tiles.ViewModels
         partial void OnDeskewAngleChanged(double value)
         {
             _ = ApplyDeskewRotationAsync();
+        }
+
+        partial void OnSelectedTabIndexChanged(int value)
+        {
+            if (value != 1 && IsSettingUpperLeftCorner)
+            {
+                IsSettingUpperLeftCorner = false;
+            }
+        }
+
+        partial void OnIsSettingUpperLeftCornerChanged(bool value)
+        {
+            if (value)
+            {
+                StatusMessage = "Crosshair active: Click on the counter sheet to set the upper-left corner of the 2×10 band.";
+            }
+            else
+            {
+                if (StatusMessage.StartsWith("Crosshair active:", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusMessage = "Ready.";
+                }
+            }
         }
 
         partial void OnActiveBandIndexChanged(int value) => SyncFromActiveBand();

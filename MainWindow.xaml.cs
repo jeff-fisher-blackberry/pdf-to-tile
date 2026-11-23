@@ -57,6 +57,15 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.SelectedProfile):
                     UpdateGridOverlay();
                     break;
+
+                case nameof(MainViewModel.IsSettingUpperLeftCorner):
+                case nameof(MainViewModel.SelectedTabIndex):
+                    if (DataContext is MainViewModel vmTab && vmTab.SelectedTabIndex != 1 && vmTab.IsSettingUpperLeftCorner)
+                    {
+                        vmTab.IsSettingUpperLeftCorner = false;
+                    }
+                    UpdateSlicerCursor();
+                    break;
             }
         }
 
@@ -308,6 +317,98 @@ namespace pdf_to_Tiles
                         SlicerGridCanvas.Children.Add(hLine);
                     }
                 }
+            }
+        }
+
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner)
+            {
+                vm.IsSettingUpperLeftCorner = false;
+                e.Handled = true;
+            }
+        }
+
+        protected override void OnDeactivated(EventArgs e)
+        {
+            base.OnDeactivated(e);
+            if (DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner)
+            {
+                vm.IsSettingUpperLeftCorner = false;
+            }
+        }
+
+        private void UpdateSlicerCursor()
+        {
+            if (DataContext is MainViewModel vm && vm.IsSettingUpperLeftCorner && vm.SelectedTabIndex == 1)
+            {
+                if (SlicerScrollViewer != null) SlicerScrollViewer.Cursor = Cursors.Cross;
+                if (SlicerGridCanvas != null) SlicerGridCanvas.Cursor = Cursors.Cross;
+                if (SlicerImageDisplay != null) SlicerImageDisplay.Cursor = Cursors.Cross;
+            }
+            else
+            {
+                ResetSlicerCursor();
+            }
+        }
+
+        private void ResetSlicerCursor()
+        {
+            if (SlicerScrollViewer != null) SlicerScrollViewer.Cursor = Cursors.Arrow;
+            if (SlicerGridCanvas != null) SlicerGridCanvas.Cursor = Cursors.Arrow;
+            if (SlicerImageDisplay != null) SlicerImageDisplay.Cursor = Cursors.Arrow;
+        }
+
+        private void SlicerScrollViewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm || !vm.IsSettingUpperLeftCorner)
+            {
+                return;
+            }
+
+            if (SlicerImageDisplay == null || SlicerImageDisplay.ActualWidth <= 0 || SlicerImageDisplay.ActualHeight <= 0)
+            {
+                vm.IsSettingUpperLeftCorner = false;
+                return;
+            }
+
+            Point clickPos = e.GetPosition(SlicerImageDisplay);
+            double imgW = SlicerImageDisplay.ActualWidth;
+            double imgH = SlicerImageDisplay.ActualHeight;
+
+            // Only capture clicks within the bounds of the sheet
+            if (clickPos.X >= 0 && clickPos.X <= imgW && clickPos.Y >= 0 && clickPos.Y <= imgH)
+            {
+                double normX = Math.Clamp(clickPos.X / imgW, 0.0, 1.0);
+                double normY = Math.Clamp(clickPos.Y / imgH, 0.0, 1.0);
+
+                double targetLeftPercent = normX * 100.0;
+                double targetTopPercent = normY * 100.0;
+
+                double currentWidth = vm.ActiveBandWidthPercent;
+                double currentHeight = vm.ActiveBandHeightPercent;
+
+                // Bounds safety: clamp coordinates so dimensions never become negative or push past 100%
+                double clampedLeft = Math.Clamp(targetLeftPercent, 0.0, 50.0);
+                if (clampedLeft + currentWidth > 100.0)
+                {
+                    vm.ActiveBandWidthPercent = Math.Round(Math.Max(10.0, 100.0 - clampedLeft), 1);
+                }
+
+                double clampedTop = Math.Clamp(targetTopPercent, 0.0, 90.0);
+                if (clampedTop + currentHeight > 100.0)
+                {
+                    vm.ActiveBandHeightPercent = Math.Round(Math.Max(5.0, 100.0 - clampedTop), 1);
+                }
+
+                vm.ActiveBandLeftPercent = Math.Round(clampedLeft, 1);
+                vm.ActiveBandTopPercent = Math.Round(clampedTop, 1);
+
+                vm.StatusMessage = $"Set upper-left corner to ({vm.ActiveBandLeftPercent:F1}%, {vm.ActiveBandTopPercent:F1}%).";
+
+                // Automatically uncheck and restore cursor
+                vm.IsSettingUpperLeftCorner = false;
+                e.Handled = true;
             }
         }
     }

@@ -11,6 +11,7 @@
         MinHeight="600" MinWidth="950"
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="MainWindow_PreviewKeyDown"
         Background="{DynamicResource WindowBackgroundBrush}">
 
     <Window.DataContext>
@@ -403,6 +404,23 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="14" Orientation="Vertical">
 
+                                <!-- SEND 2×10 BAND TO CHIT EDITOR ACTION (TOP) -->
+                                <Border Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <Button Content="🎨 Send 2×10 Band to Chit Editor"
+                                            Command="{Binding SendBandToChitEditorCommand}"
+                                            Style="{StaticResource AccentButtonStyle}"
+                                            Padding="14,10"
+                                            FontSize="13"
+                                            HorizontalAlignment="Stretch"
+                                            ToolTip="Slice active 2×10 band directly into memory and open in Chit Editor (Tab 3)" />
+                                </Border>
+
                                 <!-- SINGLE CHIT PREVIEW CARD -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
@@ -457,8 +475,14 @@
                                         Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="2×10 BAND BOUNDING BOX (% OF SHEET)" Style="{StaticResource SectionHeaderStyle}" />
-                                        <TextBlock Text="Set outer boundaries for the active 2 rows × 10 columns (20 chits) section."
-                                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap" />
+
+                                        <!-- Set upper left corner crosshair picker -->
+                                        <CheckBox Content="Set upper left corner"
+                                                  IsChecked="{Binding IsSettingUpperLeftCorner, Mode=TwoWay}"
+                                                  Margin="0,4,0,8"
+                                                  FontWeight="SemiBold"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  ToolTip="When checked, click the counter sheet to set the upper-left (X, Y) corner of the 2×10 band" />
 
                                         <!-- Band Left (X) -->
                                         <Grid Margin="0,2">
@@ -734,18 +758,11 @@
                                     <StackPanel>
                                         <!-- Banded Mode Action (Single 2x10 Section / 20 Chits) -->
                                         <StackPanel Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
-                                            <Button Content="🎨 Send 2×10 Band to Chit Editor"
-                                                    Command="{Binding SendBandToChitEditorCommand}"
-                                                    Style="{StaticResource AccentButtonStyle}"
-                                                    Padding="14,10"
-                                                    FontSize="13"
-                                                    Margin="0,0,0,8"
-                                                    ToolTip="Slice active 2×10 band directly into memory and open in Chit Editor (Tab 3)" />
-
                                             <Button Content="✂️ Slice 2×10 Band to Disk..."
                                                     Command="{Binding SliceActiveBandCommand}"
                                                     Padding="14,8"
                                                     FontSize="12"
+                                                    HorizontalAlignment="Stretch"
                                                     ToolTip="Slice configured 2×10 band into 20 PNG files on disk" />
                                         </StackPanel>
 
@@ -786,7 +803,8 @@
                                   Background="{DynamicResource ViewportBackgroundBrush}"
                                   HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Auto"
-                                  SizeChanged="SlicerScrollViewer_SizeChanged">
+                                  SizeChanged="SlicerScrollViewer_SizeChanged"
+                                  PreviewMouseLeftButtonDown="SlicerScrollViewer_PreviewMouseLeftButtonDown">
 
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
                             <!-- Drop shadow border around rendered sheet -->
@@ -811,6 +829,7 @@
                                     <Canvas x:Name="SlicerGridCanvas"
                                             Width="{Binding ElementName=SlicerImageDisplay, Path=ActualWidth}"
                                             Height="{Binding ElementName=SlicerImageDisplay, Path=ActualHeight}"
+                                            IsHitTestVisible="False"
                                             ClipToBounds="True" />
                                 </Grid>
 
