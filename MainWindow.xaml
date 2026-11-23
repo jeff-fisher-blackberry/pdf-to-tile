@@ -1274,9 +1274,14 @@
                                                 <Button Content="+" Command="{Binding ChitEditorZoomInCommand}"
                                                         Width="24" Height="22" Padding="0" Margin="1,0"
                                                         ToolTip="Zoom in 1% (+0.01)" />
-                                                <Button Content="100%" Command="{Binding ChitEditorZoomResetCommand}"
-                                                        Width="40" Height="22" Padding="0" Margin="3,0,1,0"
-                                                        ToolTip="Reset zoom to 100%" />
+                                                <TextBox x:Name="ChitEditorZoomTextBox"
+                                                         Text="{Binding ChitEditorZoomInputText, UpdateSourceTrigger=LostFocus}"
+                                                         Width="48" Height="22" Padding="2,1" Margin="3,0,1,0"
+                                                         FontSize="11" TextAlignment="Center"
+                                                         VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                                         ToolTip="Enter zoom percentage (e.g. 100%, 250) and press Enter"
+                                                         KeyDown="ChitEditorZoomTextBox_KeyDown"
+                                                         LostFocus="ChitEditorZoomTextBox_LostFocus" />
                                                 <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
                                                            FontSize="11" FontWeight="Bold" Width="36"
                                                            VerticalAlignment="Center" TextAlignment="Right" Margin="4,0,0,0" />

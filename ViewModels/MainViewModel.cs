@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.11";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.12";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1549,6 +1549,14 @@ namespace pdf_to_Tiles.ViewModels
         public string ChitEditorZoomPercentageText => $"{Math.Round(ChitEditorZoomScale * 100):F0}%";
 
         [ObservableProperty]
+        private string _chitEditorZoomInputText = "100%";
+
+        partial void OnChitEditorZoomScaleChanged(double value)
+        {
+            ChitEditorZoomInputText = $"{Math.Round(value * 100):F0}%";
+        }
+
+        [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ChitInspectionZoomPercentageText))]
         private double _chitInspectionZoomScale = 2.0;
 
@@ -1749,6 +1757,35 @@ namespace pdf_to_Tiles.ViewModels
         private void ChitEditorZoomReset()
         {
             ChitEditorZoomScale = 1.0;
+        }
+
+        [RelayCommand]
+        public void ApplyChitEditorZoomInput(string? input = null)
+        {
+            string raw = (input ?? ChitEditorZoomInputText)?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                ChitEditorZoomInputText = $"{Math.Round(ChitEditorZoomScale * 100):F0}%";
+                return;
+            }
+
+            if (raw.EndsWith('%'))
+            {
+                raw = raw[..^1].Trim();
+            }
+
+            raw = raw.Replace(',', '.');
+
+            if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsedVal))
+            {
+                if (!double.IsNaN(parsedVal) && !double.IsInfinity(parsedVal))
+                {
+                    double clampedPercent = Math.Clamp(parsedVal, 10.0, 400.0);
+                    ChitEditorZoomScale = Math.Round(clampedPercent / 100.0, 2);
+                }
+            }
+
+            ChitEditorZoomInputText = $"{Math.Round(ChitEditorZoomScale * 100):F0}%";
         }
 
         [RelayCommand]

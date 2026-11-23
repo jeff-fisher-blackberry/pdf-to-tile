@@ -549,5 +549,28 @@ namespace pdf_to_Tiles
                 }
             }
         }
+
+        private void ChitEditorZoomTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox textBox)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.ApplyChitEditorZoomInput(textBox.Text);
+                    textBox.Text = vm.ChitEditorZoomInputText;
+                    textBox.SelectAll();
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void ChitEditorZoomTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox && DataContext is MainViewModel vm)
+            {
+                vm.ApplyChitEditorZoomInput(textBox.Text);
+                textBox.Text = vm.ChitEditorZoomInputText;
+            }
+        }
     }
 }
