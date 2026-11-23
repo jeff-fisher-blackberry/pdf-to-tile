@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.1";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.2";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -1356,7 +1356,10 @@ namespace pdf_to_Tiles.ViewModels
         private double _chitEditorZoomScale = 1.0;
 
         [ObservableProperty]
-        private double _chitInspectionZoomScale = 4.0;
+        [NotifyPropertyChangedFor(nameof(ChitInspectionZoomPercentageText))]
+        private double _chitInspectionZoomScale = 2.0;
+
+        public string ChitInspectionZoomPercentageText => $"{Math.Round(ChitInspectionZoomScale * 100):F0}%";
 
         [ObservableProperty]
         private bool _applyToAllChits = false;
@@ -1364,6 +1367,27 @@ namespace pdf_to_Tiles.ViewModels
         public IReadOnlyList<int> AvailableBevelSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         public IReadOnlyList<int> AvailableClipSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         public IReadOnlyList<int> AvailableClearSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+        [RelayCommand]
+        private void ChitInspectionZoomIn()
+        {
+            ChitInspectionZoomScale = Math.Min(Math.Round(ChitInspectionZoomScale + 0.25, 2), 4.0);
+        }
+
+        [RelayCommand]
+        private void ChitInspectionZoomOut()
+        {
+            ChitInspectionZoomScale = Math.Max(Math.Round(ChitInspectionZoomScale - 0.25, 2), 1.0);
+        }
+
+        [RelayCommand]
+        private void SetChitInspectionZoom(string? scaleStr)
+        {
+            if (double.TryParse(scaleStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double scale))
+            {
+                ChitInspectionZoomScale = Math.Clamp(Math.Round(scale, 2), 1.0, 4.0);
+            }
+        }
 
         private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed;
 

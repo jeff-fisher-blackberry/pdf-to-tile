@@ -1044,7 +1044,9 @@
                     <ScrollViewer Grid.Column="2"
                                   Background="{DynamicResource ViewportBackgroundBrush}"
                                   HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Auto">
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center">
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
                             <!-- Populated Chit State -->
                             <StackPanel Visibility="{Binding HasSelectedChit, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Center">
@@ -1068,6 +1070,8 @@
                                                 HorizontalAlignment="Center">
                                             <Image Source="{Binding SelectedChit.PreviewSource}"
                                                    Stretch="None"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
                                                    RenderOptions.BitmapScalingMode="HighQuality" />
                                         </Border>
 
@@ -1077,7 +1081,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Zoomed Pixel Inspection Area (400% Nearest Neighbor) -->
+                                <!-- Zoomed Pixel Inspection Area -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
@@ -1085,9 +1089,45 @@
                                         Padding="16"
                                         HorizontalAlignment="Center">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="ZOOMED PIXEL INSPECTION (400% MAGNIFICATION)"
+                                        <TextBlock Text="ZOOMED PIXEL INSPECTION"
                                                    FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
                                                    HorizontalAlignment="Center" Margin="0,0,0,8" />
+
+                                        <!-- Magnification Controls -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                            <Button Content="-" Width="28" Height="24" Padding="0"
+                                                    Command="{Binding ChitInspectionZoomOutCommand}"
+                                                    ToolTip="Zoom out (25%)" Margin="2,0" />
+                                            <Button Content="+" Width="28" Height="24" Padding="0"
+                                                    Command="{Binding ChitInspectionZoomInCommand}"
+                                                    ToolTip="Zoom in (25%)" Margin="2,0" />
+
+                                            <Button Content="100%" Width="42" Height="24" Padding="0"
+                                                    Command="{Binding SetChitInspectionZoomCommand}" CommandParameter="1.0"
+                                                    ToolTip="Set zoom to 100%" Margin="2,0" />
+                                            <Button Content="150%" Width="42" Height="24" Padding="0"
+                                                    Command="{Binding SetChitInspectionZoomCommand}" CommandParameter="1.5"
+                                                    ToolTip="Set zoom to 150%" Margin="2,0" />
+                                            <Button Content="200%" Width="42" Height="24" Padding="0"
+                                                    Command="{Binding SetChitInspectionZoomCommand}" CommandParameter="2.0"
+                                                    ToolTip="Set zoom to 200%" Margin="2,0" />
+                                            <Button Content="300%" Width="42" Height="24" Padding="0"
+                                                    Command="{Binding SetChitInspectionZoomCommand}" CommandParameter="3.0"
+                                                    ToolTip="Set zoom to 300%" Margin="2,0" />
+                                            <Button Content="400%" Width="42" Height="24" Padding="0"
+                                                    Command="{Binding SetChitInspectionZoomCommand}" CommandParameter="4.0"
+                                                    ToolTip="Set zoom to 400%" Margin="2,0" />
+
+                                            <Slider Minimum="1.0" Maximum="4.0"
+                                                    Value="{Binding ChitInspectionZoomScale}"
+                                                    SmallChange="0.25" LargeChange="0.5"
+                                                    Width="90" VerticalAlignment="Center" Margin="8,0,4,0"
+                                                    ToolTip="Adjust magnification (100% - 400%)" />
+
+                                            <TextBlock Text="{Binding ChitInspectionZoomPercentageText}"
+                                                       FontWeight="Bold" FontSize="11" Width="38"
+                                                       VerticalAlignment="Center" TextAlignment="Right" />
+                                        </StackPanel>
 
                                         <Border BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
@@ -1096,6 +1136,8 @@
                                                 HorizontalAlignment="Center">
                                             <Image Source="{Binding SelectedChit.PreviewSource}"
                                                    Stretch="None"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
                                                    RenderOptions.BitmapScalingMode="NearestNeighbor">
                                                 <Image.LayoutTransform>
                                                     <ScaleTransform ScaleX="{Binding ChitInspectionZoomScale}" ScaleY="{Binding ChitInspectionZoomScale}" />
