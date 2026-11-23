@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.9";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.10";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -127,7 +127,10 @@ namespace pdf_to_Tiles.ViewModels
         private double _slicerZoomScale = 1.0;
 
         [ObservableProperty]
-        private bool _isSlicerFitToPage = true;
+        private bool _isSlicerFitToWidth = true;
+
+        [ObservableProperty]
+        private bool _isSlicerFitToPage = false;
 
         public string SlicerZoomPercentageText => $"{Math.Round(SlicerZoomScale * 100)}%";
         public bool HasSlicerImage => SlicerImage != null && _masterMat != null && !_masterMat.IsDisposed;
@@ -597,6 +600,18 @@ namespace pdf_to_Tiles.ViewModels
 
                 await LoadImageFileForSlicingAsync(tempPngPath, isTempFile: true);
                 SelectedTabIndex = 1; // Switch tab to Deskew & Grid Slicer
+
+                // Enforce Fit to Width on transfer from PDF Viewer
+                IsSlicerFitToWidth = true;
+                IsSlicerFitToPage = false;
+                if (GetSlicerViewportSize != null)
+                {
+                    var (vWidth, _) = GetSlicerViewportSize();
+                    if (vWidth > 50)
+                    {
+                        RecalculateSlicerFitToWidth(vWidth);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -657,10 +672,21 @@ namespace pdf_to_Tiles.ViewModels
                 DeskewAngle = 0.0;
                 await ApplyDeskewRotationAsync();
 
-                if (IsSlicerFitToPage && GetSlicerViewportSize != null)
+                if (IsSlicerFitToWidth && GetSlicerViewportSize != null)
+                {
+                    var (width, _) = GetSlicerViewportSize();
+                    if (width > 0)
+                    {
+                        RecalculateSlicerFitToWidth(width);
+                    }
+                }
+                else if (IsSlicerFitToPage && GetSlicerViewportSize != null)
                 {
                     var (width, height) = GetSlicerViewportSize();
-                    RecalculateSlicerFitToPage(width, height);
+                    if (width > 0 && height > 0)
+                    {
+                        RecalculateSlicerFitToPage(width, height);
+                    }
                 }
 
                 StatusMessage = $"Loaded {SlicerSourceFileName} ({SlicerPixelWidth} × {SlicerPixelHeight} px). Ready for deskew & slicing.";
@@ -1171,6 +1197,23 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
+        public void RecalculateSlicerFitToWidth(double viewportWidth)
+        {
+            if (SlicerImage == null || SlicerImage.PixelWidth <= 0 || viewportWidth <= 0)
+            {
+                return;
+            }
+
+            // Margin: 24px left + 24px right = 48px, plus vertical scrollbar breathing room (~20px) = 68px.
+            double availableWidth = Math.Max(20.0, viewportWidth - 68.0);
+            double fitScale = availableWidth / SlicerImage.PixelWidth;
+
+            if (fitScale > 0.005)
+            {
+                SlicerZoomScale = Math.Clamp(Math.Round(fitScale, 4), 0.05, 5.0);
+            }
+        }
+
         public void RecalculateSlicerFitToPage(double viewportWidth, double viewportHeight)
         {
             if (SlicerImage == null || SlicerImage.PixelWidth <= 0 || SlicerImage.PixelHeight <= 0)
@@ -1192,8 +1235,24 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand]
+        private void SlicerFitToWidth()
+        {
+            IsSlicerFitToWidth = true;
+            IsSlicerFitToPage = false;
+            if (GetSlicerViewportSize != null)
+            {
+                var (width, _) = GetSlicerViewportSize();
+                if (width > 0)
+                {
+                    RecalculateSlicerFitToWidth(width);
+                }
+            }
+        }
+
+        [RelayCommand]
         private void SlicerFitToPage()
         {
+            IsSlicerFitToWidth = false;
             IsSlicerFitToPage = true;
             if (GetSlicerViewportSize != null)
             {
@@ -1205,6 +1264,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void SlicerActualSize()
         {
+            IsSlicerFitToWidth = false;
             IsSlicerFitToPage = false;
             SlicerZoomScale = 1.0;
         }
@@ -1212,6 +1272,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void SlicerZoomIn()
         {
+            IsSlicerFitToWidth = false;
             IsSlicerFitToPage = false;
             SlicerZoomScale = Math.Min(Math.Round(SlicerZoomScale + 0.01, 2), 5.0);
         }
@@ -1219,6 +1280,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void SlicerZoomOut()
         {
+            IsSlicerFitToWidth = false;
             IsSlicerFitToPage = false;
             SlicerZoomScale = Math.Max(Math.Round(SlicerZoomScale - 0.01, 2), 0.05);
         }

@@ -359,6 +359,10 @@
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
                         <!-- Zoom Controls -->
+                        <Button Content="Fit to Width"
+                                Command="{Binding SlicerFitToWidthCommand}"
+                                ToolTip="Scale counter sheet to fit visible viewport width" />
+
                         <Button Content="Fit to View"
                                 Command="{Binding SlicerFitToPageCommand}"
                                 ToolTip="Scale counter sheet to fit inside the visible viewport" />

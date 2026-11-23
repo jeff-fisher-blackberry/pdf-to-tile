@@ -27,6 +27,24 @@ namespace pdf_to_Tiles
                 vm.GetSlicerViewportSize = () => (SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
 
                 vm.PropertyChanged += ViewModel_PropertyChanged;
+
+                SlicerScrollViewer.IsVisibleChanged += (s, e) =>
+                {
+                    if (SlicerScrollViewer.IsVisible && DataContext is MainViewModel mvm)
+                    {
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            if (mvm.IsSlicerFitToWidth && SlicerScrollViewer.ActualWidth > 0)
+                            {
+                                mvm.RecalculateSlicerFitToWidth(SlicerScrollViewer.ActualWidth);
+                            }
+                            else if (mvm.IsSlicerFitToPage && SlicerScrollViewer.ActualWidth > 0 && SlicerScrollViewer.ActualHeight > 0)
+                            {
+                                mvm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+                            }
+                        }, System.Windows.Threading.DispatcherPriority.Loaded);
+                    }
+                };
             }
         }
 
@@ -80,18 +98,32 @@ namespace pdf_to_Tiles
 
         private void SlicerScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (DataContext is MainViewModel vm && vm.IsSlicerFitToPage)
+            if (DataContext is MainViewModel vm)
             {
-                vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+                if (vm.IsSlicerFitToWidth && SlicerScrollViewer.ActualWidth > 0)
+                {
+                    vm.RecalculateSlicerFitToWidth(SlicerScrollViewer.ActualWidth);
+                }
+                else if (vm.IsSlicerFitToPage && SlicerScrollViewer.ActualWidth > 0 && SlicerScrollViewer.ActualHeight > 0)
+                {
+                    vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+                }
             }
         }
 
         private void SlicerImageDisplay_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             UpdateGridOverlay();
-            if (DataContext is MainViewModel vm && vm.IsSlicerFitToPage)
+            if (DataContext is MainViewModel vm)
             {
-                vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+                if (vm.IsSlicerFitToWidth && SlicerScrollViewer.ActualWidth > 0)
+                {
+                    vm.RecalculateSlicerFitToWidth(SlicerScrollViewer.ActualWidth);
+                }
+                else if (vm.IsSlicerFitToPage && SlicerScrollViewer.ActualWidth > 0 && SlicerScrollViewer.ActualHeight > 0)
+                {
+                    vm.RecalculateSlicerFitToPage(SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
+                }
             }
         }
 
