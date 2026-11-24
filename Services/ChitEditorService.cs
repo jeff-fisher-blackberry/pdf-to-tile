@@ -24,9 +24,9 @@ namespace pdf_to_Tiles.Services
         /// <summary>
         /// Applies a directional 3D raised-edge gradient bevel (highlight from top-left, shadow on bottom-right)
         /// around the perimeter of the chit using 45° mitered edge classification.
-        /// Preserves existing transparent pixels (A = 0) so corner clips are not overwritten.
+        /// Preserves existing transparent pixels (A = 0 or matching transparentColor) so corner clips are not overwritten.
         /// </summary>
-        public static Mat ApplyBevel(Mat src, int borderSize, Vec4b? highlightColor = null, Vec4b? shadowColor = null)
+        public static Mat ApplyBevel(Mat src, int borderSize, Vec4b? highlightColor = null, Vec4b? shadowColor = null, Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
@@ -71,6 +71,14 @@ namespace pdf_to_Tiles.Services
 
                     Vec4b p = indexer[y, x];
                     if (p.Item3 == 0) continue; // Skip fully transparent pixels (preserves corner clips)
+                    if (transparentColor.HasValue &&
+                        p.Item0 == transparentColor.Value.Item0 &&
+                        p.Item1 == transparentColor.Value.Item1 &&
+                        p.Item2 == transparentColor.Value.Item2 &&
+                        p.Item3 == transparentColor.Value.Item3)
+                    {
+                        continue; // Skip transparent key pixels (preserves corner clips)
+                    }
 
                     Vec4b targetColor;
 
@@ -146,7 +154,7 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Clips/rounds the 4 corner pixels of the chit using true 32-bit transparency (A = 0) or an optional specified key color.
+        /// Clips/rounds the 4 corner pixels of the chit using the specified transparent color (defaulting to cyan BGRA #00FFFF or true transparency).
         /// </summary>
         public static Mat ApplyCornerClip(Mat src, int cornerSize, Vec4b? clipColor = null)
         {
@@ -159,7 +167,8 @@ namespace pdf_to_Tiles.Services
             Mat dst = src.Clone();
             int width = dst.Width;
             int height = dst.Height;
-            Vec4b clr = clipColor ?? new Vec4b(0, 0, 0, 0);
+            // Default to cyan (B=255, G=255, R=0, A=255) if clipColor is not specified
+            Vec4b clr = clipColor ?? new Vec4b(255, 255, 0, 255);
 
             var indexer = dst.GetGenericIndexer<Vec4b>();
 
@@ -311,7 +320,7 @@ namespace pdf_to_Tiles.Services
         /// Samples an inner perimeter band (depth+1 to depth+4 px) to statistically determine the modal
         /// (dominant) counter background color, ignoring text, numbers, and transparency.
         /// </summary>
-        public static Vec4b SampleDominantBackgroundColor(Mat src, int depth = 2)
+        public static Vec4b SampleDominantBackgroundColor(Mat src, int depth = 2, Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
@@ -338,6 +347,14 @@ namespace pdf_to_Tiles.Services
                 if (x < 0 || x >= width || y < 0 || y >= height) return;
                 Vec4b p = indexer[y, x];
                 if (p.Item3 == 0) return; // Skip transparent pixels
+                if (transparentColor.HasValue &&
+                    p.Item0 == transparentColor.Value.Item0 &&
+                    p.Item1 == transparentColor.Value.Item1 &&
+                    p.Item2 == transparentColor.Value.Item2 &&
+                    p.Item3 == transparentColor.Value.Item3)
+                {
+                    return; // Skip transparent key pixels
+                }
 
                 int bBin = p.Item0 >> 3;
                 int gBin = p.Item1 >> 3;
@@ -393,15 +410,16 @@ namespace pdf_to_Tiles.Services
         /// <summary>
         /// Samples the dominant background color along the inner perimeter of the chit.
         /// </summary>
-        public static Vec4b SampleDominantBackgroundColor(Mat src, int topDepth, int bottomDepth, int leftDepth, int rightDepth)
+        public static Vec4b SampleDominantBackgroundColor(Mat src, int topDepth, int bottomDepth, int leftDepth, int rightDepth, Vec4b? transparentColor = null)
         {
             int maxDepth = Math.Max(Math.Max(topDepth, bottomDepth), Math.Max(leftDepth, rightDepth));
-            return SampleDominantBackgroundColor(src, Math.Max(1, maxDepth));
+            return SampleDominantBackgroundColor(src, Math.Max(1, maxDepth), transparentColor);
         }
 
         /// <summary>
         /// Cleans cut marks, die-cut border nicks, and scanner edge artifacts along the perimeter of the chit
         /// by replacing or inpainting offending pixels with the counter's background color, using independent per-side depths.
+        /// Preserves existing corner clips (A = 0 or matching transparentColor).
         /// </summary>
         public static Mat ApplyEdgeCleanup(
             Mat src,
@@ -412,7 +430,8 @@ namespace pdf_to_Tiles.Services
             int tolerance,
             EdgeCleanMode mode,
             Vec4b? targetBgColor = null,
-            bool preserveTransparentCorners = true)
+            bool preserveTransparentCorners = true,
+            Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
@@ -443,13 +462,27 @@ namespace pdf_to_Tiles.Services
             int tol = Math.Clamp(tolerance, 5, 200);
             int tolSq = tol * tol;
 
-            Vec4b bg = targetBgColor ?? SampleDominantBackgroundColor(src, Math.Max(1, maxD));
+            Vec4b bg = targetBgColor ?? SampleDominantBackgroundColor(src, Math.Max(1, maxD), transparentColor);
 
             Mat dst = src.Clone();
 
             if (maxD == 0)
             {
                 return dst;
+            }
+
+            bool IsTransparentCornerPixel(Vec4b p)
+            {
+                if (p.Item3 == 0) return true;
+                if (transparentColor.HasValue &&
+                    p.Item0 == transparentColor.Value.Item0 &&
+                    p.Item1 == transparentColor.Value.Item1 &&
+                    p.Item2 == transparentColor.Value.Item2 &&
+                    p.Item3 == transparentColor.Value.Item3)
+                {
+                    return true;
+                }
+                return false;
             }
 
             bool IsInOuterBand(int x, int y)
@@ -470,7 +503,7 @@ namespace pdf_to_Tiles.Services
                         if (IsInOuterBand(x, y))
                         {
                             Vec4b cur = indexer[y, x];
-                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+                            if (preserveTransparentCorners && IsTransparentCornerPixel(cur)) continue;
                             indexer[y, x] = bg;
                         }
                     }
@@ -487,7 +520,7 @@ namespace pdf_to_Tiles.Services
                         if (IsInOuterBand(x, y))
                         {
                             Vec4b cur = indexer[y, x];
-                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+                            if (preserveTransparentCorners && IsTransparentCornerPixel(cur)) continue;
 
                             int db = cur.Item0 - bg.Item0;
                             int dg = cur.Item1 - bg.Item1;
@@ -517,7 +550,7 @@ namespace pdf_to_Tiles.Services
                         if (IsInOuterBand(x, y))
                         {
                             Vec4b cur = dstIndexer[y, x];
-                            if (preserveTransparentCorners && cur.Item3 == 0) continue;
+                            if (preserveTransparentCorners && IsTransparentCornerPixel(cur)) continue;
 
                             int db = cur.Item0 - bg.Item0;
                             int dg = cur.Item1 - bg.Item1;
@@ -565,6 +598,7 @@ namespace pdf_to_Tiles.Services
         /// <summary>
         /// Cleans cut marks, die-cut border nicks, and scanner edge artifacts along the perimeter of the chit
         /// by replacing or inpainting offending pixels with the counter's background color, using a uniform depth for all sides.
+        /// Preserves existing corner clips (A = 0 or matching transparentColor).
         /// </summary>
         public static Mat ApplyEdgeCleanup(
             Mat src,
@@ -572,9 +606,10 @@ namespace pdf_to_Tiles.Services
             int tolerance,
             EdgeCleanMode mode,
             Vec4b? targetBgColor = null,
-            bool preserveTransparentCorners = true)
+            bool preserveTransparentCorners = true,
+            Vec4b? transparentColor = null)
         {
-            return ApplyEdgeCleanup(src, depth, depth, depth, depth, tolerance, mode, targetBgColor, preserveTransparentCorners);
+            return ApplyEdgeCleanup(src, depth, depth, depth, depth, tolerance, mode, targetBgColor, preserveTransparentCorners, transparentColor);
         }
     }
 }
