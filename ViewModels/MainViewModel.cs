@@ -18,12 +18,13 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.14";
+        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.16";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
         private Mat? _masterMat;
         private Mat? _deskewedMat;
+        private Mat? _preEdgeCleanMat;
         private CancellationTokenSource? _sliceCts;
         private bool _isSyncingBand = false;
 
@@ -57,6 +58,7 @@ namespace pdf_to_Tiles.ViewModels
         private string? _loadedFilePath;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ChitStatusBarText))]
         private string? _loadedFileName;
 
         [ObservableProperty]
@@ -114,6 +116,7 @@ namespace pdf_to_Tiles.ViewModels
         private BitmapSource? _slicerImage;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ChitStatusBarText))]
         private string? _slicerSourceFileName;
 
         [ObservableProperty]
@@ -362,7 +365,7 @@ namespace pdf_to_Tiles.ViewModels
         private BackOrientationMode _selectedOrientation = BackOrientationMode.HorizontalFlip;
 
         [ObservableProperty]
-        private string _namingPrefix = "WorldKiller";
+        private string _namingPrefix = string.Empty;
 
         public IReadOnlyList<string> SlicerAvailableSides { get; } = new List<string> { "Front", "Back" };
         public IReadOnlyList<BackOrientationMode> AvailableOrientations { get; } = Enum.GetValues<BackOrientationMode>();
@@ -445,6 +448,27 @@ namespace pdf_to_Tiles.ViewModels
                 LoadedFileName = Path.GetFileName(selectedPath);
                 TotalPages = pageCount;
                 WindowTitle = $"{AppBaseTitle} - {LoadedFileName}";
+
+                string pdfBaseName = Path.GetFileNameWithoutExtension(selectedPath);
+                if (!string.IsNullOrWhiteSpace(pdfBaseName))
+                {
+                    NamingPrefix = pdfBaseName;
+                    if (SelectedProfile != null)
+                    {
+                        SelectedProfile.NamingPrefix = pdfBaseName;
+                    }
+
+                    if (LoadedChits.Count > 0)
+                    {
+                        foreach (var chit in LoadedChits)
+                        {
+                            if (chit.PieceName.StartsWith("WorldKiller_", StringComparison.OrdinalIgnoreCase))
+                            {
+                                chit.PieceName = $"{pdfBaseName}{chit.PieceName["WorldKiller".Length..]}";
+                            }
+                        }
+                    }
+                }
 
                 CurrentPageNumber = 1;
                 await LoadPageAsync(1);
@@ -713,6 +737,18 @@ namespace pdf_to_Tiles.ViewModels
                 });
 
                 SlicerSourceFileName = Path.GetFileName(filePath);
+                if (!isTempFile && !string.IsNullOrWhiteSpace(filePath))
+                {
+                    string imgBase = Path.GetFileNameWithoutExtension(filePath);
+                    if (!string.IsNullOrWhiteSpace(imgBase))
+                    {
+                        NamingPrefix = imgBase;
+                        if (SelectedProfile != null)
+                        {
+                            SelectedProfile.NamingPrefix = imgBase;
+                        }
+                    }
+                }
                 SlicerPixelWidth = _masterMat!.Width;
                 SlicerPixelHeight = _masterMat!.Height;
 
@@ -896,7 +932,20 @@ namespace pdf_to_Tiles.ViewModels
                 ProfileColumns = value.Columns;
                 InwardInsetPx = value.InwardInsetPx;
                 SelectedOrientation = value.BackOrientation;
-                NamingPrefix = value.NamingPrefix;
+
+                if (!string.IsNullOrWhiteSpace(LoadedFileName))
+                {
+                    NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
+                    value.NamingPrefix = NamingPrefix;
+                }
+                else if (!string.IsNullOrWhiteSpace(value.NamingPrefix) && !value.NamingPrefix.Equals("WorldKiller", StringComparison.OrdinalIgnoreCase))
+                {
+                    NamingPrefix = value.NamingPrefix;
+                }
+                else
+                {
+                    NamingPrefix = string.Empty;
+                }
 
                 var bounds = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase) ? value.BackBounds : value.FrontBounds;
                 GridLeftPercent = Math.Round(bounds.Left * 100, 2);
@@ -1553,6 +1602,22 @@ namespace pdf_to_Tiles.ViewModels
             try
             {
                 var profileCopy = SelectedProfile.Clone();
+                if (!string.IsNullOrWhiteSpace(LoadedFileName))
+                {
+                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
+                }
+                else if (!string.IsNullOrWhiteSpace(SlicerSourceFileName))
+                {
+                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(SlicerSourceFileName);
+                }
+                else if (!string.IsNullOrWhiteSpace(NamingPrefix))
+                {
+                    profileCopy.NamingPrefix = NamingPrefix;
+                }
+                else
+                {
+                    profileCopy.NamingPrefix = "Piece";
+                }
                 string currentSide = SelectedSide;
 
                 if (IsBandedMode)
@@ -1633,6 +1698,22 @@ namespace pdf_to_Tiles.ViewModels
             try
             {
                 var profileCopy = SelectedProfile.Clone();
+                if (!string.IsNullOrWhiteSpace(LoadedFileName))
+                {
+                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
+                }
+                else if (!string.IsNullOrWhiteSpace(SlicerSourceFileName))
+                {
+                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(SlicerSourceFileName);
+                }
+                else if (!string.IsNullOrWhiteSpace(NamingPrefix))
+                {
+                    profileCopy.NamingPrefix = NamingPrefix;
+                }
+                else
+                {
+                    profileCopy.NamingPrefix = "Piece";
+                }
                 string currentSide = SelectedSide;
                 int bandIdx = ActiveBandIndex;
 
@@ -1697,16 +1778,47 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CutChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(CopyChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(PasteChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplySharedToolCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyBevelCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyEdgeCleanCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ResetEdgeCleanCommand))]
         [NotifyCanExecuteChangedFor(nameof(AutoSampleEdgeColorCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetSelectedChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
+        [NotifyPropertyChangedFor(nameof(ChitStatusBarText))]
         private ChitItem? _selectedChit;
+
+        /// <summary>
+        /// File or piece name displayed in the lower-right status bar for Tab 3 (Chit Editor).
+        /// Dynamically reflects the active loaded PDF file name (e.g. Leningrad.pdf),
+        /// falling back to Slicer source image or selected piece name when no PDF is active.
+        /// </summary>
+        public string? ChitStatusBarText
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(LoadedFileName))
+                {
+                    return LoadedFileName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(SlicerSourceFileName))
+                {
+                    return SlicerSourceFileName;
+                }
+
+                if (SelectedChit != null && !string.IsNullOrWhiteSpace(SelectedChit.PieceName) && !SelectedChit.PieceName.StartsWith("WorldKiller_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return SelectedChit.PieceName;
+                }
+
+                return null;
+            }
+        }
 
         partial void OnSelectedChitChanging(ChitItem? oldValue, ChitItem? newValue)
         {
@@ -1752,6 +1864,34 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         private int _chitEditorClearSize = 1;
+
+        // Shared Tool Mode (Clip, Bevel, Clear)
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsClipModeSelected))]
+        [NotifyPropertyChangedFor(nameof(IsBevelModeSelected))]
+        [NotifyPropertyChangedFor(nameof(IsClearModeSelected))]
+        private string _selectedSharedToolMode = "Clip"; // "Clip", "Bevel", "Clear"
+
+        public bool IsClipModeSelected
+        {
+            get => SelectedSharedToolMode == "Clip";
+            set { if (value) SelectedSharedToolMode = "Clip"; }
+        }
+
+        public bool IsBevelModeSelected
+        {
+            get => SelectedSharedToolMode == "Bevel";
+            set { if (value) SelectedSharedToolMode = "Bevel"; }
+        }
+
+        public bool IsClearModeSelected
+        {
+            get => SelectedSharedToolMode == "Clear";
+            set { if (value) SelectedSharedToolMode = "Clear"; }
+        }
+
+        [ObservableProperty]
+        private int _sharedToolValue = 2;
 
         [ObservableProperty]
         private Color _transparentColor = Colors.Cyan;
@@ -2394,6 +2534,70 @@ namespace pdf_to_Tiles.ViewModels
             return mat;
         }
 
+        [RelayCommand]
+        private void SharedToolValueStepDown()
+        {
+            SharedToolValue = Math.Max(0, SharedToolValue - 1);
+        }
+
+        [RelayCommand]
+        private void SharedToolValueStepUp()
+        {
+            int maxLimit = SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed
+                ? Math.Min(SelectedChit.WorkingMat.Width, SelectedChit.WorkingMat.Height) / 2
+                : 100;
+            SharedToolValue = Math.Min(Math.Max(50, maxLimit), SharedToolValue + 1);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplySharedTool()
+        {
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+
+            switch (SelectedSharedToolMode)
+            {
+                case "Clip":
+                    ChitEditorClipSize = SharedToolValue;
+                    ApplyClip();
+                    break;
+                case "Bevel":
+                    ChitEditorBevelSize = SharedToolValue;
+                    ApplyBevel();
+                    break;
+                case "Clear":
+                    ChitEditorClearSize = SharedToolValue;
+                    ApplyClear();
+                    break;
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ResetEdgeClean()
+        {
+            // 1. Reset all edge cleanup side depths to 0px
+            ChitEdgeCleanTopDepth = 0;
+            ChitEdgeCleanBottomDepth = 0;
+            ChitEdgeCleanLeftDepth = 0;
+            ChitEdgeCleanRightDepth = 0;
+
+            // 2. Clear preview overlay
+            _lastCommittedSignature = null;
+            SelectedChit?.SetPreviewMat(null);
+
+            // 3. If an edge cleanup was previously committed onto WorkingMat, revert to pre-edge-clean state
+            if (_preEdgeCleanMat != null && !_preEdgeCleanMat.IsDisposed && SelectedChit != null)
+            {
+                SelectedChit.UpdateWorkingMat(_preEdgeCleanMat.Clone(), recordHistory: true, TransparentColor);
+                StatusMessage = $"Reset edge cleanup: reverted chit #{SelectedChit.Index} to pre-cleanup state and set depths to 0px.";
+            }
+            else
+            {
+                StatusMessage = "Reset edge cleanup: depths set to 0px.";
+            }
+
+            UpdateLiveEdgeCleanPreview();
+        }
+
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void UndoChit()
         {
@@ -2526,6 +2730,10 @@ namespace pdf_to_Tiles.ViewModels
         private void ApplyEdgeClean()
         {
             if (SelectedChit?.WorkingMat == null) return;
+
+            // Save pre-edge-cleanup snapshot so ResetEdgeClean can revert cleanly
+            _preEdgeCleanMat?.Dispose();
+            _preEdgeCleanMat = SelectedChit.WorkingMat.Clone();
 
             var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
 

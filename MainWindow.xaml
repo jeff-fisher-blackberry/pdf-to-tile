@@ -1006,6 +1006,15 @@
                             BorderThickness="0,0,1,0">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="12">
                             <StackPanel>
+                                <!-- Export All 20 Chits to PNG Button at Top of Left Panel -->
+                                <Button Content="✂️ Export All 20 Chits to PNG..."
+                                        Command="{Binding ExportAllEditedChitsCommand}"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Padding="12,8"
+                                        FontSize="13"
+                                        Margin="0,0,0,12"
+                                        ToolTip="Save all 20 chits to a destination folder" />
+
                                 <!-- TILE TOOLS CARD (Modeled on GTL Text Editor) -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
@@ -1016,10 +1025,9 @@
                                     <StackPanel>
                                         <TextBlock Text="TILE TOOLS (WORKING AREA)" Style="{StaticResource SectionHeaderStyle}" />
 
-                                        <!-- Row 1: Dimensions (Width x Height) + Undo/Redo + Clip -->
+                                        <!-- Row 1: Dimensions (Width x Height) + Stretch + Resize -->
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
@@ -1033,58 +1041,67 @@
                                                 <TextBox Text="{Binding ChitEditorHeight, UpdateSourceTrigger=PropertyChanged}" Width="48" TextAlignment="Center" Padding="2,3" />
                                             </StackPanel>
 
-                                            <!-- Undo / Redo Buttons -->
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                <Button Content="↩" Command="{Binding UndoChitCommand}" Width="26" Height="26" ToolTip="Undo Chit Action" Padding="0" />
-                                                <Button Content="↪" Command="{Binding RedoChitCommand}" Width="26" Height="26" ToolTip="Redo Chit Action" Padding="0" Margin="3,0,0,0" />
-                                            </StackPanel>
-
-                                            <!-- Clip Dropdown + Button Right -->
-                                            <ComboBox Grid.Column="3" ItemsSource="{Binding AvailableClipSizes}" SelectedItem="{Binding ChitEditorClipSize}" Width="46" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                            <Button Grid.Column="4" Content="Clip" Command="{Binding ApplyClipCommand}" Width="64" Height="28" ToolTip="Clip/round corners by specified pixels" />
+                                            <!-- Stretch & Resize Right -->
+                                            <Button Grid.Column="2" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="66" Height="28" Margin="0,0,4,0" ToolTip="Resample image to target Width × Height" />
+                                            <Button Grid.Column="3" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="66" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height" />
                                         </Grid>
 
-                                        <!-- Row 2: Stretch & Resize (Left) + Bevel (Right) -->
+                                        <!-- Row 2: Shared Value + Steppers (Left) + Set Button (Right) -->
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Button Grid.Column="0" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="66" Height="28" ToolTip="Resample image to target Width × Height" />
-                                            <Button Grid.Column="1" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="66" Height="28" Margin="4,0,0,0" ToolTip="Crop inwards or pad canvas to target Width × Height" />
+                                            <!-- Shared Value Display & Stepper Buttons -->
+                                            <Border Grid.Column="0" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Size:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                    <TextBlock Text="{Binding SharedToolValue, StringFormat={}{0}px}" Width="36" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                    <Button Content="-" Command="{Binding SharedToolValueStepDownCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Decrease size (1px)" />
+                                                    <Button Content="+" Command="{Binding SharedToolValueStepUpCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Increase size (1px)" />
+                                                </StackPanel>
+                                            </Border>
 
-                                            <ComboBox Grid.Column="3" ItemsSource="{Binding AvailableBevelSizes}" SelectedItem="{Binding ChitEditorBevelSize}" Width="46" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                            <Button Grid.Column="4" Content="Bevel" Command="{Binding ApplyBevelCommand}" Width="64" Height="28" ToolTip="Apply 3D raised gradient bevel around chit perimeter" />
+                                            <!-- Dedicated Set Button -->
+                                            <Button Grid.Column="2" Content="Set" Command="{Binding ApplySharedToolCommand}" Width="66" Height="28"
+                                                    Style="{StaticResource AccentButtonStyle}"
+                                                    ToolTip="Apply selected tool (Clip, Bevel, or Clear) with current size" />
                                         </Grid>
 
-                                        <!-- Row 3: Transparent Color Swatch (Left) + Clear (Right) -->
-                                        <Grid Margin="0,0,0,4">
+                                        <!-- Row 3: Mutually Exclusive Tool Radios (Clip, Bevel, Clear) -->
+                                        <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Transparent Color Swatch & Label -->
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button Width="26" Height="26"
-                                                        Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        BorderThickness="1"
-                                                        Command="{Binding CycleTransparentColorCommand}"
-                                                        ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
-                                                <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            </StackPanel>
-
-                                            <!-- Clear Dropdown + Button Right -->
-                                            <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableClearSizes}" SelectedItem="{Binding ChitEditorClearSize}" Width="46" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                            <Button Grid.Column="3" Content="Clear" Command="{Binding ApplyClearCommand}" Width="64" Height="28" ToolTip="Clear outer border to transparent color to eliminate margin noise" />
+                                            <RadioButton Grid.Column="0" Content="Clip" GroupName="SharedTileTool"
+                                                         IsChecked="{Binding IsClipModeSelected}"
+                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                         ToolTip="Clip/round corners to transparent by specified pixels" />
+                                            <RadioButton Grid.Column="1" Content="Bevel" GroupName="SharedTileTool"
+                                                         IsChecked="{Binding IsBevelModeSelected}"
+                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                         ToolTip="Apply 3D raised gradient bevel around perimeter" />
+                                            <RadioButton Grid.Column="2" Content="Clear" GroupName="SharedTileTool"
+                                                         IsChecked="{Binding IsClearModeSelected}"
+                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                         ToolTip="Clear outer border to transparent key color" />
                                         </Grid>
+
+                                        <!-- Row 4: Transparent Key Color Swatch & Label -->
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                            <Button Width="26" Height="26"
+                                                    Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    Command="{Binding CycleTransparentColorCommand}"
+                                                    ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
+                                            <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
 
                                         <!-- Divider between base tools and Edge Cleanup -->
                                         <Separator Margin="0,8,0,8" Background="{DynamicResource BorderBrush}" />
@@ -1094,11 +1111,12 @@
                                                    FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,6" />
 
-                                        <!-- Row 4: Background Color Swatch + Auto (Left) and Clean Button (Right) -->
+                                        <!-- Row 5: Background Color Swatch + Auto (Left) and Reset + Apply Buttons (Right) -->
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
@@ -1115,8 +1133,10 @@
                                                         ToolTip="Auto-sample dominant background color from active chit" />
                                             </StackPanel>
 
-                                            <!-- Clean Button Right -->
-                                            <Button Grid.Column="2" Content="Clean" Command="{Binding ApplyEdgeCleanCommand}" Width="64" Height="28"
+                                            <!-- Reset & Apply Buttons Right -->
+                                            <Button Grid.Column="2" Content="Reset" Command="{Binding ResetEdgeCleanCommand}" Width="60" Height="28" Margin="0,0,4,0"
+                                                    ToolTip="Revert active chit to pre-cleanup state and reset edge clean depths to 0px" />
+                                            <Button Grid.Column="3" Content="Apply" Command="{Binding ApplyEdgeCleanCommand}" Width="64" Height="28"
                                                     Style="{StaticResource AccentButtonStyle}"
                                                     ToolTip="Heal cut marks and edge artifacts with matching background color" />
                                         </Grid>
@@ -1254,7 +1274,7 @@
                                                   Margin="0,4,0,8"
                                                   ToolTip="When checked, Bevel, Clip, Clear, Stretch, and Resize apply to all 20 chits in the band" />
 
-                                        <Grid Margin="0,0,0,8">
+                                        <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="8" />
@@ -1263,13 +1283,6 @@
                                             <Button Grid.Column="0" Content="Reset Current" Command="{Binding ResetSelectedChitCommand}" ToolTip="Revert active chit back to original slice" />
                                             <Button Grid.Column="2" Content="Reset All 20" Command="{Binding ResetAllChitsCommand}" ToolTip="Revert all 20 chits back to original slices" />
                                         </Grid>
-
-                                        <Button Content="✂️ Export All 20 Chits to PNG..."
-                                                Command="{Binding ExportAllEditedChitsCommand}"
-                                                Style="{StaticResource AccentButtonStyle}"
-                                                Padding="12,8"
-                                                FontSize="13"
-                                                ToolTip="Save all 20 chits to a destination folder" />
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -1550,10 +1563,17 @@
 
                     <!-- Tab 2 Dimensions -->
                     <StackPanel Orientation="Horizontal" Visibility="{Binding SelectedTabIndex, Converter={StaticResource EqualToVis}, ConverterParameter=2}">
-                        <TextBlock Text="{Binding SelectedChit.PieceName}" Foreground="{DynamicResource StatusBarSubtleBrush}" Margin="0,0,8,0" />
-                        <TextBlock Text="{Binding SelectedChit.DimensionsText}" Foreground="{DynamicResource StatusBarSubtleBrush}" />
-                        <TextBlock Text="|" Margin="8,0" Foreground="{DynamicResource StatusBarSubtleBrush}" />
-                        <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{}{0} Chits Loaded'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ChitStatusBarText}"
+                                   Visibility="{Binding ChitStatusBarText, Converter={StaticResource NotNullToVis}}"
+                                   Foreground="{DynamicResource StatusBarSubtleBrush}"
+                                   Margin="0,0,8,0"
+                                   MaxWidth="260"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding ChitStatusBarText}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding SelectedChit.DimensionsText}" Foreground="{DynamicResource StatusBarSubtleBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="|" Margin="8,0" Foreground="{DynamicResource StatusBarSubtleBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{}{0} Chits Loaded'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
             </Grid>
