@@ -46,11 +46,12 @@ Keep UI orchestration strictly separated from PDF rendering and image processing
 
 ## 4. Safe Build, Versioning, Git Push & Detached Launch Protocol
 
-### Manual Versioning & Commit Convention (`YYYY-dd-MM.#`)
-- **Version Format:** Use the date-based format `YYYY-dd-MM.#` (starting today, November 22, 2026, at `2026-22-11.1`).
-- **Same-Day & New-Day Rollover:** Increment the trailing digit (`1`, `2`, `3`...) for each subsequent version on the same calendar day, and reset `#` back to `.1` using the new current date whenever a new day begins.
-- **Project Metadata & Window Title:** Store the current version string in `<InformationalVersion>` / `<Version>` in the main `.csproj` (using numeric fallback `YYYY.dd.MM.#` where MSBuild requires 4-part numeric assembly attributes) and display it in the main window title bar (`PDF to Tiles 2026-22-11.1`).
-- **Commit Message Prefix:** Always prefix commit messages with `<Version> - ` (e.g., `2026-22-11.1 - Scaffold WPF solution, PDF viewer, and AGENT.md`).
+### Manual Versioning & Commit Convention (`YYYY-MM-dd.#`)
+- **Version Format:** Use the ISO date-based format `YYYY-MM-dd.#` (e.g., `2026-11-24.1` for November 24, 2026—never `YYYY-dd-MM.#` and never carrying over a previous calendar day's date).
+- **Daily Reset Rule:** Always check the current system date (`Get-Date -Format 'yyyy-MM-dd'`). Whenever the date advances to a new calendar day, **reset the counter to `.1`** (`YYYY-MM-dd.1`). Only increment `.#` (`.2`, `.3`, ...) for multiple builds/releases on the **same** calendar date.
+- **MSI 4-Part Mapping:** Map `YYYY-MM-dd.#` to Windows Installer's `Major.Minor.Build.Revision` (`Major < 256`, e.g., `26.11.24.1` for `2026-11-24.1`) while naming the `.msi` output **`PDF to Tiles-YYYY-MM-dd.#.msi`** (e.g., `PDF to Tiles-2026-11-24.1.msi`). Keep `UpgradeCode` `FF1FAC66-A55B-4F14-9C53-3F058C9742AB` unchanged.
+- **Project Metadata & Window Title:** Store the current version string in `<InformationalVersion>` / `<Version>` in the main `.csproj` (using numeric fallback `YYYY.MM.dd.#` where MSBuild requires 4-part numeric assembly attributes) and display it in the main window title bar (`PDF to Tiles 2026-11-24.1`).
+- **Commit Message Prefix:** Always prefix commit messages with `<Version> - ` (e.g., `2026-11-24.1 - ...`).
 
 ### Pre-Build File-Lock Check (Prevents `MSB3027` / `MSB3021` Locked Binary Errors)
 - Before running `dotnet build`, check `Get-Process` for any running instance of the compiled app, stop it cleanly, and wait 500ms so Windows releases file locks on `.exe` and `.dll` outputs:

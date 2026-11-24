@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-23-11.17";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-24.1";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
