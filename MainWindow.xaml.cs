@@ -154,6 +154,18 @@ namespace pdf_to_Tiles
             }
         }
 
+        private void BandDimensionTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.SetBandDimensionsCommand.Execute(null);
+                }
+                e.Handled = true;
+            }
+        }
+
         private void UpdateGridOverlay()
         {
             if (DataContext is not MainViewModel vm || SlicerGridCanvas == null || SlicerImageDisplay == null)

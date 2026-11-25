@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.2";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.3";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -274,19 +274,49 @@ namespace pdf_to_Tiles.ViewModels
 
         // Columns and Row configuration for active band
         [ObservableProperty]
-        private string _bandInputBox1 = "2";
+        private string _pendingBandBox1 = "2";
 
         [ObservableProperty]
-        private string _bandInputBox2 = "10";
+        private string _pendingBandBox2 = "10";
+
+        [ObservableProperty]
+        private string _committedBandBox1 = "2";
+
+        [ObservableProperty]
+        private string _committedBandBox2 = "10";
+
+        public string BandInputBox1
+        {
+            get => PendingBandBox1;
+            set => PendingBandBox1 = value;
+        }
+
+        public string BandInputBox2
+        {
+            get => PendingBandBox2;
+            set => PendingBandBox2 = value;
+        }
 
         [ObservableProperty]
         private bool _isDoubleWidthColumns = false;
+
+        public string BandBoundingBoxHeader
+        {
+            get
+            {
+                if (CommittedBandBox1 == "2" && CommittedBandBox2 == "10")
+                {
+                    return "2×10 BAND BOUNDING BOX (PIXELS)";
+                }
+                return $"{CommittedBandBox1} x {CommittedBandBox2} BAND BOUNDING BOX (PIXELS)";
+            }
+        }
 
         public int EffectiveBandRows
         {
             get
             {
-                ParseBandInputs(out int r, out _);
+                ParseCommittedBandInputs(out int r, out _);
                 return r;
             }
         }
@@ -295,17 +325,17 @@ namespace pdf_to_Tiles.ViewModels
         {
             get
             {
-                ParseBandInputs(out _, out int c);
+                ParseCommittedBandInputs(out _, out int c);
                 return c;
             }
         }
 
         public int TotalBandChits => EffectiveBandRows * EffectiveBandColumns;
 
-        private void ParseBandInputs(out int rows, out int cols)
+        private void ParseCommittedBandInputs(out int rows, out int cols)
         {
-            int.TryParse(BandInputBox1?.Trim(), out int val1);
-            int.TryParse(BandInputBox2?.Trim(), out int val2);
+            int.TryParse(CommittedBandBox1?.Trim(), out int val1);
+            int.TryParse(CommittedBandBox2?.Trim(), out int val2);
 
             if (val1 <= 0) val1 = 2;
             if (val2 <= 0) val2 = 10;
@@ -322,58 +352,32 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        partial void OnIsDoubleWidthColumnsChanged(bool value)
+        [RelayCommand]
+        public void SetBandDimensions()
         {
-            if (_isSyncingBand) return;
+            int.TryParse(PendingBandBox1?.Trim(), out int val1);
+            int.TryParse(PendingBandBox2?.Trim(), out int val2);
 
-            ParseBandInputs(out _, out int c);
-            if (value)
+            if (val1 <= 0)
             {
-                if (c >= 8)
-                {
-                    int newCols = Math.Max(1, c / 2);
-                    UpdateColumnBoxValue(newCols);
-                }
+                int.TryParse(CommittedBandBox1?.Trim(), out val1);
+                if (val1 <= 0) val1 = 2;
             }
-            else
+            if (val2 <= 0)
             {
-                if (c == 5)
-                {
-                    UpdateColumnBoxValue(10);
-                }
+                int.TryParse(CommittedBandBox2?.Trim(), out val2);
+                if (val2 <= 0) val2 = 10;
             }
-            NotifyBandDimensionsChanged();
-        }
 
-        private void UpdateColumnBoxValue(int newCols)
-        {
-            int.TryParse(BandInputBox1?.Trim(), out int val1);
-            int.TryParse(BandInputBox2?.Trim(), out int val2);
-            if (val1 > val2)
-            {
-                BandInputBox1 = newCols.ToString();
-            }
-            else
-            {
-                BandInputBox2 = newCols.ToString();
-            }
-        }
+            val1 = Math.Clamp(val1, 1, 30);
+            val2 = Math.Clamp(val2, 1, 30);
 
-        partial void OnBandInputBox1Changed(string value)
-        {
-            SyncDoubleWidthCheckbox();
-            NotifyBandDimensionsChanged();
-        }
+            CommittedBandBox1 = val1.ToString();
+            CommittedBandBox2 = val2.ToString();
+            PendingBandBox1 = CommittedBandBox1;
+            PendingBandBox2 = CommittedBandBox2;
 
-        partial void OnBandInputBox2Changed(string value)
-        {
-            SyncDoubleWidthCheckbox();
-            NotifyBandDimensionsChanged();
-        }
-
-        private void SyncDoubleWidthCheckbox()
-        {
-            ParseBandInputs(out _, out int c);
+            ParseCommittedBandInputs(out _, out int c);
             if (c == 5 && !IsDoubleWidthColumns)
             {
                 _isSyncingBand = true;
@@ -383,6 +387,50 @@ namespace pdf_to_Tiles.ViewModels
             {
                 _isSyncingBand = true;
                 try { IsDoubleWidthColumns = false; } finally { _isSyncingBand = false; }
+            }
+
+            OnPropertyChanged(nameof(BandBoundingBoxHeader));
+            NotifyBandDimensionsChanged();
+        }
+
+        partial void OnIsDoubleWidthColumnsChanged(bool value)
+        {
+            if (_isSyncingBand) return;
+
+            ParseCommittedBandInputs(out _, out int c);
+            int.TryParse(CommittedBandBox1?.Trim(), out int val1);
+            int.TryParse(CommittedBandBox2?.Trim(), out int val2);
+
+            if (value)
+            {
+                if (c >= 8)
+                {
+                    int newCols = Math.Max(1, c / 2);
+                    if (val1 > val2)
+                    {
+                        PendingBandBox1 = newCols.ToString();
+                    }
+                    else
+                    {
+                        PendingBandBox2 = newCols.ToString();
+                    }
+                    SetBandDimensions();
+                }
+            }
+            else
+            {
+                if (c == 5)
+                {
+                    if (val1 > val2)
+                    {
+                        PendingBandBox1 = "10";
+                    }
+                    else
+                    {
+                        PendingBandBox2 = "10";
+                    }
+                    SetBandDimensions();
+                }
             }
         }
 
