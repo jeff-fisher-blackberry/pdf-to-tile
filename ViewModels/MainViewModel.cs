@@ -44,8 +44,10 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(OpenPdfCommand))]
+        [NotifyCanExecuteChangedFor(nameof(FirstPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(PreviousPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(NextPageCommand))]
+        [NotifyCanExecuteChangedFor(nameof(LastPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(CapturePageCommand))]
         [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
         private bool _isLoading = false;
@@ -62,15 +64,19 @@ namespace pdf_to_Tiles.ViewModels
         private string? _loadedFileName;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(FirstPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(PreviousPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(NextPageCommand))]
+        [NotifyCanExecuteChangedFor(nameof(LastPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(CapturePageCommand))]
         [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
         private int _totalPages = 0;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(FirstPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(PreviousPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(NextPageCommand))]
+        [NotifyCanExecuteChangedFor(nameof(LastPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
         private int _currentPageNumber = 0;
 
@@ -664,6 +670,15 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanGoPrevious))]
+        private void FirstPage()
+        {
+            if (CurrentPageNumber > 1)
+            {
+                CurrentPageNumber = 1;
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanGoPrevious))]
         private void PreviousPage()
         {
             if (CurrentPageNumber > 1)
@@ -680,6 +695,15 @@ namespace pdf_to_Tiles.ViewModels
             if (CurrentPageNumber < TotalPages)
             {
                 CurrentPageNumber++;
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanGoNext))]
+        private void LastPage()
+        {
+            if (CurrentPageNumber < TotalPages)
+            {
+                CurrentPageNumber = TotalPages;
             }
         }
 

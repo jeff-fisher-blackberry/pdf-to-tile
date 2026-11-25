@@ -526,10 +526,16 @@
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" Visibility="Collapsed" />
 
                             <!-- Page Navigation -->
+                            <Button Content="◀◀"
+                                    Width="32"
+                                    Command="{Binding FirstPageCommand}"
+                                    ToolTip="First Page" />
+
                             <Button Content="◀"
                                     Width="32"
                                     Command="{Binding PreviousPageCommand}"
-                                    ToolTip="Previous page" />
+                                    ToolTip="Previous page"
+                                    Margin="2,0,0,0" />
 
                             <TextBlock Text="Page" Margin="8,0,4,0" VerticalAlignment="Center" />
                             <TextBox x:Name="PdfPageNumberTextBox"
@@ -545,6 +551,12 @@
                                     Width="32"
                                     Command="{Binding NextPageCommand}"
                                     ToolTip="Next page" />
+
+                            <Button Content="▶▶"
+                                    Width="32"
+                                    Command="{Binding LastPageCommand}"
+                                    ToolTip="Last Page"
+                                    Margin="2,0,0,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -1211,8 +1223,9 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- BATCH SLICE ACTION CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                <!-- BATCH SLICE ACTION CARD (Hidden via Visibility="Collapsed") -->
+                                <Border Visibility="Collapsed"
+                                        Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6"
@@ -1332,49 +1345,66 @@
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="0,0,0,1"
                         Padding="8,6">
-                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="◀ Prev Chit" Command="{Binding SelectPrevChitCommand}" ToolTip="Select previous chit in strip" />
-                        <Button Content="Next Chit ▶" Command="{Binding SelectNextChitCommand}" ToolTip="Select next chit in strip" Margin="4,0,0,0" />
+                    <Grid VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                        <!-- Left / Center Chit Editor Controls -->
+                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="◀ Prev Chit" Command="{Binding SelectPrevChitCommand}" ToolTip="Select previous chit in strip" />
+                            <Button Content="Next Chit ▶" Command="{Binding SelectNextChitCommand}" ToolTip="Select next chit in strip" Margin="4,0,0,0" />
 
-                        <TextBlock Text="Active:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" />
-                        <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='No Chit Loaded'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <TextBlock Text="Active:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" />
+                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='No Chit Loaded'}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
-                        <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit (Ctrl+Z)" Width="30" Height="26" Padding="0" />
-                        <Button Content="↪" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action (Ctrl+Y)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit (Ctrl+Z)" Width="30" Height="26" Padding="0" />
+                            <Button Content="↪" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action (Ctrl+Y)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
-                        <Button Content="✂" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Width="30" Height="26" Padding="0" />
-                        <Button Content="📋" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
-                        <Button Content="📥" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <Button Content="✂" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Width="30" Height="26" Padding="0" />
+                            <Button Content="📋" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                            <Button Content="📥" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
-                        <!-- Working Chit Zoom Group -->
-                        <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <Button Content="-" Command="{Binding ChitEditorZoomOutCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom out 1% (-0.01)" />
-                        <Button Content="+" Command="{Binding ChitEditorZoomInCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom in 1% (+0.01)" />
-                        <TextBox x:Name="ChitEditorZoomTextBox"
-                                 Text="{Binding ChitEditorZoomInputText, UpdateSourceTrigger=LostFocus}"
-                                 Width="48" Height="24" Padding="2,1" Margin="3,0,1,0"
-                                 FontSize="11" TextAlignment="Center"
-                                 VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                 ToolTip="Enter zoom percentage (e.g. 100%, 250) and press Enter"
-                                 KeyDown="ChitEditorZoomTextBox_KeyDown"
-                                 LostFocus="ChitEditorZoomTextBox_LostFocus" />
-                        <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
-                                   FontSize="11" FontWeight="Bold" Width="38"
-                                   VerticalAlignment="Center" TextAlignment="Right" Margin="2,0,0,0" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <!-- Working Chit Zoom Group -->
+                            <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Content="-" Command="{Binding ChitEditorZoomOutCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom out 1% (-0.01)" />
+                            <Button Content="+" Command="{Binding ChitEditorZoomInCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom in 1% (+0.01)" />
+                            <TextBox x:Name="ChitEditorZoomTextBox"
+                                     Text="{Binding ChitEditorZoomInputText, UpdateSourceTrigger=LostFocus}"
+                                     Width="48" Height="24" Padding="2,1" Margin="3,0,1,0"
+                                     FontSize="11" TextAlignment="Center"
+                                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     ToolTip="Enter zoom percentage (e.g. 100%, 250) and press Enter"
+                                     KeyDown="ChitEditorZoomTextBox_KeyDown"
+                                     LostFocus="ChitEditorZoomTextBox_LostFocus" />
+                            <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
+                                       FontSize="11" FontWeight="Bold" Width="38"
+                                       VerticalAlignment="Center" TextAlignment="Right" Margin="2,0,0,0" />
+                        </WrapPanel>
 
-                        <Button Content="📸 Export Active Chit..." Command="{Binding ExportSelectedChitCommand}" ToolTip="Export currently selected chit as PNG" Padding="8,3" />
-                        <Button Content="✂️ Export All 20 to PNG..." Command="{Binding ExportAllEditedChitsCommand}" Style="{StaticResource AccentButtonStyle}" Margin="6,0,0,0" ToolTip="Export all 20 chits to destination folder" Padding="10,3" />
-                    </WrapPanel>
+                        <!-- Far Right: Right-Justified Export Buttons -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,4,0">
+                            <Button Content="Export Current"
+                                    Command="{Binding ExportSelectedChitCommand}"
+                                    Padding="12,6"
+                                    ToolTip="Export currently selected chit as a lossless PNG file" />
+                            <Button Content="Export All"
+                                    Command="{Binding ExportAllEditedChitsCommand}"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    Margin="6,0,0,0"
+                                    Padding="14,6"
+                                    ToolTip="Export all 20 chits to destination folder" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- Main 3-Section Working Workspace: Fixed Left Controls Panel, Fluid Center Canvas, Resizable Right Strip -->
@@ -1397,9 +1427,10 @@
                             BorderThickness="0,0,1,0">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="12">
                             <StackPanel>
-                                <!-- Export All 20 Chits to PNG Button at Top of Left Panel -->
+                                <!-- Export All 20 Chits to PNG Button at Top of Left Panel (Hidden; handled on toolbar) -->
                                 <Button Content="✂️ Export All 20 Chits to PNG..."
                                         Command="{Binding ExportAllEditedChitsCommand}"
+                                        Visibility="Collapsed"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Padding="12,8"
                                         FontSize="13"
@@ -1831,6 +1862,7 @@
 
                                                 <Button Content="💾 Save Chit PNG..."
                                                         Command="{Binding ExportSelectedChitCommand}"
+                                                        Visibility="Collapsed"
                                                         Padding="8,2" Margin="8,0,0,0"
                                                         FontSize="11"
                                                         ToolTip="Save this active chit to PNG file..." />
