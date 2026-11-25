@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.3";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.4";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -306,9 +306,9 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (CommittedBandBox1 == "2" && CommittedBandBox2 == "10")
                 {
-                    return "2×10 BAND BOUNDING BOX (PIXELS)";
+                    return "2×10 Band Bounding Box";
                 }
-                return $"{CommittedBandBox1} x {CommittedBandBox2} BAND BOUNDING BOX (PIXELS)";
+                return $"{CommittedBandBox1} x {CommittedBandBox2} Band Bounding Box";
             }
         }
 
@@ -377,17 +377,10 @@ namespace pdf_to_Tiles.ViewModels
             PendingBandBox1 = CommittedBandBox1;
             PendingBandBox2 = CommittedBandBox2;
 
-            ParseCommittedBandInputs(out _, out int c);
-            if (c == 5 && !IsDoubleWidthColumns)
-            {
-                _isSyncingBand = true;
-                try { IsDoubleWidthColumns = true; } finally { _isSyncingBand = false; }
-            }
-            else if (c == 10 && IsDoubleWidthColumns)
-            {
-                _isSyncingBand = true;
-                try { IsDoubleWidthColumns = false; } finally { _isSyncingBand = false; }
-            }
+            // Strict policy: Never auto-select or flip IsDoubleWidthColumns.
+            // Double Width Columns is ONLY controlled by user clicks.
+            ParseCommittedBandInputs(out int rows, out int cols);
+            RecalculateBandBoundingBoxForDimensions(rows, cols);
 
             OnPropertyChanged(nameof(BandBoundingBoxHeader));
             NotifyBandDimensionsChanged();
@@ -397,41 +390,60 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (_isSyncingBand) return;
 
-            ParseCommittedBandInputs(out _, out int c);
-            int.TryParse(CommittedBandBox1?.Trim(), out int val1);
-            int.TryParse(CommittedBandBox2?.Trim(), out int val2);
+            ParseCommittedBandInputs(out int rows, out int cols);
+            RecalculateBandBoundingBoxForDimensions(rows, cols);
+            NotifyBandDimensionsChanged();
+        }
 
-            if (value)
+        private void RecalculateBandBoundingBoxForDimensions(int rows, int cols)
+        {
+            var band = GetActiveBand();
+            if (band == null) return;
+
+            int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
+            int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
+
+            int currentHeightPx = ActiveBandHeightPx > 0 ? ActiveBandHeightPx : (int)Math.Round(band.Bounds.Height * h);
+            if (currentHeightPx < 8) currentHeightPx = 8;
+
+            double cellHeight = (double)currentHeightPx / Math.Max(1, rows);
+            double cellWidth = IsDoubleWidthColumns ? (2.0 * cellHeight) : cellHeight;
+
+            int targetWidthPx = (int)Math.Round(cols * cellWidth);
+            targetWidthPx = Math.Max(8, targetWidthPx);
+
+            int currentLeftPx = ActiveBandLeftPx >= 0 ? ActiveBandLeftPx : (int)Math.Round(band.Bounds.Left * w);
+
+            if (w > 0 && currentLeftPx + targetWidthPx > w)
             {
-                if (c >= 8)
-                {
-                    int newCols = Math.Max(1, c / 2);
-                    if (val1 > val2)
-                    {
-                        PendingBandBox1 = newCols.ToString();
-                    }
-                    else
-                    {
-                        PendingBandBox2 = newCols.ToString();
-                    }
-                    SetBandDimensions();
-                }
+                targetWidthPx = Math.Max(8, w - currentLeftPx);
             }
-            else
+
+            _isSyncingBand = true;
+            try
             {
-                if (c == 5)
-                {
-                    if (val1 > val2)
-                    {
-                        PendingBandBox1 = "10";
-                    }
-                    else
-                    {
-                        PendingBandBox2 = "10";
-                    }
-                    SetBandDimensions();
-                }
+                ActiveBandWidthPx = targetWidthPx;
+                ActiveBandWidthText = $"{ActiveBandWidthPx} px";
+                band.Bounds.Width = Math.Clamp((double)targetWidthPx / w, 8.0 / w, 1.0 - band.Bounds.Left);
+                ActiveBandWidthPercent = Math.Round(band.Bounds.Width * 100, 2);
+
+                // Update column dividers to even spacing for the active column count
+                band.ColumnDividers = Band2x10Definition.GetDefaultEvenDividers(cols);
+
+                OnPropertyChanged(nameof(ActiveBandWidthPx));
+                OnPropertyChanged(nameof(ActiveBandWidthText));
+                OnPropertyChanged(nameof(ActiveBandWidthPercent));
+                OnPropertyChanged(nameof(ActiveBandWidthPercentText));
+                OnPropertyChanged(nameof(ActiveBandRightPx));
+                OnPropertyChanged(nameof(ActiveBandDimensionsText));
+                OnPropertyChanged(nameof(ActiveBandDimensionsSummaryText));
             }
+            finally
+            {
+                _isSyncingBand = false;
+            }
+
+            SyncToActiveBand();
         }
 
         private void NotifyBandDimensionsChanged()
