@@ -2074,6 +2074,9 @@ namespace pdf_to_Tiles.ViewModels
                     SharedToolValue = default4Pct;
                 }
 
+                // 5% Clone Stamp default calculation (BaseDimension = min(width, height))
+                CloneStampRadius = ChitEditorService.CalculateDefaultCloneStampSize(value.PixelWidth, value.PixelHeight);
+
                 if (!LockEdgeCleanColor && value.WorkingMat != null && !value.WorkingMat.IsDisposed)
                 {
                     AutoSampleEdgeColorInternal(value);
@@ -2244,7 +2247,7 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyPropertyChangedFor(nameof(IsCloneCircleShape))]
         [NotifyPropertyChangedFor(nameof(IsCloneSquareShape))]
         [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
-        private string _cloneStampShape = "Circle"; // "Circle" or "Square"
+        private string _cloneStampShape = "Square"; // "Square" (default) or "Circle"
 
         public bool IsCloneCircleShape
         {
@@ -3451,6 +3454,7 @@ namespace pdf_to_Tiles.ViewModels
             {
                 SharedToolValue = default4Pct;
             }
+            CloneStampRadius = ChitEditorService.CalculateDefaultCloneStampSize(SelectedChit.PixelWidth, SelectedChit.PixelHeight);
             HasCloneAnchor = false;
             HasDestinationAnchor = false;
             IsPickingCloneAnchor = false;

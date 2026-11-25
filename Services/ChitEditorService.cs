@@ -48,6 +48,23 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Calculates the default 5% clone stamp size based on the smaller dimension of the chit,
+        /// clamped to at least 1px and at most 40px (guarding width >= 8 && height >= 8).
+        /// </summary>
+        public static int CalculateDefaultCloneStampSize(int width, int height)
+        {
+            if (width < MinDimension || height < MinDimension)
+            {
+                return 4;
+            }
+
+            int baseDim = Math.Min(width, height);
+            int maxLimit = Math.Max(1, Math.Min(40, baseDim / 4));
+            int size = (int)Math.Round(baseDim * 0.05);
+            return Math.Clamp(size, 1, maxLimit);
+        }
+
+        /// <summary>
         /// Applies a directional 3D raised-edge gradient bevel (highlight from top-left, shadow on bottom-right)
         /// around the perimeter of the chit using 45° mitered edge classification.
         /// Preserves existing transparent pixels (A = 0 or matching transparentColor) so corner clips are not overwritten.
