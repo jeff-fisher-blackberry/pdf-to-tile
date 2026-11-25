@@ -107,6 +107,8 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <!-- Top App Menu Bar & ToolBar Chrome -->
+            <RowDefinition Height="Auto" />
             <!-- Mode Switcher Header Strip -->
             <RowDefinition Height="Auto" />
             <!-- Active Workspace Area -->
@@ -116,9 +118,325 @@
         </Grid.RowDefinitions>
 
         <!-- ========================================== -->
+        <!-- TOP APP MENU BAR & TRADITIONAL TOOLBAR -->
+        <!-- ========================================== -->
+        <StackPanel Grid.Row="0" Orientation="Vertical">
+            <!-- Top Menu Bar -->
+            <Menu Background="{DynamicResource PanelBackgroundBrush}"
+                  Foreground="{DynamicResource TextPrimaryBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="0,0,0,1"
+                  Padding="4,2"
+                  FontSize="12">
+
+                <!-- FILE MENU -->
+                <MenuItem Header="_File">
+                    <MenuItem Header="_Open PDF Document..."
+                              InputGestureText="Ctrl+O"
+                              Command="{Binding OpenPdfCommand}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Open _Counter Sheet Image..."
+                              InputGestureText="Ctrl+Shift+O"
+                              Command="{Binding OpenImageForSlicingCommand}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="🖼" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="_Close Active Document"
+                              InputGestureText="Ctrl+W"
+                              Command="{Binding CloseDocumentCommand}"
+                              IsEnabled="{Binding HasActiveDocument}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="✕" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="Export Captured _Page to PNG..."
+                              InputGestureText="Ctrl+E"
+                              Command="{Binding ExportPageToPngCommand}"
+                              IsEnabled="{Binding HasLoadedPdf}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Export Sliced _Grid Pieces..."
+                              Command="{Binding SliceGridCommand}"
+                              IsEnabled="{Binding HasSlicerImage}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Export _Active Chit to PNG..."
+                              InputGestureText="Ctrl+S"
+                              Command="{Binding ExportSelectedChitCommand}"
+                              IsEnabled="{Binding HasSelectedChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Export _All 20 Chits to PNG..."
+                              InputGestureText="Ctrl+Shift+S"
+                              Command="{Binding ExportAllEditedChitsCommand}"
+                              IsEnabled="{Binding HasChitsLoaded}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="E_xit"
+                              InputGestureText="Alt+F4"
+                              Command="{Binding ExitApplicationCommand}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="🚪" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </MenuItem>
+
+                <!-- EDIT MENU -->
+                <MenuItem Header="_Edit">
+                    <MenuItem Header="_Undo Chit Action"
+                              InputGestureText="Ctrl+Z"
+                              Command="{Binding UndoChitCommand}"
+                              IsEnabled="{Binding CanUndoChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="↩" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Redo Chit Action"
+                              InputGestureText="Ctrl+Y"
+                              Command="{Binding RedoChitCommand}"
+                              IsEnabled="{Binding CanRedoChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="↪" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="Cu_t Active Chit"
+                              InputGestureText="Ctrl+X"
+                              Command="{Binding CutChitCommand}"
+                              IsEnabled="{Binding HasSelectedChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="✂" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Copy Active Chit"
+                              InputGestureText="Ctrl+C"
+                              Command="{Binding CopyChitCommand}"
+                              IsEnabled="{Binding HasSelectedChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="📋" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Paste Image to Chit"
+                              InputGestureText="Ctrl+V"
+                              Command="{Binding PasteChitCommand}"
+                              IsEnabled="{Binding HasSelectedChit}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="📥" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="Reset _Current Chit to Original"
+                              Command="{Binding ResetSelectedChitCommand}"
+                              IsEnabled="{Binding HasSelectedChit}" />
+                    <MenuItem Header="Reset All _20 Chits to Original"
+                              Command="{Binding ResetAllChitsCommand}"
+                              IsEnabled="{Binding HasChitsLoaded}" />
+                    <MenuItem Header="Reset _Edge Cleanup Depths"
+                              Command="{Binding ResetEdgeCleanCommand}"
+                              IsEnabled="{Binding HasSelectedChit}" />
+                </MenuItem>
+
+                <!-- VIEW MENU -->
+                <MenuItem Header="_View">
+                    <MenuItem Header="PDF _Viewer &amp; Page Capture"
+                              InputGestureText="Ctrl+1"
+                              Command="{Binding SwitchTabCommand}"
+                              CommandParameter="0">
+                        <MenuItem.Icon>
+                            <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Deskew &amp; Grid Slicer"
+                              InputGestureText="Ctrl+2"
+                              Command="{Binding SwitchTabCommand}"
+                              CommandParameter="1">
+                        <MenuItem.Icon>
+                            <TextBlock Text="📐" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Chit Editor"
+                              InputGestureText="Ctrl+3"
+                              Command="{Binding SwitchTabCommand}"
+                              CommandParameter="2">
+                        <MenuItem.Icon>
+                            <TextBlock Text="✂" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="Fit to _Width"
+                              Command="{Binding FitWidthCommand}" />
+                    <MenuItem Header="Fit to _View"
+                              Command="{Binding FitViewCommand}" />
+                    <MenuItem Header="_Actual Size (100%)"
+                              Command="{Binding ActualSizeCommand}" />
+                </MenuItem>
+
+                <!-- HELP MENU -->
+                <MenuItem Header="_Help">
+                    <MenuItem Header="_Keyboard Shortcuts Reference..."
+                              InputGestureText="F1"
+                              Command="{Binding ShowShortcutsCommand}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="⌨" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="_About PDF to Tiles..."
+                              Command="{Binding ShowAboutCommand}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="ℹ" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </MenuItem>
+            </Menu>
+
+            <!-- Traditional Desktop Toolbar -->
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Background="{DynamicResource ToolbarBackgroundBrush}">
+                <ToolBarTray Background="Transparent"
+                             IsLocked="True">
+                    <ToolBar Background="Transparent"
+                             Height="34"
+                             ToolBarTray.IsLocked="True">
+
+                    <!-- FILE GROUP -->
+                    <Button Command="{Binding OpenPdfCommand}"
+                            ToolTip="Open PDF Document (Ctrl+O)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="📄" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding OpenImageForSlicingCommand}"
+                            ToolTip="Open Counter Sheet Image (Ctrl+Shift+O)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="🖼" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding ExportAllEditedChitsCommand}"
+                            IsEnabled="{Binding HasChitsLoaded}"
+                            ToolTip="Export All 20 Chits to PNG (Ctrl+Shift+S)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="💾" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+
+                    <Separator Margin="4,3" />
+
+                    <!-- EDIT / CLIPBOARD GROUP -->
+                    <Button Command="{Binding UndoChitCommand}"
+                            IsEnabled="{Binding CanUndoChit}"
+                            ToolTip="Undo Chit Action (Ctrl+Z)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="↩" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding RedoChitCommand}"
+                            IsEnabled="{Binding CanRedoChit}"
+                            ToolTip="Redo Chit Action (Ctrl+Y)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="↪" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding CutChitCommand}"
+                            IsEnabled="{Binding HasSelectedChit}"
+                            ToolTip="Cut Active Chit (Ctrl+X)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="✂" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding CopyChitCommand}"
+                            IsEnabled="{Binding HasSelectedChit}"
+                            ToolTip="Copy Active Chit (Ctrl+C)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="📋" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding PasteChitCommand}"
+                            IsEnabled="{Binding HasSelectedChit}"
+                            ToolTip="Paste Image to Chit (Ctrl+V)"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="📥" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+
+                    <Separator Margin="4,3" />
+
+                    <!-- SLICER WORKFLOW GROUP -->
+                    <Button Command="{Binding AutoDetectTiltCommand}"
+                            IsEnabled="{Binding HasSlicerImage}"
+                            ToolTip="Auto-Detect Counter Sheet Rotational Tilt"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="📐" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding SendBandToChitEditorCommand}"
+                            IsEnabled="{Binding HasSlicerImage}"
+                            ToolTip="Send Active 2×10 Band to Chit Editor"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="✂" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+
+                    <Separator Margin="4,3" />
+
+                    <!-- VIEW / ZOOM GROUP -->
+                    <Button Command="{Binding FitWidthCommand}"
+                            ToolTip="Fit Viewport Width"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="↔" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding FitViewCommand}"
+                            ToolTip="Fit Entire Content into View"
+                            Width="30" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="⛶" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding ActualSizeCommand}"
+                            ToolTip="Actual Size (100% Zoom)"
+                            Width="34" Height="28"
+                            Margin="2,1"
+                            Padding="0">
+                        <TextBlock Text="1:1" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+
+                </ToolBar>
+            </ToolBarTray>
+        </Border>
+    </StackPanel>
+
+        <!-- ========================================== -->
         <!-- TOP APP HEADER & WORKSPACE MODE SWITCHER -->
         <!-- ========================================== -->
-        <Border Grid.Row="0"
+        <Border Grid.Row="1"
                 Background="{DynamicResource PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
@@ -158,7 +476,7 @@
         <!-- ========================================== -->
         <!-- MAIN WORKSPACE CONTENT AREA -->
         <!-- ========================================== -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
 
             <!-- ========================================== -->
             <!-- TAB 0: PDF VIEWER & HIGH-DPI CAPTURE -->
@@ -970,19 +1288,37 @@
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="↩ Undo" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit" Width="70" />
-                        <Button Content="↪ Redo" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action" Width="70" Margin="4,0,0,0" />
+                        <Button Content="↩ Undo" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit" Padding="8,3" />
+                        <Button Content="↪ Redo" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action" Padding="8,3" Margin="4,0,0,0" />
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="✂ Cut" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Width="60" />
-                        <Button Content="📋 Copy" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Width="65" Margin="4,0,0,0" />
-                        <Button Content="📥 Paste" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Width="68" Margin="4,0,0,0" />
+                        <Button Content="✂ Cut" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Padding="8,3" />
+                        <Button Content="📋 Copy" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Padding="8,3" Margin="4,0,0,0" />
+                        <Button Content="📥 Paste" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Padding="8,3" Margin="4,0,0,0" />
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="📸 Export Active Chit..." Command="{Binding ExportSelectedChitCommand}" ToolTip="Export currently selected chit as PNG" />
-                        <Button Content="✂️ Export All 20 to PNG..." Command="{Binding ExportAllEditedChitsCommand}" Style="{StaticResource AccentButtonStyle}" Margin="6,0,0,0" ToolTip="Export all 20 chits to destination folder" />
+                        <!-- Working Chit Zoom Group -->
+                        <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <Button Content="-" Command="{Binding ChitEditorZoomOutCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom out 1% (-0.01)" />
+                        <Button Content="+" Command="{Binding ChitEditorZoomInCommand}" Width="24" Height="24" Padding="0" Margin="1,0" ToolTip="Zoom in 1% (+0.01)" />
+                        <TextBox x:Name="ChitEditorZoomTextBox"
+                                 Text="{Binding ChitEditorZoomInputText, UpdateSourceTrigger=LostFocus}"
+                                 Width="48" Height="24" Padding="2,1" Margin="3,0,1,0"
+                                 FontSize="11" TextAlignment="Center"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                 ToolTip="Enter zoom percentage (e.g. 100%, 250) and press Enter"
+                                 KeyDown="ChitEditorZoomTextBox_KeyDown"
+                                 LostFocus="ChitEditorZoomTextBox_LostFocus" />
+                        <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
+                                   FontSize="11" FontWeight="Bold" Width="38"
+                                   VerticalAlignment="Center" TextAlignment="Right" Margin="2,0,0,0" />
+
+                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                        <Button Content="📸 Export Active Chit..." Command="{Binding ExportSelectedChitCommand}" ToolTip="Export currently selected chit as PNG" Padding="8,3" />
+                        <Button Content="✂️ Export All 20 to PNG..." Command="{Binding ExportAllEditedChitsCommand}" Style="{StaticResource AccentButtonStyle}" Margin="6,0,0,0" ToolTip="Export all 20 chits to destination folder" Padding="10,3" />
                     </WrapPanel>
                 </Border>
 
@@ -990,7 +1326,7 @@
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <!-- Left Controls Panel: Locked fixed width (non-resizable) -->
-                        <ColumnDefinition Width="360" MinWidth="360" MaxWidth="360" />
+                        <ColumnDefinition Width="400" MinWidth="400" MaxWidth="400" />
                         <!-- Center Working Canvas -->
                         <ColumnDefinition Width="*" MinWidth="400" />
                         <!-- Splitter for Right Tile Strip -->
@@ -1025,11 +1361,12 @@
                                     <StackPanel>
                                         <TextBlock Text="TILE TOOLS (WORKING AREA)" Style="{StaticResource SectionHeaderStyle}" />
 
-                                        <!-- Row 1: Dimensions (Width x Height) + Stretch + Resize -->
+                                        <!-- Row 1: Dimensions (Width x Height) + Stretch + Shrink + Resize -->
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
@@ -1041,12 +1378,13 @@
                                                 <TextBox Text="{Binding ChitEditorHeight, UpdateSourceTrigger=PropertyChanged}" Width="48" TextAlignment="Center" Padding="2,3" />
                                             </StackPanel>
 
-                                            <!-- Stretch & Resize Right -->
-                                            <Button Grid.Column="2" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="66" Height="28" Margin="0,0,4,0" ToolTip="Resample image to target Width × Height" />
-                                            <Button Grid.Column="3" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="66" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height" />
+                                            <!-- Stretch, Shrink & Resize Right -->
+                                            <Button Grid.Column="2" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="64" Height="28" Margin="0,0,3,0" ToolTip="Resample image to exact Width × Height (distorts aspect if changed)" />
+                                            <Button Grid.Column="3" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Width="60" Height="28" Margin="0,0,3,0" ToolTip="Scale image down proportionally to fit target dimensions (preserves aspect, pads letterbox)" />
+                                            <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 2: Shared Value + Steppers (Left) + Set Button (Right) -->
+                                        <!-- Row 2: Shared Value + Steppers (Left) + Dynamic Action Button (Right) -->
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
@@ -1064,10 +1402,13 @@
                                                 </StackPanel>
                                             </Border>
 
-                                            <!-- Dedicated Set Button -->
-                                            <Button Grid.Column="2" Content="Set" Command="{Binding ApplySharedToolCommand}" Width="66" Height="28"
+                                            <!-- Dynamic Action Button (Clip, Bevel, or Clear) -->
+                                            <Button Grid.Column="2"
+                                                    Content="{Binding SharedToolActionName}"
+                                                    Command="{Binding ApplySharedToolCommand}"
+                                                    Width="66" Height="28"
                                                     Style="{StaticResource AccentButtonStyle}"
-                                                    ToolTip="Apply selected tool (Clip, Bevel, or Clear) with current size" />
+                                                    ToolTip="{Binding SharedToolActionToolTip}" />
                                         </Grid>
 
                                         <!-- Row 3: Mutually Exclusive Tool Radios (Clip, Bevel, Clear) -->
@@ -1092,16 +1433,117 @@
                                                          ToolTip="Clear outer border to transparent key color" />
                                         </Grid>
 
-                                        <!-- Row 4: Transparent Key Color Swatch & Label -->
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
-                                            <Button Width="26" Height="26"
-                                                    Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
-                                                    BorderBrush="{DynamicResource BorderBrush}"
-                                                    BorderThickness="1"
-                                                    Command="{Binding CycleTransparentColorCommand}"
-                                                    ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
-                                            <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        </StackPanel>
+                                        <!-- Row 4: Transparent Key Color (Left) + Reset Button (Right) -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Width="26" Height="26"
+                                                        Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        Command="{Binding CycleTransparentColorCommand}"
+                                                        ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
+                                                <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1" Content="Reset" Command="{Binding ResetSelectedChitCommand}"
+                                                    Width="66" Height="28"
+                                                    ToolTip="Reset active working chit to its original unmodified tile (restores slice, pushes Undo snapshot)" />
+                                        </Grid>
+
+                                        <!-- Row 5: Clone Stamp Tool (Paint.NET Style) -->
+                                        <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="8,6"
+                                                Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <!-- 5a: Mode Toggle + Anchor & Clear Buttons -->
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <ToggleButton Grid.Column="0"
+                                                                  IsChecked="{Binding IsCloneStampActive}"
+                                                                  Content="🎨 Clone Stamp"
+                                                                  FontSize="11"
+                                                                  FontWeight="SemiBold"
+                                                                  Padding="6,3"
+                                                                  Height="26"
+                                                                  ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
+
+                                                    <Button Grid.Column="2"
+                                                            Command="{Binding PickCloneAnchorCommand}"
+                                                            Content="Anchor"
+                                                            Width="66" Height="26"
+                                                            Padding="6,2"
+                                                            Margin="0,0,4,0"
+                                                            FontSize="11"
+                                                            ToolTip="Pick clone source anchor point on the Working Chit (or Shift+Click canvas)" />
+
+                                                    <Button Grid.Column="3"
+                                                            Command="{Binding ClearCloneAnchorCommand}"
+                                                            Content="Clear"
+                                                            Width="58" Height="26"
+                                                            Padding="6,2"
+                                                            FontSize="11"
+                                                            IsEnabled="{Binding HasCloneAnchor}"
+                                                            ToolTip="Clear clone source anchor and lockstep alignment offset" />
+                                                </Grid>
+
+                                                <!-- 5b: Shape Selection (Circle / Square) + Size Stepper -->
+                                                <Grid Margin="0,2,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Shape Radios -->
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <RadioButton Content="● Circle"
+                                                                     GroupName="CloneStampShape"
+                                                                     IsChecked="{Binding IsCloneCircleShape}"
+                                                                     FontSize="11"
+                                                                     FontWeight="SemiBold"
+                                                                     VerticalAlignment="Center"
+                                                                     Margin="0,0,6,0"
+                                                                     ToolTip="Circular stamp brush mask" />
+                                                        <RadioButton Content="■ Square"
+                                                                     GroupName="CloneStampShape"
+                                                                     IsChecked="{Binding IsCloneSquareShape}"
+                                                                     FontSize="11"
+                                                                     FontWeight="SemiBold"
+                                                                     VerticalAlignment="Center"
+                                                                     ToolTip="Square stamp brush mask" />
+                                                    </StackPanel>
+
+                                                    <!-- Size / Radius Stepper -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Size:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,2,0" />
+                                                        <TextBlock Text="{Binding CloneStampRadius, StringFormat={}{0}px}" Width="24" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                        <Button Content="-" Command="{Binding CloneStampRadiusStepDownCommand}" Width="18" Height="20" Padding="0" Margin="1,0,0,0" ToolTip="Decrease stamp size" />
+                                                        <Button Content="+" Command="{Binding CloneStampRadiusStepUpCommand}" Width="18" Height="20" Padding="0" Margin="1,0,0,0" ToolTip="Increase stamp size" />
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- 5c: Alignment Status Readout -->
+                                                <TextBlock Text="{Binding CloneStampStatusText}"
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
 
                                         <!-- Divider between base tools and Edge Cleanup -->
                                         <Separator Margin="0,8,0,8" Background="{DynamicResource BorderBrush}" />
@@ -1308,11 +1750,11 @@
                                         Margin="0,0,0,16"
                                         HorizontalAlignment="Center">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <!-- Header with 1% Step Zoom Controls -->
-                                        <Grid Margin="0,0,0,8">
+                                        <!-- Header with Step & Save Controls -->
+                                        <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="16" />
+                                                <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
@@ -1321,53 +1763,103 @@
                                                        VerticalAlignment="Center" />
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button Content="✂ Cut" Command="{Binding CutChitCommand}"
-                                                        FontSize="11" Height="22" Padding="4,1" Margin="0,0,2,0"
-                                                        ToolTip="Cut selected chit to clipboard (Ctrl+X)" />
-                                                <Button Content="📋 Copy" Command="{Binding CopyChitCommand}"
-                                                        FontSize="11" Height="22" Padding="4,1" Margin="0,0,2,0"
-                                                        ToolTip="Copy selected chit to clipboard (Ctrl+C)" />
-                                                <Button Content="📥 Paste" Command="{Binding PasteChitCommand}"
-                                                        FontSize="11" Height="22" Padding="4,1" Margin="0,0,6,0"
-                                                        ToolTip="Paste image from clipboard into active chit (Ctrl+V)" />
-                                                <Button Content="-" Command="{Binding ChitEditorZoomOutCommand}"
-                                                        Width="24" Height="22" Padding="0" Margin="1,0"
-                                                        ToolTip="Zoom out 1% (-0.01)" />
-                                                <Button Content="+" Command="{Binding ChitEditorZoomInCommand}"
-                                                        Width="24" Height="22" Padding="0" Margin="1,0"
-                                                        ToolTip="Zoom in 1% (+0.01)" />
-                                                <TextBox x:Name="ChitEditorZoomTextBox"
-                                                         Text="{Binding ChitEditorZoomInputText, UpdateSourceTrigger=LostFocus}"
-                                                         Width="48" Height="22" Padding="2,1" Margin="3,0,1,0"
-                                                         FontSize="11" TextAlignment="Center"
-                                                         VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                                         ToolTip="Enter zoom percentage (e.g. 100%, 250) and press Enter"
-                                                         KeyDown="ChitEditorZoomTextBox_KeyDown"
-                                                         LostFocus="ChitEditorZoomTextBox_LostFocus" />
-                                                <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
-                                                           FontSize="11" FontWeight="Bold" Width="36"
-                                                           VerticalAlignment="Center" TextAlignment="Right" Margin="4,0,0,0" />
+                                                <Border Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Step:" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        <TextBlock Text="{Binding ChitBumpStepPx, StringFormat={}{0}px}" FontSize="10" FontWeight="Bold" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
+                                                        <Button Content="-" Command="{Binding BumpStepDownCommand}" Width="16" Height="18" Padding="0" Margin="1,0" ToolTip="Decrease bump step (-1px)" />
+                                                        <Button Content="+" Command="{Binding BumpStepUpCommand}" Width="16" Height="18" Padding="0" Margin="1,0" ToolTip="Increase bump step (+1px)" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Button Content="💾 Save Chit PNG..."
+                                                        Command="{Binding ExportSelectedChitCommand}"
+                                                        Padding="8,2" Margin="8,0,0,0"
+                                                        FontSize="11"
+                                                        ToolTip="Save this active chit to PNG file..." />
                                             </StackPanel>
                                         </Grid>
 
-                                        <Border BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                Background="{StaticResource CheckerboardBrush}"
-                                                SnapsToDevicePixels="True"
-                                                HorizontalAlignment="Center">
-                                            <Image Source="{Binding SelectedChit.PreviewSource}"
-                                                   Stretch="None"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   MouseDown="ChitPreview_MouseDown"
-                                                   Cursor="Cross"
-                                                   ToolTip="Click to sample background color for Edge Cleanup"
-                                                   RenderOptions.BitmapScalingMode="NearestNeighbor">
-                                                <Image.LayoutTransform>
-                                                    <ScaleTransform ScaleX="{Binding ChitEditorZoomScale}" ScaleY="{Binding ChitEditorZoomScale}" />
-                                                </Image.LayoutTransform>
-                                            </Image>
-                                        </Border>
+                                        <!-- Surrounding Directional Bump Controls Layout -->
+                                        <Grid HorizontalAlignment="Center" Margin="0,4,0,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- TOP: Bump Up ▲ -->
+                                            <RepeatButton Grid.Row="0" Grid.Column="1"
+                                                          Content="▲" Command="{Binding BumpChitUpCommand}"
+                                                          Width="36" Height="22" Padding="0" Margin="0,0,0,6"
+                                                          HorizontalAlignment="Center"
+                                                          Delay="250" Interval="50"
+                                                          ToolTip="Bump image up (fill bottom edge with transparent color)" />
+
+                                            <!-- LEFT: Bump Left ◀ -->
+                                            <RepeatButton Grid.Row="1" Grid.Column="0"
+                                                          Content="◀" Command="{Binding BumpChitLeftCommand}"
+                                                          Width="22" Height="36" Padding="0" Margin="0,0,6,0"
+                                                          VerticalAlignment="Center"
+                                                          Delay="250" Interval="50"
+                                                          ToolTip="Bump image left (fill right edge with transparent color)" />
+
+                                            <!-- CENTER: Working Chit Canvas -->
+                                            <Border Grid.Row="1" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    Background="{StaticResource CheckerboardBrush}"
+                                                    SnapsToDevicePixels="True"
+                                                    HorizontalAlignment="Center">
+                                                <Grid>
+                                                    <Image x:Name="WorkingChitImage"
+                                                           Source="{Binding SelectedChit.PreviewSource}"
+                                                           Stretch="None"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           MouseDown="ChitPreview_MouseDown"
+                                                           MouseMove="ChitPreview_MouseMove"
+                                                           MouseUp="ChitPreview_MouseUp"
+                                                           MouseLeave="ChitPreview_MouseLeave"
+                                                           Cursor="Cross"
+                                                           ToolTip="{Binding WorkingChitToolTip}"
+                                                           RenderOptions.BitmapScalingMode="NearestNeighbor">
+                                                        <Image.LayoutTransform>
+                                                            <ScaleTransform ScaleX="{Binding ChitEditorZoomScale}" ScaleY="{Binding ChitEditorZoomScale}" />
+                                                        </Image.LayoutTransform>
+                                                    </Image>
+                                                    <Canvas x:Name="WorkingChitOverlayCanvas"
+                                                            IsHitTestVisible="False"
+                                                            HorizontalAlignment="Stretch"
+                                                            VerticalAlignment="Stretch">
+                                                        <Canvas.LayoutTransform>
+                                                            <ScaleTransform ScaleX="{Binding ChitEditorZoomScale}" ScaleY="{Binding ChitEditorZoomScale}" />
+                                                        </Canvas.LayoutTransform>
+                                                    </Canvas>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- RIGHT: Bump Right ▶ -->
+                                            <RepeatButton Grid.Row="1" Grid.Column="2"
+                                                          Content="▶" Command="{Binding BumpChitRightCommand}"
+                                                          Width="22" Height="36" Padding="0" Margin="6,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Delay="250" Interval="50"
+                                                          ToolTip="Bump image right (fill left edge with transparent color)" />
+
+                                            <!-- BOTTOM: Bump Down ▼ -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="1"
+                                                          Content="▼" Command="{Binding BumpChitDownCommand}"
+                                                          Width="36" Height="22" Padding="0" Margin="0,6,0,0"
+                                                          HorizontalAlignment="Center"
+                                                          Delay="250" Interval="50"
+                                                          ToolTip="Bump image down (fill top edge with transparent color)" />
+                                        </Grid>
 
                                         <TextBlock Text="{Binding SelectedChit.DimensionsText}"
                                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
@@ -1529,7 +2021,7 @@
         </Grid>
 
         <!-- BOTTOM STATUS BAR -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Background="{DynamicResource StatusBarBackgroundBrush}"
                 Padding="10,5">
             <Grid>

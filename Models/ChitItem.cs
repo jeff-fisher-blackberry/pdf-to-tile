@@ -208,6 +208,39 @@ namespace pdf_to_Tiles.Models
             }
         }
 
+        /// <summary>
+        /// Commits an in-place edit made directly to WorkingMat (such as Clone Stamp)
+        /// into the undo history and refreshes the preview and thumbnail bitmaps.
+        /// </summary>
+        public void CommitInPlaceEdit(Color transparentColor)
+        {
+            lock (_lock)
+            {
+                if (WorkingMat == null || WorkingMat.IsDisposed) return;
+
+                // Prune any redo branches ahead of current index
+                for (int i = _history.Count - 1; i > _historyIndex; i--)
+                {
+                    _history[i].Dispose();
+                    _history.RemoveAt(i);
+                }
+
+                _history.Add(new ChitSnapshot(WorkingMat, WorkingMat.Width, WorkingMat.Height, transparentColor));
+                _historyIndex = _history.Count - 1;
+
+                while (_history.Count > MaxHistoryDepth)
+                {
+                    _history[0].Dispose();
+                    _history.RemoveAt(0);
+                    _historyIndex--;
+                }
+
+                IsDirty = true;
+                UpdateUndoRedoState();
+                UpdateDisplayBitmaps();
+            }
+        }
+
         private void ApplySnapshot(ChitSnapshot snapshot)
         {
             if (snapshot.Mat == null || snapshot.Mat.IsDisposed) return;

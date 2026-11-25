@@ -88,6 +88,17 @@ namespace pdf_to_Tiles
                     }
                     UpdateSlicerCursor();
                     break;
+
+                case nameof(MainViewModel.CloneAnchorX):
+                case nameof(MainViewModel.CloneAnchorY):
+                case nameof(MainViewModel.HasCloneAnchor):
+                case nameof(MainViewModel.HasDestinationAnchor):
+                case nameof(MainViewModel.CloneStampRadius):
+                case nameof(MainViewModel.CloneStampShape):
+                case nameof(MainViewModel.IsCloneStampActive):
+                case nameof(MainViewModel.SelectedChit):
+                    UpdateWorkingChitOverlay();
+                    break;
             }
         }
 
@@ -363,6 +374,17 @@ namespace pdf_to_Tiles
                 return;
             }
 
+            // Global Help shortcut: F1
+            if (e.Key == Key.F1)
+            {
+                if (vm.ShowShortcutsCommand.CanExecute(null))
+                {
+                    vm.ShowShortcutsCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking
             if (e.Key == Key.Escape && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
             {
@@ -372,18 +394,110 @@ namespace pdf_to_Tiles
                 return;
             }
 
-            // Tab 3 (Chit Editor): Ctrl+X, Ctrl+C, Ctrl+V for working chit
-            if (vm.SelectedTabIndex == 2)
+            // Mode switching shortcuts: Ctrl+1, Ctrl+2, Ctrl+3
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
-                // Do not intercept if user is typing or editing inside a TextBox
-                if (e.OriginalSource is TextBox)
+                if (e.Key == Key.D1 || e.Key == Key.NumPad1)
                 {
+                    vm.SelectedTabIndex = 0;
+                    e.Handled = true;
                     return;
                 }
+                if (e.Key == Key.D2 || e.Key == Key.NumPad2)
+                {
+                    vm.SelectedTabIndex = 1;
+                    e.Handled = true;
+                    return;
+                }
+                if (e.Key == Key.D3 || e.Key == Key.NumPad3)
+                {
+                    vm.SelectedTabIndex = 2;
+                    e.Handled = true;
+                    return;
+                }
+            }
 
+            // If user is focused on or typing inside a TextBox, protect TextBox clipboard & editing operations!
+            bool isTextBoxFocused = e.OriginalSource is TextBox || Keyboard.FocusedElement is TextBox;
+
+            // Global Document / File accelerators
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+                if (e.Key == Key.O)
+                {
+                    if (isShift)
+                    {
+                        if (vm.OpenImageForSlicingCommand.CanExecute(null))
+                        {
+                            vm.OpenImageForSlicingCommand.Execute(null);
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        if (vm.OpenPdfCommand.CanExecute(null))
+                        {
+                            vm.OpenPdfCommand.Execute(null);
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                }
+                else if (e.Key == Key.W)
+                {
+                    if (vm.CloseDocumentCommand.CanExecute(null))
+                    {
+                        vm.CloseDocumentCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Key == Key.E)
+                {
+                    if (vm.ExportPageToPngCommand.CanExecute(null))
+                    {
+                        vm.ExportPageToPngCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Key == Key.S && isShift)
+                {
+                    if (vm.ExportAllEditedChitsCommand.CanExecute(null))
+                    {
+                        vm.ExportAllEditedChitsCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+
+            // Tab 3 (Chit Editor): Clipboard & Undo/Redo operations for working chit
+            // CRITICAL: NEVER intercept if user is typing or editing inside a TextBox
+            if (vm.SelectedTabIndex == 2 && !isTextBoxFocused)
+            {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
                 {
-                    if (e.Key == Key.X)
+                    if (e.Key == Key.Z)
+                    {
+                        if (vm.UndoChitCommand.CanExecute(null))
+                        {
+                            vm.UndoChitCommand.Execute(null);
+                            e.Handled = true;
+                        }
+                    }
+                    else if (e.Key == Key.Y)
+                    {
+                        if (vm.RedoChitCommand.CanExecute(null))
+                        {
+                            vm.RedoChitCommand.Execute(null);
+                            e.Handled = true;
+                        }
+                    }
+                    else if (e.Key == Key.X)
                     {
                         if (vm.CutChitCommand.CanExecute(null))
                         {
@@ -615,35 +729,273 @@ namespace pdf_to_Tiles
             }
         }
 
+        private bool _isCloning = false;
+        private bool _hasModifiedInStroke = false;
+        private int _cloneDeltaX = 0;
+        private int _cloneDeltaY = 0;
+
         private void ChitPreview_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (DataContext is MainViewModel vm && vm.SelectedChit?.WorkingMat != null && !vm.SelectedChit.WorkingMat.IsDisposed)
+            if (DataContext is not MainViewModel vm || vm.SelectedChit?.WorkingMat == null || vm.SelectedChit.WorkingMat.IsDisposed)
             {
-                if (sender is Image img && img.Source is BitmapSource)
+                return;
+            }
+
+            if (sender is not Image img || img.Source is not BitmapSource)
+            {
+                return;
+            }
+
+            Point clickPos = e.GetPosition(img);
+            double actualW = img.ActualWidth;
+            double actualH = img.ActualHeight;
+
+            if (actualW <= 0 || actualH <= 0) return;
+
+            int matW = vm.SelectedChit.WorkingMat.Width;
+            int matH = vm.SelectedChit.WorkingMat.Height;
+            if (matW < 8 || matH < 8) return;
+
+            int px = (int)Math.Clamp(Math.Floor(clickPos.X * matW / actualW), 0, matW - 1);
+            int py = (int)Math.Clamp(Math.Floor(clickPos.Y * matH / actualH), 0, matH - 1);
+
+            // Paint.NET Clone Stamp Tool handling
+            if (vm.IsCloneStampActive)
+            {
+                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                if (isShift || vm.IsPickingCloneAnchor)
                 {
-                    Point clickPos = e.GetPosition(img);
-                    double actualW = img.ActualWidth;
-                    double actualH = img.ActualHeight;
+                    // Set Source Anchor
+                    vm.CloneAnchorX = px;
+                    vm.CloneAnchorY = py;
+                    vm.HasCloneAnchor = true;
+                    vm.HasDestinationAnchor = false; // Reset lockstep alignment so next target click defines alignment
+                    vm.CloneOffsetDeltaX = 0;
+                    vm.CloneOffsetDeltaY = 0;
+                    vm.IsPickingCloneAnchor = false;
+                    vm.StatusMessage = $"Clone source anchor set at ({px}, {py}). Click or drag on target to stamp.";
+                    UpdateWorkingChitOverlay();
+                    e.Handled = true;
+                    return;
+                }
 
-                    if (actualW > 0 && actualH > 0)
+                // If anchor is not set yet, prompt user
+                if (!vm.HasCloneAnchor)
+                {
+                    vm.StatusMessage = "Please set a clone source anchor first (Shift + Click on canvas).";
+                    e.Handled = true;
+                    return;
+                }
+
+                // If this is the first target click since setting source anchor, record destination anchor and compute lockstep offset!
+                if (!vm.HasDestinationAnchor)
+                {
+                    vm.CloneDstAnchorX = px;
+                    vm.CloneDstAnchorY = py;
+                    vm.CloneOffsetDeltaX = vm.CloneAnchorX - px;
+                    vm.CloneOffsetDeltaY = vm.CloneAnchorY - py;
+                    vm.HasDestinationAnchor = true;
+                }
+
+                _cloneDeltaX = vm.CloneOffsetDeltaX;
+                _cloneDeltaY = vm.CloneOffsetDeltaY;
+                _isCloning = true;
+                _hasModifiedInStroke = false;
+                img.CaptureMouse();
+
+                vm.CloneHoverDstX = px;
+                vm.CloneHoverDstY = py;
+                vm.IsCloneHovering = true;
+
+                bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                    vm.SelectedChit.WorkingMat,
+                    px, py,
+                    _cloneDeltaX, _cloneDeltaY,
+                    vm.CloneStampRadius,
+                    vm.ActiveCloneStampShape);
+
+                if (mod)
+                {
+                    _hasModifiedInStroke = true;
+                    vm.SelectedChit.UpdateDisplayBitmaps();
+                }
+
+                UpdateWorkingChitOverlay();
+                e.Handled = true;
+                return;
+            }
+
+            // Normal Edge Cleanup Background Color Sampling
+            var indexer = vm.SelectedChit.WorkingMat.GetGenericIndexer<OpenCvSharp.Vec4b>();
+            OpenCvSharp.Vec4b colorVec = indexer[py, px];
+
+            if (colorVec.Item3 > 0) // if not fully transparent
+            {
+                vm.ChitEdgeCleanColor = Color.FromRgb(colorVec.Item2, colorVec.Item1, colorVec.Item0);
+                vm.LockEdgeCleanColor = true;
+                vm.StatusMessage = $"Sampled background color #{vm.ChitEdgeCleanColor.R:X2}{vm.ChitEdgeCleanColor.G:X2}{vm.ChitEdgeCleanColor.B:X2} at ({px}, {py}).";
+                e.Handled = true;
+            }
+        }
+
+        private void ChitPreview_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm || vm.SelectedChit?.WorkingMat == null || vm.SelectedChit.WorkingMat.IsDisposed)
+            {
+                return;
+            }
+
+            if (sender is not Image img || img.Source is not BitmapSource)
+            {
+                return;
+            }
+
+            Point clickPos = e.GetPosition(img);
+            double actualW = img.ActualWidth;
+            double actualH = img.ActualHeight;
+
+            if (actualW <= 0 || actualH <= 0) return;
+
+            int matW = vm.SelectedChit.WorkingMat.Width;
+            int matH = vm.SelectedChit.WorkingMat.Height;
+            if (matW < 8 || matH < 8) return;
+
+            int px = (int)Math.Clamp(Math.Floor(clickPos.X * matW / actualW), 0, matW - 1);
+            int py = (int)Math.Clamp(Math.Floor(clickPos.Y * matH / actualH), 0, matH - 1);
+
+            if (vm.IsCloneStampActive)
+            {
+                vm.CloneHoverDstX = px;
+                vm.CloneHoverDstY = py;
+                vm.IsCloneHovering = true;
+
+                if (_isCloning && e.LeftButton == MouseButtonState.Pressed)
+                {
+                    bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                        vm.SelectedChit.WorkingMat,
+                        px, py,
+                        _cloneDeltaX, _cloneDeltaY,
+                        vm.CloneStampRadius,
+                        vm.ActiveCloneStampShape);
+
+                    if (mod)
                     {
-                        int matW = vm.SelectedChit.WorkingMat.Width;
-                        int matH = vm.SelectedChit.WorkingMat.Height;
-
-                        int px = (int)Math.Clamp(Math.Floor(clickPos.X * matW / actualW), 0, matW - 1);
-                        int py = (int)Math.Clamp(Math.Floor(clickPos.Y * matH / actualH), 0, matH - 1);
-
-                        var indexer = vm.SelectedChit.WorkingMat.GetGenericIndexer<OpenCvSharp.Vec4b>();
-                        OpenCvSharp.Vec4b colorVec = indexer[py, px];
-
-                        if (colorVec.Item3 > 0) // if not fully transparent
-                        {
-                            vm.ChitEdgeCleanColor = Color.FromRgb(colorVec.Item2, colorVec.Item1, colorVec.Item0);
-                            vm.LockEdgeCleanColor = true;
-                            vm.StatusMessage = $"Sampled background color #{vm.ChitEdgeCleanColor.R:X2}{vm.ChitEdgeCleanColor.G:X2}{vm.ChitEdgeCleanColor.B:X2} at ({px}, {py}).";
-                            e.Handled = true;
-                        }
+                        _hasModifiedInStroke = true;
+                        vm.SelectedChit.UpdateDisplayBitmaps();
                     }
+                }
+
+                UpdateWorkingChitOverlay();
+            }
+        }
+
+        private void ChitPreview_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.IsCloneStampActive)
+            {
+                vm.IsCloneHovering = false;
+                UpdateWorkingChitOverlay();
+            }
+        }
+
+        private void ChitPreview_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isCloning)
+            {
+                _isCloning = false;
+                if (sender is Image img)
+                {
+                    img.ReleaseMouseCapture();
+                }
+
+                if (DataContext is MainViewModel vm && vm.SelectedChit?.WorkingMat != null && !vm.SelectedChit.WorkingMat.IsDisposed)
+                {
+                    if (_hasModifiedInStroke)
+                    {
+                        vm.SelectedChit.CommitInPlaceEdit(vm.TransparentColor);
+                        string shapeName = vm.CloneStampShape == "Square" ? "Square" : "Circle";
+                        vm.StatusMessage = $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px).";
+                        _hasModifiedInStroke = false;
+                    }
+                }
+                UpdateWorkingChitOverlay();
+            }
+        }
+
+        private void UpdateWorkingChitOverlay()
+        {
+            if (WorkingChitOverlayCanvas == null || DataContext is not MainViewModel vm) return;
+            WorkingChitOverlayCanvas.Children.Clear();
+
+            if (!vm.IsCloneStampActive || !vm.HasCloneAnchor || vm.SelectedChit?.WorkingMat == null || vm.SelectedChit.WorkingMat.IsDisposed)
+            {
+                return;
+            }
+
+            double r = vm.CloneStampRadius;
+            double size = Math.Max(2, r * 2);
+            bool isSquare = vm.ActiveCloneStampShape == pdf_to_Tiles.Services.CloneStampShape.Square;
+
+            var amberBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Amber 500
+            amberBrush.Freeze();
+            var amberFill = new SolidColorBrush(Color.FromArgb(40, 245, 158, 11));
+            amberFill.Freeze();
+
+            var blueBrush = new SolidColorBrush(Color.FromRgb(2, 132, 199)); // Sky 600
+            blueBrush.Freeze();
+            var blueFill = new SolidColorBrush(Color.FromArgb(40, 2, 132, 199));
+            blueFill.Freeze();
+
+            // 1. Draw static anchor reference indicator at (CloneAnchorX, CloneAnchorY)
+            double ax = vm.CloneAnchorX;
+            double ay = vm.CloneAnchorY;
+
+            Shape anchorShape = isSquare
+                ? new Rectangle { Width = size, Height = size, Stroke = amberBrush, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 2, 2 } }
+                : new Ellipse { Width = size, Height = size, Stroke = amberBrush, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 2, 2 } };
+
+            Canvas.SetLeft(anchorShape, ax - r);
+            Canvas.SetTop(anchorShape, ay - r);
+            WorkingChitOverlayCanvas.Children.Add(anchorShape);
+
+            // Anchor center crosshair
+            WorkingChitOverlayCanvas.Children.Add(new Line { X1 = ax - (r + 3), Y1 = ay, X2 = ax + (r + 3), Y2 = ay, Stroke = Brushes.White, StrokeThickness = 1 });
+            WorkingChitOverlayCanvas.Children.Add(new Line { X1 = ax, Y1 = ay - (r + 3), X2 = ax, Y2 = ay + (r + 3), Stroke = Brushes.White, StrokeThickness = 1 });
+
+            // 2. If hovering or dragging with an active destination lockstep alignment, render shifting source and target brush
+            if (vm.IsCloneHovering && vm.CloneHoverDstX >= 0 && vm.CloneHoverDstY >= 0)
+            {
+                double hx = vm.CloneHoverDstX;
+                double hy = vm.CloneHoverDstY;
+
+                // Target brush indicator (Sky Blue)
+                Shape targetBrushShape = isSquare
+                    ? new Rectangle { Width = size, Height = size, Stroke = blueBrush, Fill = blueFill, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 3, 2 } }
+                    : new Ellipse { Width = size, Height = size, Stroke = blueBrush, Fill = blueFill, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 3, 2 } };
+
+                Canvas.SetLeft(targetBrushShape, hx - r);
+                Canvas.SetTop(targetBrushShape, hy - r);
+                WorkingChitOverlayCanvas.Children.Add(targetBrushShape);
+
+                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx - 4, Y1 = hy, X2 = hx + 4, Y2 = hy, Stroke = blueBrush, StrokeThickness = 1 });
+                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx, Y1 = hy - 4, X2 = hx, Y2 = hy + 4, Stroke = blueBrush, StrokeThickness = 1 });
+
+                // If lockstep alignment is established, also render shifting source indicator
+                if (vm.HasDestinationAnchor)
+                {
+                    double shiftSrcX = hx + vm.CloneOffsetDeltaX;
+                    double shiftSrcY = hy + vm.CloneOffsetDeltaY;
+
+                    Shape shiftSrcShape = isSquare
+                        ? new Rectangle { Width = size, Height = size, Stroke = amberBrush, Fill = amberFill, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 3, 2 } }
+                        : new Ellipse { Width = size, Height = size, Stroke = amberBrush, Fill = amberFill, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 3, 2 } };
+
+                    Canvas.SetLeft(shiftSrcShape, shiftSrcX - r);
+                    Canvas.SetTop(shiftSrcShape, shiftSrcY - r);
+                    WorkingChitOverlayCanvas.Children.Add(shiftSrcShape);
+
+                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX - 4, Y1 = shiftSrcY, X2 = shiftSrcX + 4, Y2 = shiftSrcY, Stroke = amberBrush, StrokeThickness = 1 });
+                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX, Y1 = shiftSrcY - 4, X2 = shiftSrcX, Y2 = shiftSrcY + 4, Stroke = amberBrush, StrokeThickness = 1 });
                 }
             }
         }

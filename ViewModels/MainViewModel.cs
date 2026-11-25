@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-24.1";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.1";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -101,6 +101,13 @@ namespace pdf_to_Tiles.ViewModels
 
         public string ZoomPercentageText => $"{Math.Round(ZoomScale * 100)}%";
         public bool HasLoadedPdf => _pdfBytes != null && _pdfBytes.Length > 0 && TotalPages > 0;
+        public bool HasChitsLoaded => LoadedChits.Count > 0;
+        public bool HasActiveDocument => HasLoadedPdf || HasSlicerImage || HasChitsLoaded;
+        public bool CanUndoChit => SelectedChit?.CanUndo ?? false;
+        public bool CanRedoChit => SelectedChit?.CanRedo ?? false;
+
+        public IRelayCommand ExportPageToPngCommand => CapturePageCommand;
+        public IRelayCommand SendToChitEditorCommand => SendBandToChitEditorCommand;
 
         #endregion
 
@@ -401,6 +408,15 @@ namespace pdf_to_Tiles.ViewModels
 
             SelectedProfile = AvailableProfiles.FirstOrDefault();
             SyncFromActiveBand();
+
+            LoadedChits.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(HasChitsLoaded));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                CloseDocumentCommand.NotifyCanExecuteChanged();
+                ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
+                ResetAllChitsCommand.NotifyCanExecuteChanged();
+            };
         }
 
         #region PDF Viewer Handlers
@@ -481,6 +497,8 @@ namespace pdf_to_Tiles.ViewModels
             {
                 IsLoading = false;
                 OnPropertyChanged(nameof(HasLoadedPdf));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                CloseDocumentCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -577,8 +595,196 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void ActualSize()
         {
-            IsFitToPage = false;
-            ZoomScale = 1.0;
+            switch (SelectedTabIndex)
+            {
+                case 0:
+                    IsFitToPage = false;
+                    ZoomScale = 1.0;
+                    break;
+                case 1:
+                    SlicerActualSize();
+                    break;
+                case 2:
+                    ChitEditorZoomReset();
+                    break;
+            }
+        }
+
+        [RelayCommand]
+        private void FitWidth()
+        {
+            switch (SelectedTabIndex)
+            {
+                case 0:
+                    if (GetPdfViewportSize != null && PagePixelWidth > 0)
+                    {
+                        var (width, _) = GetPdfViewportSize();
+                        if (width > 40)
+                        {
+                            IsFitToPage = false;
+                            ZoomScale = Math.Clamp(Math.Round((width - 40) / PagePixelWidth, 2), 0.05, 5.0);
+                        }
+                    }
+                    break;
+                case 1:
+                    SlicerFitToWidth();
+                    break;
+                case 2:
+                    ChitEditorZoomReset();
+                    break;
+            }
+        }
+
+        [RelayCommand]
+        private void FitView()
+        {
+            switch (SelectedTabIndex)
+            {
+                case 0:
+                    FitToPage();
+                    break;
+                case 1:
+                    SlicerFitToPage();
+                    break;
+                case 2:
+                    ChitEditorZoomReset();
+                    break;
+            }
+        }
+
+        [RelayCommand]
+        private void SwitchTab(object? parameter)
+        {
+            if (parameter is int intVal)
+            {
+                SelectedTabIndex = Math.Clamp(intVal, 0, 2);
+            }
+            else if (parameter is string strVal && int.TryParse(strVal, out int parsed))
+            {
+                SelectedTabIndex = Math.Clamp(parsed, 0, 2);
+            }
+        }
+
+        private bool CanCloseDocument() => HasActiveDocument;
+
+        [RelayCommand(CanExecute = nameof(CanCloseDocument))]
+        private void CloseDocument()
+        {
+            try
+            {
+                // 1. Dispose & clear PDF Viewer state
+                _pdfBytes = null;
+                LoadedFilePath = null;
+                LoadedFileName = null;
+                CurrentPageImage = null;
+                TotalPages = 0;
+                CurrentPageNumber = 0;
+                PagePixelWidth = 0;
+                PagePixelHeight = 0;
+                IsFitToPage = true;
+                ZoomScale = 1.0;
+
+                // 2. Dispose & clear Deskew and Grid Slicer state
+                _masterMat?.Dispose();
+                _masterMat = null;
+                _deskewedMat?.Dispose();
+                _deskewedMat = null;
+                _preEdgeCleanMat?.Dispose();
+                _preEdgeCleanMat = null;
+                _sliceCts?.Cancel();
+                _sliceCts?.Dispose();
+                _sliceCts = null;
+
+                SlicerImage = null;
+                SlicerSourceFileName = null;
+                SlicerPixelWidth = 0;
+                SlicerPixelHeight = 0;
+                DeskewAngle = 0.0;
+                IsSettingUpperLeftCorner = false;
+                IsSettingLowerRightCorner = false;
+
+                // 3. Dispose & clear Chit Editor state
+                if (SelectedChit != null)
+                {
+                    SelectedChit.PropertyChanged -= SelectedChit_PropertyChanged;
+                    SelectedChit = null;
+                }
+
+                foreach (var chit in LoadedChits)
+                {
+                    chit.Dispose();
+                }
+                LoadedChits.Clear();
+
+                _lastCommittedSignature = null;
+                ChitEditorWidth = 0;
+                ChitEditorHeight = 0;
+                ChitEditorZoomScale = 1.0;
+                IsCloneStampActive = false;
+                HasCloneAnchor = false;
+                HasDestinationAnchor = false;
+                IsPickingCloneAnchor = false;
+                CloneOffsetDeltaX = 0;
+                CloneOffsetDeltaY = 0;
+                CloneHoverDstX = -1;
+                CloneHoverDstY = -1;
+                IsCloneHovering = false;
+
+                // 4. Reset Window Title and Status
+                WindowTitle = AppBaseTitle;
+                StatusMessage = "Document closed. Ready. Open a PDF rulebook or counter sheet to begin.";
+                SelectedTabIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error closing document: {ex.Message}";
+            }
+            finally
+            {
+                OnPropertyChanged(nameof(HasLoadedPdf));
+                OnPropertyChanged(nameof(HasSlicerImage));
+                OnPropertyChanged(nameof(HasChitsLoaded));
+                OnPropertyChanged(nameof(HasSelectedChit));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(CanUndoChit));
+                OnPropertyChanged(nameof(CanRedoChit));
+                OnPropertyChanged(nameof(ChitStatusBarText));
+                CloseDocumentCommand.NotifyCanExecuteChanged();
+                ExportPageToPngCommand.NotifyCanExecuteChanged();
+                SliceGridCommand.NotifyCanExecuteChanged();
+                ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
+
+                // Explicit garbage collection to release unmanaged buffers
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        [RelayCommand]
+        private void ExitApplication()
+        {
+            CloseDocument();
+            System.Windows.Application.Current?.Shutdown();
+        }
+
+        [RelayCommand]
+        private void ShowAbout()
+        {
+            var aboutWin = new Views.AboutWindow
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            aboutWin.ShowDialog();
+        }
+
+        [RelayCommand]
+        private void ShowShortcuts()
+        {
+            var shortcutsWin = new Views.ShortcutsWindow
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            shortcutsWin.ShowDialog();
         }
 
         [RelayCommand]
@@ -783,6 +989,8 @@ namespace pdf_to_Tiles.ViewModels
             {
                 IsLoading = false;
                 OnPropertyChanged(nameof(HasSlicerImage));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                CloseDocumentCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -988,6 +1196,15 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (IsSettingUpperLeftCorner) IsSettingUpperLeftCorner = false;
                 if (IsSettingLowerRightCorner) IsSettingLowerRightCorner = false;
+            }
+
+            if (value == 2)
+            {
+                UpdateLiveChitPreview();
+            }
+            else
+            {
+                SelectedChit?.SetPreviewMat(null);
             }
         }
 
@@ -1783,7 +2000,12 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyShrinkCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(BumpChitLeftCommand))]
+        [NotifyCanExecuteChangedFor(nameof(BumpChitRightCommand))]
+        [NotifyCanExecuteChangedFor(nameof(BumpChitUpCommand))]
+        [NotifyCanExecuteChangedFor(nameof(BumpChitDownCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyEdgeCleanCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetEdgeCleanCommand))]
         [NotifyCanExecuteChangedFor(nameof(AutoSampleEdgeColorCommand))]
@@ -1822,6 +2044,10 @@ namespace pdf_to_Tiles.ViewModels
 
         partial void OnSelectedChitChanging(ChitItem? oldValue, ChitItem? newValue)
         {
+            if (oldValue != null)
+            {
+                oldValue.PropertyChanged -= SelectedChit_PropertyChanged;
+            }
             oldValue?.SetPreviewMat(null);
         }
 
@@ -1829,6 +2055,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (value != null)
             {
+                value.PropertyChanged += SelectedChit_PropertyChanged;
                 foreach (var chit in LoadedChits)
                 {
                     chit.IsSelected = ReferenceEquals(chit, value);
@@ -1838,13 +2065,43 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = value.PixelHeight;
                 ClampCurrentEdgeCleanDepths();
 
+                // 4% Bevel and Corner-Clip default calculation (BaseDimension = min(width, height))
+                int default4Pct = ChitEditorService.CalculateDefaultBevelSize(value.PixelWidth, value.PixelHeight);
+                ChitEditorClipSize = default4Pct;
+                ChitEditorBevelSize = default4Pct;
+                if (SelectedSharedToolMode == "Bevel" || SelectedSharedToolMode == "Clip")
+                {
+                    SharedToolValue = default4Pct;
+                }
+
                 if (!LockEdgeCleanColor && value.WorkingMat != null && !value.WorkingMat.IsDisposed)
                 {
                     AutoSampleEdgeColorInternal(value);
                 }
 
                 _lastCommittedSignature = null;
-                UpdateLiveEdgeCleanPreview();
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                UpdateLiveChitPreview();
+            }
+
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+        }
+
+        private void SelectedChit_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ChitItem.CanUndo))
+            {
+                OnPropertyChanged(nameof(CanUndoChit));
+                UndoChitCommand.NotifyCanExecuteChanged();
+            }
+            else if (e.PropertyName == nameof(ChitItem.CanRedo))
+            {
+                OnPropertyChanged(nameof(CanRedoChit));
+                RedoChitCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -1860,7 +2117,7 @@ namespace pdf_to_Tiles.ViewModels
         private int _chitEditorBevelSize = 4;
 
         [ObservableProperty]
-        private int _chitEditorClipSize = 2;
+        private int _chitEditorClipSize = 4;
 
         [ObservableProperty]
         private int _chitEditorClearSize = 1;
@@ -1870,7 +2127,34 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyPropertyChangedFor(nameof(IsClipModeSelected))]
         [NotifyPropertyChangedFor(nameof(IsBevelModeSelected))]
         [NotifyPropertyChangedFor(nameof(IsClearModeSelected))]
-        private string _selectedSharedToolMode = "Clip"; // "Clip", "Bevel", "Clear"
+        [NotifyPropertyChangedFor(nameof(SharedToolActionName))]
+        [NotifyPropertyChangedFor(nameof(SharedToolActionToolTip))]
+        private string _selectedSharedToolMode = "Bevel"; // "Clip", "Bevel", "Clear"
+
+        partial void OnSelectedSharedToolModeChanged(string value)
+        {
+            switch (value)
+            {
+                case "Clip":
+                    if (ChitEditorClipSize <= 0 && SelectedChit != null)
+                    {
+                        ChitEditorClipSize = ChitEditorService.CalculateDefaultBevelSize(SelectedChit.PixelWidth, SelectedChit.PixelHeight);
+                    }
+                    SharedToolValue = ChitEditorClipSize;
+                    break;
+                case "Bevel":
+                    if (ChitEditorBevelSize <= 0 && SelectedChit != null)
+                    {
+                        ChitEditorBevelSize = ChitEditorService.CalculateDefaultBevelSize(SelectedChit.PixelWidth, SelectedChit.PixelHeight);
+                    }
+                    SharedToolValue = ChitEditorBevelSize;
+                    break;
+                case "Clear":
+                    SharedToolValue = ChitEditorClearSize;
+                    break;
+            }
+            UpdateLiveChitPreview();
+        }
 
         public bool IsClipModeSelected
         {
@@ -1890,11 +2174,210 @@ namespace pdf_to_Tiles.ViewModels
             set { if (value) SelectedSharedToolMode = "Clear"; }
         }
 
+        public string SharedToolActionName => SelectedSharedToolMode switch
+        {
+            "Bevel" => "Bevel",
+            "Clear" => "Clear",
+            _ => "Clip"
+        };
+
+        public string SharedToolActionToolTip => SelectedSharedToolMode switch
+        {
+            "Bevel" => $"Apply {SharedToolValue}px 3D raised bevel around perimeter",
+            "Clear" => $"Clear {SharedToolValue}px outer border to transparent key color",
+            _ => $"Clip {SharedToolValue}px corners with transparent key color"
+        };
+
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(SharedToolActionToolTip))]
         private int _sharedToolValue = 2;
+
+        partial void OnSharedToolValueChanged(int value)
+        {
+            switch (SelectedSharedToolMode)
+            {
+                case "Clip":
+                    _chitEditorClipSize = value;
+                    break;
+                case "Bevel":
+                    _chitEditorBevelSize = value;
+                    break;
+                case "Clear":
+                    _chitEditorClearSize = value;
+                    break;
+            }
+            UpdateLiveChitPreview();
+        }
 
         [ObservableProperty]
         private Color _transparentColor = Colors.Cyan;
+
+        #region Clone Stamp Tool Properties & Commands
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(WorkingChitToolTip))]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private bool _isCloneStampActive = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(WorkingChitToolTip))]
+        private bool _isPickingCloneAnchor = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneAnchorX = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneAnchorY = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(WorkingChitToolTip))]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private bool _hasCloneAnchor = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneStampRadius = 4; // default radius 4px
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsCloneCircleShape))]
+        [NotifyPropertyChangedFor(nameof(IsCloneSquareShape))]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private string _cloneStampShape = "Circle"; // "Circle" or "Square"
+
+        public bool IsCloneCircleShape
+        {
+            get => CloneStampShape == "Circle";
+            set { if (value) CloneStampShape = "Circle"; }
+        }
+
+        public bool IsCloneSquareShape
+        {
+            get => CloneStampShape == "Square";
+            set { if (value) CloneStampShape = "Square"; }
+        }
+
+        public Services.CloneStampShape ActiveCloneStampShape =>
+            CloneStampShape == "Square" ? Services.CloneStampShape.Square : Services.CloneStampShape.Circle;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneDstAnchorX = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneDstAnchorY = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneOffsetDeltaX = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private int _cloneOffsetDeltaY = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private bool _hasDestinationAnchor = false;
+
+        // Dynamic hover position for active brush overlay
+        [ObservableProperty]
+        private int _cloneHoverDstX = -1;
+
+        [ObservableProperty]
+        private int _cloneHoverDstY = -1;
+
+        [ObservableProperty]
+        private bool _isCloneHovering = false;
+
+        public string CloneStampStatusText
+        {
+            get
+            {
+                if (!IsCloneStampActive) return string.Empty;
+                if (!HasCloneAnchor) return "Shift+Click on canvas to set Source Anchor";
+                string shapeName = CloneStampShape == "Square" ? "Square" : "Circle";
+                if (HasDestinationAnchor)
+                    return $"Anchor: ({CloneAnchorX}, {CloneAnchorY}) | Offset: ({CloneOffsetDeltaX:+0;-0;0}, {CloneOffsetDeltaY:+0;-0;0}) | {shapeName} {CloneStampRadius * 2}px Lockstep";
+                return $"Anchor set at ({CloneAnchorX}, {CloneAnchorY}) | {shapeName} {CloneStampRadius * 2}px Ready";
+            }
+        }
+
+        public string WorkingChitToolTip
+        {
+            get
+            {
+                if (IsCloneStampActive)
+                {
+                    if (IsPickingCloneAnchor)
+                    {
+                        return "Click anywhere on the Working Chit canvas to set the Clone Source Anchor.";
+                    }
+                    if (HasCloneAnchor)
+                    {
+                        return $"Clone Stamp ({CloneStampShape}, {CloneStampRadius * 2}px). Drag to stamp pixels in lockstep; Shift+Click to set new anchor.";
+                    }
+                    return "Clone Stamp active. Shift+Click (or click 'Anchor') to set the clone source anchor.";
+                }
+                return "Click to sample background color for Edge Cleanup";
+            }
+        }
+
+        partial void OnIsCloneStampActiveChanged(bool value)
+        {
+            if (value)
+            {
+                StatusMessage = HasCloneAnchor
+                    ? $"Clone Stamp active ({CloneStampShape}, radius {CloneStampRadius}px). Drag to stamp in lockstep; Shift+Click to set new anchor."
+                    : "Clone Stamp active. Shift+Click on canvas (or click 'Anchor') to set source anchor point.";
+            }
+            else
+            {
+                IsPickingCloneAnchor = false;
+                IsCloneHovering = false;
+            }
+        }
+
+        [RelayCommand]
+        private void PickCloneAnchor()
+        {
+            if (!IsCloneStampActive)
+            {
+                IsCloneStampActive = true;
+            }
+            IsPickingCloneAnchor = true;
+            HasDestinationAnchor = false;
+            StatusMessage = "Click anywhere on the Working Chit canvas to set the clone source anchor.";
+        }
+
+        [RelayCommand]
+        private void CloneStampRadiusStepUp()
+        {
+            CloneStampRadius = Math.Min(40, CloneStampRadius + 1);
+        }
+
+        [RelayCommand]
+        private void CloneStampRadiusStepDown()
+        {
+            CloneStampRadius = Math.Max(1, CloneStampRadius - 1);
+        }
+
+        [RelayCommand]
+        private void ClearCloneAnchor()
+        {
+            HasCloneAnchor = false;
+            HasDestinationAnchor = false;
+            IsPickingCloneAnchor = false;
+            CloneOffsetDeltaX = 0;
+            CloneOffsetDeltaY = 0;
+            CloneHoverDstX = -1;
+            CloneHoverDstY = -1;
+            IsCloneHovering = false;
+            StatusMessage = "Clone source anchor and alignment cleared.";
+        }
+
+        #endregion
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ChitEditorZoomPercentageText))]
@@ -1956,21 +2439,89 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private bool _linkEdgeCleanSides = false;
 
-        partial void OnChitEdgeCleanTopDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
-        partial void OnChitEdgeCleanBottomDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
-        partial void OnChitEdgeCleanLeftDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
-        partial void OnChitEdgeCleanRightDepthChanged(int value) => UpdateLiveEdgeCleanPreview();
-        partial void OnChitEdgeCleanToleranceChanged(int value) => UpdateLiveEdgeCleanPreview();
-        partial void OnSelectedEdgeCleanModeChanged(string value) => UpdateLiveEdgeCleanPreview();
-        partial void OnChitEdgeCleanColorChanged(Color value) => UpdateLiveEdgeCleanPreview();
-        partial void OnPreserveTransparentCornersChanged(bool value) => UpdateLiveEdgeCleanPreview();
-        partial void OnTransparentColorChanged(Color value) => UpdateLiveEdgeCleanPreview();
+        partial void OnChitEdgeCleanTopDepthChanged(int value) => UpdateLiveChitPreview();
+        partial void OnChitEdgeCleanBottomDepthChanged(int value) => UpdateLiveChitPreview();
+        partial void OnChitEdgeCleanLeftDepthChanged(int value) => UpdateLiveChitPreview();
+        partial void OnChitEdgeCleanRightDepthChanged(int value) => UpdateLiveChitPreview();
+        partial void OnChitEdgeCleanToleranceChanged(int value) => UpdateLiveChitPreview();
+        partial void OnSelectedEdgeCleanModeChanged(string value) => UpdateLiveChitPreview();
+        partial void OnChitEdgeCleanColorChanged(Color value) => UpdateLiveChitPreview();
+        partial void OnPreserveTransparentCornersChanged(bool value) => UpdateLiveChitPreview();
+        partial void OnTransparentColorChanged(Color value) => UpdateLiveChitPreview();
 
         private string? _lastCommittedSignature;
+        private string? _lastCommittedBevelSignature;
+        private string? _lastCommittedClipSignature;
 
         private string GetCurrentEdgeCleanSignature()
         {
             return $"{ChitEdgeCleanTopDepth}_{ChitEdgeCleanBottomDepth}_{ChitEdgeCleanLeftDepth}_{ChitEdgeCleanRightDepth}_{ChitEdgeCleanTolerance}_{SelectedEdgeCleanMode}_{ChitEdgeCleanColor.R}_{ChitEdgeCleanColor.G}_{ChitEdgeCleanColor.B}_{PreserveTransparentCorners}_{TransparentColor.R}_{TransparentColor.G}_{TransparentColor.B}";
+        }
+
+        private string GetCurrentBevelPreviewSignature()
+        {
+            return $"{SelectedChit?.Index}_{ChitEditorClipSize}_{ChitEditorBevelSize}_{TransparentColor.R}_{TransparentColor.G}_{TransparentColor.B}";
+        }
+
+        private string GetCurrentClipPreviewSignature()
+        {
+            return $"{SelectedChit?.Index}_{ChitEditorClipSize}_{TransparentColor.R}_{TransparentColor.G}_{TransparentColor.B}";
+        }
+
+        public void UpdateLiveChitPreview()
+        {
+            if (SelectedTabIndex != 2 || SelectedChit == null || SelectedChit.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed)
+            {
+                SelectedChit?.SetPreviewMat(null);
+                return;
+            }
+
+            // 1. If edge clean depths are set and active, edge clean preview takes priority
+            if (ChitEdgeCleanTopDepth > 0 || ChitEdgeCleanBottomDepth > 0 || ChitEdgeCleanLeftDepth > 0 || ChitEdgeCleanRightDepth > 0)
+            {
+                UpdateLiveEdgeCleanPreview();
+                return;
+            }
+
+            // 2. Handle Shared Tool Mode previews (Bevel, Clip, Clear)
+            try
+            {
+                if (SelectedSharedToolMode == "Bevel")
+                {
+                    string sig = GetCurrentBevelPreviewSignature();
+                    if (sig == _lastCommittedBevelSignature)
+                    {
+                        SelectedChit.SetPreviewMat(null);
+                        return;
+                    }
+
+                    Vec4b transColor = ColorToVec4b(TransparentColor);
+                    using var clipped = ChitEditorService.ApplyCornerClip(SelectedChit.WorkingMat, ChitEditorClipSize, transColor);
+                    using var beveled = ChitEditorService.ApplyBevel(clipped, ChitEditorBevelSize, transparentColor: transColor);
+                    SelectedChit.SetPreviewMat(beveled);
+                }
+                else if (SelectedSharedToolMode == "Clip")
+                {
+                    string sig = GetCurrentClipPreviewSignature();
+                    if (sig == _lastCommittedClipSignature)
+                    {
+                        SelectedChit.SetPreviewMat(null);
+                        return;
+                    }
+
+                    Vec4b transColor = ColorToVec4b(TransparentColor);
+                    using var clipped = ChitEditorService.ApplyCornerClip(SelectedChit.WorkingMat, ChitEditorClipSize, transColor);
+                    SelectedChit.SetPreviewMat(clipped);
+                }
+                else
+                {
+                    SelectedChit.SetPreviewMat(null);
+                }
+            }
+            catch
+            {
+                SelectedChit.SetPreviewMat(null);
+            }
         }
 
         private void UpdateLiveEdgeCleanPreview()
@@ -2547,9 +3098,9 @@ namespace pdf_to_Tiles.ViewModels
         private void SharedToolValueStepUp()
         {
             int maxLimit = SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed
-                ? Math.Min(SelectedChit.WorkingMat.Width, SelectedChit.WorkingMat.Height) / 2
+                ? Math.Max(1, Math.Min(SelectedChit.WorkingMat.Width, SelectedChit.WorkingMat.Height) / 2)
                 : 100;
-            SharedToolValue = Math.Min(Math.Max(50, maxLimit), SharedToolValue + 1);
+            SharedToolValue = Math.Min(maxLimit, SharedToolValue + 1);
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -2598,7 +3149,7 @@ namespace pdf_to_Tiles.ViewModels
                 StatusMessage = "Reset edge cleanup: depths set to 0px.";
             }
 
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -2606,8 +3157,10 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit == null) return;
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
             SelectedChit.Undo();
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -2615,8 +3168,10 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit == null) return;
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
             SelectedChit.Redo();
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -2632,7 +3187,8 @@ namespace pdf_to_Tiles.ViewModels
                 var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, ChitEditorBevelSize, transparentColor: transColor);
                 chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
             }
-            _lastCommittedSignature = GetCurrentEdgeCleanSignature();
+            _lastCommittedBevelSignature = GetCurrentBevelPreviewSignature();
+            _lastCommittedSignature = null;
             SelectedChit.SetPreviewMat(null);
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} chits." : $"Applied {ChitEditorBevelSize}px bevel to chit #{SelectedChit.Index}.";
         }
@@ -2650,8 +3206,11 @@ namespace pdf_to_Tiles.ViewModels
                 var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, key);
                 chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
             }
-            _lastCommittedSignature = GetCurrentEdgeCleanSignature();
+            _lastCommittedClipSignature = GetCurrentClipPreviewSignature();
+            _lastCommittedBevelSignature = null;
+            _lastCommittedSignature = null;
             SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} chits." : $"Applied {ChitEditorClipSize}px corner clip to chit #{SelectedChit.Index}.";
         }
 
@@ -2669,7 +3228,10 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
-            UpdateLiveEdgeCleanPreview();
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
             StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} chits." : $"Cleared {ChitEditorClearSize}px outer border on chit #{SelectedChit.Index}.";
         }
 
@@ -2686,9 +3248,34 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
             StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void ApplyShrink()
+        {
+            if (SelectedChit?.WorkingMat == null) return;
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            Vec4b key = ColorToVec4b(TransparentColor);
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight, key);
+                chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
+            }
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            ClampCurrentEdgeCleanDepths();
+            UpdateLiveChitPreview();
+            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} chits to fit {ChitEditorWidth}×{ChitEditorHeight} px." : $"Shrunk chit #{SelectedChit.Index} to fit {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -2705,10 +3292,73 @@ namespace pdf_to_Tiles.ViewModels
                 chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
             StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
+
+        #region Chit Directional Bump / Shift Commands
+
+        [ObservableProperty]
+        private int _chitBumpStepPx = 1;
+
+        [RelayCommand]
+        private void BumpStepUp()
+        {
+            ChitBumpStepPx = Math.Min(50, ChitBumpStepPx + 1);
+        }
+
+        [RelayCommand]
+        private void BumpStepDown()
+        {
+            ChitBumpStepPx = Math.Max(1, ChitBumpStepPx - 1);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void BumpChitLeft() => ApplyBump(-ChitBumpStepPx, 0);
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void BumpChitRight() => ApplyBump(ChitBumpStepPx, 0);
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void BumpChitUp() => ApplyBump(0, -ChitBumpStepPx);
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void BumpChitDown() => ApplyBump(0, ChitBumpStepPx);
+
+        private void ApplyBump(int dx, int dy)
+        {
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+
+            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            Vec4b fill = ColorToVec4b(TransparentColor);
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                var bumped = ChitEditorService.ApplyBump(chit.WorkingMat, dx, dy, fill);
+                chit.UpdateWorkingMat(bumped, recordHistory: true, TransparentColor);
+            }
+
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            UpdateLiveChitPreview();
+
+            string dir = (dx < 0) ? $"{Math.Abs(dx)}px Left"
+                       : (dx > 0) ? $"{dx}px Right"
+                       : (dy < 0) ? $"{Math.Abs(dy)}px Up"
+                       : $"{dy}px Down";
+
+            StatusMessage = ApplyToAllChits
+                ? $"Bumped all {targets.Count} chits {dir}."
+                : $"Bumped chit #{SelectedChit.Index} {dir}.";
+        }
+
+        #endregion
 
         private void AutoSampleEdgeColorInternal(ChitItem chit)
         {
@@ -2789,8 +3439,28 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit == null) return;
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
             SelectedChit.ResetToOriginal();
-            UpdateLiveEdgeCleanPreview();
+            ChitEditorWidth = SelectedChit.PixelWidth;
+            ChitEditorHeight = SelectedChit.PixelHeight;
+            int default4Pct = ChitEditorService.CalculateDefaultBevelSize(SelectedChit.PixelWidth, SelectedChit.PixelHeight);
+            ChitEditorClipSize = default4Pct;
+            ChitEditorBevelSize = default4Pct;
+            if (SelectedSharedToolMode == "Bevel" || SelectedSharedToolMode == "Clip")
+            {
+                SharedToolValue = default4Pct;
+            }
+            HasCloneAnchor = false;
+            HasDestinationAnchor = false;
+            IsPickingCloneAnchor = false;
+            CloneOffsetDeltaX = 0;
+            CloneOffsetDeltaY = 0;
+            CloneHoverDstX = -1;
+            CloneHoverDstY = -1;
+            IsCloneHovering = false;
+            ClampCurrentEdgeCleanDepths();
+            UpdateLiveChitPreview();
             StatusMessage = $"Reset chit #{SelectedChit.Index} to original slice.";
         }
 
@@ -2798,11 +3468,13 @@ namespace pdf_to_Tiles.ViewModels
         private void ResetAllChits()
         {
             _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
             foreach (var chit in LoadedChits)
             {
                 chit.ResetToOriginal();
             }
-            UpdateLiveEdgeCleanPreview();
+            UpdateLiveChitPreview();
             StatusMessage = $"Reset all {LoadedChits.Count} chits to original slices.";
         }
 
@@ -2811,17 +3483,23 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit?.WorkingMat == null) return;
 
+            string initialDir = !string.IsNullOrEmpty(LoadedFilePath)
+                ? Path.GetDirectoryName(LoadedFilePath) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+
             var saveFileDialog = new SaveFileDialog
             {
                 Title = "Save Chit as PNG",
                 Filter = "PNG Image (*.png)|*.png",
+                DefaultExt = "png",
+                InitialDirectory = initialDir,
                 FileName = SelectedChit.PieceName
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
                 Cv2.ImWrite(saveFileDialog.FileName, SelectedChit.WorkingMat);
-                StatusMessage = $"Saved chit #{SelectedChit.Index} to {saveFileDialog.FileName}";
+                StatusMessage = $"Saved chit #{SelectedChit.Index} ({SelectedChit.PieceName}) to {saveFileDialog.FileName}";
             }
         }
 

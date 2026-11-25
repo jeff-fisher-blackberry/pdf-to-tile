@@ -14,12 +14,38 @@ namespace pdf_to_Tiles.Services
     }
 
     /// <summary>
+    /// Shape mask for Clone Stamp tool.
+    /// </summary>
+    public enum CloneStampShape
+    {
+        Circle,
+        Square
+    }
+
+    /// <summary>
     /// High-performance wargame chit image editing algorithms ported and adapted from GTL Text Editor.
     /// Operates on 4-channel BGRA (CV_8UC4) matrices with minimum dimension guards.
     /// </summary>
     public static class ChitEditorService
     {
         private const int MinDimension = 8;
+
+        /// <summary>
+        /// Calculates the default 4% perimeter bevel size based on the smaller dimension of the chit,
+        /// clamped to at least 1px and at most 1/3 of the chit's primary dimension.
+        /// </summary>
+        public static int CalculateDefaultBevelSize(int width, int height)
+        {
+            if (width < MinDimension || height < MinDimension)
+            {
+                return 4;
+            }
+
+            int baseDim = Math.Min(width, height);
+            int maxLimit = Math.Max(1, baseDim / 3);
+            int bevel = (int)Math.Round(baseDim * 0.04);
+            return Math.Clamp(bevel, 1, maxLimit);
+        }
 
         /// <summary>
         /// Applies a directional 3D raised-edge gradient bevel (highlight from top-left, shadow on bottom-right)
@@ -154,7 +180,8 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Clips/rounds the 4 corner pixels of the chit using the specified transparent color (defaulting to cyan BGRA #00FFFF or true transparency).
+        /// Clips/rounds the 4 corner pixels of the chit along circular arcs of radius cornerSize
+        /// using the specified transparent color (defaulting to cyan BGRA #00FFFF or true transparency).
         /// </summary>
         public static Mat ApplyCornerClip(Mat src, int cornerSize, Vec4b? clipColor = null)
         {
@@ -163,7 +190,7 @@ namespace pdf_to_Tiles.Services
                 throw new ArgumentException("Invalid source image matrix for corner clip.", nameof(src));
             }
 
-            int c = Math.Clamp(cornerSize, 1, Math.Min(src.Width / 2, src.Height / 2));
+            int r = Math.Clamp(cornerSize, 1, Math.Min(src.Width / 2, src.Height / 2));
             Mat dst = src.Clone();
             int width = dst.Width;
             int height = dst.Height;
@@ -171,12 +198,17 @@ namespace pdf_to_Tiles.Services
             Vec4b clr = clipColor ?? new Vec4b(255, 255, 0, 255);
 
             var indexer = dst.GetGenericIndexer<Vec4b>();
+            double rSq = (double)r * r;
 
-            for (int y = 0; y < c; y++)
+            for (int y = 0; y < r; y++)
             {
-                for (int x = 0; x < c; x++)
+                double dy = (r - 0.5) - y;
+                double dySq = dy * dy;
+
+                for (int x = 0; x < r; x++)
                 {
-                    if (x + y < c)
+                    double dx = (r - 0.5) - x;
+                    if (dx * dx + dySq > rSq)
                     {
                         // Upper-Left corner
                         indexer[y, x] = clr;
@@ -274,6 +306,51 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Proportionally scales down the chit image to fit within targetW × targetH without distortion,
+        /// centering the scaled result on a targetW × targetH canvas and padding letterboxed margins with the transparent key color.
+        /// </summary>
+        public static Mat ApplyShrink(Mat src, int targetW, int targetH, Vec4b? padColor = null)
+        {
+            if (src == null || src.IsDisposed)
+            {
+                throw new ArgumentException("Invalid source matrix for shrink.", nameof(src));
+            }
+
+            int tw = Math.Max(MinDimension, targetW);
+            int th = Math.Max(MinDimension, targetH);
+
+            if (src.Width == tw && src.Height == th)
+            {
+                return src.Clone();
+            }
+
+            // Determine uniform scale factor to fit inside target box
+            double scale = Math.Min((double)tw / src.Width, (double)th / src.Height);
+            int scaledW = Math.Clamp((int)Math.Round(src.Width * scale), 1, tw);
+            int scaledH = Math.Clamp((int)Math.Round(src.Height * scale), 1, th);
+
+            // Scale using Area for downsampling (prevents aliasing) or Lanczos4 for upsampling
+            using Mat scaled = new Mat();
+            InterpolationFlags interp = scale < 1.0 ? InterpolationFlags.Area : InterpolationFlags.Lanczos4;
+            Cv2.Resize(src, scaled, new OpenCvSharp.Size(scaledW, scaledH), 0, 0, interp);
+
+            // Allocate target canvas filled with transparent key color
+            Vec4b fill = padColor ?? new Vec4b(0, 0, 0, 0);
+            Scalar fillScalar = new Scalar(fill.Item0, fill.Item1, fill.Item2, fill.Item3);
+            Mat dst = new Mat(new OpenCvSharp.Size(tw, th), MatType.CV_8UC4, fillScalar);
+
+            // Center scaled image onto destination canvas
+            int dstX = Math.Max(0, (tw - scaledW) / 2);
+            int dstY = Math.Max(0, (th - scaledH) / 2);
+
+            Rect dstRoi = new Rect(dstX, dstY, scaledW, scaledH);
+            using var dstSub = new Mat(dst, dstRoi);
+            scaled.CopyTo(dstSub);
+
+            return dst;
+        }
+
+        /// <summary>
         /// Resizes canvas around center: crops inwards if target is smaller, expands canvas if target is larger.
         /// Newly exposed outer margins are filled with the transparent color or specified key.
         /// </summary>
@@ -312,6 +389,53 @@ namespace pdf_to_Tiles.Services
             using var srcCrop = new Mat(src, srcRoi);
             using var dstSub = new Mat(dst, dstRoi);
             srcCrop.CopyTo(dstSub);
+
+            return dst;
+        }
+
+        /// <summary>
+        /// Shifts/bumps the chit image content by (dx, dy) pixels inside the canvas,
+        /// filling newly exposed edge strips with the transparent color or specified key.
+        /// Positive dx shifts right; positive dy shifts down.
+        /// </summary>
+        public static Mat ApplyBump(Mat src, int dx, int dy, Vec4b? fillColor = null)
+        {
+            if (src == null || src.IsDisposed)
+            {
+                throw new ArgumentException("Invalid source matrix for bump.", nameof(src));
+            }
+
+            if (dx == 0 && dy == 0)
+            {
+                return src.Clone();
+            }
+
+            int width = src.Width;
+            int height = src.Height;
+
+            Vec4b fill = fillColor ?? new Vec4b(0, 0, 0, 0);
+            Scalar fillScalar = new Scalar(fill.Item0, fill.Item1, fill.Item2, fill.Item3);
+
+            Mat dst = new Mat(src.Size(), MatType.CV_8UC4, fillScalar);
+
+            int copyW = width - Math.Abs(dx);
+            int copyH = height - Math.Abs(dy);
+
+            if (copyW > 0 && copyH > 0)
+            {
+                int srcX = Math.Max(0, -dx);
+                int srcY = Math.Max(0, -dy);
+
+                int dstX = Math.Max(0, dx);
+                int dstY = Math.Max(0, dy);
+
+                Rect srcRoi = new Rect(srcX, srcY, copyW, copyH);
+                Rect dstRoi = new Rect(dstX, dstY, copyW, copyH);
+
+                using var srcSub = new Mat(src, srcRoi);
+                using var dstSub = new Mat(dst, dstRoi);
+                srcSub.CopyTo(dstSub);
+            }
 
             return dst;
         }
@@ -610,6 +734,62 @@ namespace pdf_to_Tiles.Services
             Vec4b? transparentColor = null)
         {
             return ApplyEdgeCleanup(src, depth, depth, depth, depth, tolerance, mode, targetBgColor, preserveTransparentCorners, transparentColor);
+        }
+
+        /// <summary>
+        /// Stamps a circular or square region of pixels from source offset (targetCenterX + deltaX, targetCenterY + deltaY)
+        /// onto target (targetCenterX, targetCenterY) with boundary guards.
+        /// Operates directly in-place on the 4-channel BGRA (CV_8UC4) matrix.
+        /// </summary>
+        public static bool ApplyCloneStamp(
+            Mat targetMat,
+            int targetCenterX,
+            int targetCenterY,
+            int deltaX,
+            int deltaY,
+            int radius,
+            CloneStampShape shape = CloneStampShape.Circle)
+        {
+            if (targetMat == null || targetMat.IsDisposed || targetMat.Width < MinDimension || targetMat.Height < MinDimension)
+            {
+                return false;
+            }
+
+            int width = targetMat.Width;
+            int height = targetMat.Height;
+            int r = Math.Clamp(radius, 1, Math.Min(width, height));
+            int rSq = r * r;
+
+            var indexer = targetMat.GetGenericIndexer<Vec4b>();
+            bool modified = false;
+
+            for (int dy = -r; dy <= r; dy++)
+            {
+                int dstY = targetCenterY + dy;
+                if (dstY < 0 || dstY >= height) continue;
+
+                int srcY = dstY + deltaY;
+                if (srcY < 0 || srcY >= height) continue;
+
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (shape == CloneStampShape.Circle && (dx * dx + dy * dy > rSq))
+                    {
+                        continue;
+                    }
+
+                    int dstX = targetCenterX + dx;
+                    if (dstX < 0 || dstX >= width) continue;
+
+                    int srcX = dstX + deltaX;
+                    if (srcX < 0 || srcX >= width) continue;
+
+                    indexer[dstY, dstX] = indexer[srcY, srcX];
+                    modified = true;
+                }
+            }
+
+            return modified;
         }
     }
 }
