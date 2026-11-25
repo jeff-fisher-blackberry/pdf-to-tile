@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.1";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-25.2";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -272,6 +272,147 @@ namespace pdf_to_Tiles.ViewModels
         public string ActiveBandHeightPercentText => $"({ActiveBandHeightPercent:F1}%)";
         public string ActiveBandRowSplitPercentText => $"({ActiveBandRowSplitPercent:F1}%)";
 
+        // Columns and Row configuration for active band
+        [ObservableProperty]
+        private string _bandInputBox1 = "2";
+
+        [ObservableProperty]
+        private string _bandInputBox2 = "10";
+
+        [ObservableProperty]
+        private bool _isDoubleWidthColumns = false;
+
+        public int EffectiveBandRows
+        {
+            get
+            {
+                ParseBandInputs(out int r, out _);
+                return r;
+            }
+        }
+
+        public int EffectiveBandColumns
+        {
+            get
+            {
+                ParseBandInputs(out _, out int c);
+                return c;
+            }
+        }
+
+        public int TotalBandChits => EffectiveBandRows * EffectiveBandColumns;
+
+        private void ParseBandInputs(out int rows, out int cols)
+        {
+            int.TryParse(BandInputBox1?.Trim(), out int val1);
+            int.TryParse(BandInputBox2?.Trim(), out int val2);
+
+            if (val1 <= 0) val1 = 2;
+            if (val2 <= 0) val2 = 10;
+
+            if (val1 > val2)
+            {
+                rows = Math.Clamp(val2, 1, 20);
+                cols = Math.Clamp(val1, 1, 30);
+            }
+            else
+            {
+                rows = Math.Clamp(val1, 1, 20);
+                cols = Math.Clamp(val2, 1, 30);
+            }
+        }
+
+        partial void OnIsDoubleWidthColumnsChanged(bool value)
+        {
+            if (_isSyncingBand) return;
+
+            ParseBandInputs(out _, out int c);
+            if (value)
+            {
+                if (c >= 8)
+                {
+                    int newCols = Math.Max(1, c / 2);
+                    UpdateColumnBoxValue(newCols);
+                }
+            }
+            else
+            {
+                if (c == 5)
+                {
+                    UpdateColumnBoxValue(10);
+                }
+            }
+            NotifyBandDimensionsChanged();
+        }
+
+        private void UpdateColumnBoxValue(int newCols)
+        {
+            int.TryParse(BandInputBox1?.Trim(), out int val1);
+            int.TryParse(BandInputBox2?.Trim(), out int val2);
+            if (val1 > val2)
+            {
+                BandInputBox1 = newCols.ToString();
+            }
+            else
+            {
+                BandInputBox2 = newCols.ToString();
+            }
+        }
+
+        partial void OnBandInputBox1Changed(string value)
+        {
+            SyncDoubleWidthCheckbox();
+            NotifyBandDimensionsChanged();
+        }
+
+        partial void OnBandInputBox2Changed(string value)
+        {
+            SyncDoubleWidthCheckbox();
+            NotifyBandDimensionsChanged();
+        }
+
+        private void SyncDoubleWidthCheckbox()
+        {
+            ParseBandInputs(out _, out int c);
+            if (c == 5 && !IsDoubleWidthColumns)
+            {
+                _isSyncingBand = true;
+                try { IsDoubleWidthColumns = true; } finally { _isSyncingBand = false; }
+            }
+            else if (c == 10 && IsDoubleWidthColumns)
+            {
+                _isSyncingBand = true;
+                try { IsDoubleWidthColumns = false; } finally { _isSyncingBand = false; }
+            }
+        }
+
+        private void NotifyBandDimensionsChanged()
+        {
+            OnPropertyChanged(nameof(EffectiveBandRows));
+            OnPropertyChanged(nameof(EffectiveBandColumns));
+            OnPropertyChanged(nameof(TotalBandChits));
+            OnPropertyChanged(nameof(PreviewCellText));
+            OnPropertyChanged(nameof(AvailableChitNumbers));
+
+            int maxChits = TotalBandChits;
+            if (PreviewChitNumber > maxChits)
+            {
+                PreviewChitNumber = maxChits;
+            }
+            else if (PreviewChitNumber < 1)
+            {
+                PreviewChitNumber = 1;
+            }
+            else
+            {
+                int effectiveCols = EffectiveBandColumns;
+                PreviewRowIndex = (PreviewChitNumber - 1) / effectiveCols;
+                PreviewColIndex = (PreviewChitNumber - 1) % effectiveCols;
+            }
+
+            UpdateChitPreview();
+        }
+
         // Column Divider Fine-Tuning
         [ObservableProperty]
         private bool _isFineTuningDividers = false;
@@ -316,17 +457,17 @@ namespace pdf_to_Tiles.ViewModels
         // Single Chit Cut Preview Coordinates
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
-        private int _previewChitNumber = 1; // 1 to 20
+        private int _previewChitNumber = 1;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
-        private int _previewRowIndex = 0; // 0 = Row 1, 1 = Row 2
+        private int _previewRowIndex = 0;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
-        private int _previewColIndex = 0; // 0 = Col 1 ... 9 = Col 10
+        private int _previewColIndex = 0;
 
-        public IReadOnlyList<int> AvailableChitNumbers { get; } = Enumerable.Range(1, 20).ToList();
+        public IReadOnlyList<int> AvailableChitNumbers => Enumerable.Range(1, Math.Max(1, TotalBandChits)).ToList();
         public IReadOnlyList<int> AvailablePreviewRows { get; } = new List<int> { 1, 2 };
         public IReadOnlyList<int> AvailablePreviewCols { get; } = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
@@ -335,7 +476,7 @@ namespace pdf_to_Tiles.ViewModels
             get => PreviewRowIndex + 1;
             set
             {
-                if (value >= 1 && value <= 2)
+                if (value >= 1 && value <= EffectiveBandRows)
                 {
                     PreviewRowIndex = value - 1;
                 }
@@ -347,7 +488,7 @@ namespace pdf_to_Tiles.ViewModels
             get => PreviewColIndex + 1;
             set
             {
-                if (value >= 1 && value <= 10)
+                if (value >= 1 && value <= EffectiveBandColumns)
                 {
                     PreviewColIndex = value - 1;
                 }
@@ -360,9 +501,11 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (IsBandedMode)
                 {
-                    int row = ((PreviewChitNumber - 1) / 10) + 1;
-                    int col = ((PreviewChitNumber - 1) % 10) + 1;
-                    return $"Chit {PreviewChitNumber} of 20 — Row {row}, Col {col}";
+                    int cols = EffectiveBandColumns;
+                    int total = TotalBandChits;
+                    int row = ((PreviewChitNumber - 1) / cols) + 1;
+                    int col = ((PreviewChitNumber - 1) % cols) + 1;
+                    return $"Chit {PreviewChitNumber} of {total} — Row {row}, Col {col}";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
             }
@@ -1387,15 +1530,17 @@ namespace pdf_to_Tiles.ViewModels
 
         partial void OnPreviewChitNumberChanged(int value)
         {
-            int clamped = Math.Clamp(value, 1, 20);
+            int total = TotalBandChits;
+            int clamped = Math.Clamp(value, 1, Math.Max(1, total));
             if (clamped != value)
             {
                 PreviewChitNumber = clamped;
                 return;
             }
 
-            _previewRowIndex = (clamped - 1) / 10;
-            _previewColIndex = (clamped - 1) % 10;
+            int cols = EffectiveBandColumns;
+            _previewRowIndex = (clamped - 1) / cols;
+            _previewColIndex = (clamped - 1) % cols;
             OnPropertyChanged(nameof(PreviewRowIndex));
             OnPropertyChanged(nameof(PreviewColIndex));
             OnPropertyChanged(nameof(PreviewCellText));
@@ -1405,20 +1550,22 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void PreviousChit()
         {
+            int total = TotalBandChits;
             if (PreviewChitNumber > 1)
             {
                 PreviewChitNumber--;
             }
             else
             {
-                PreviewChitNumber = 20; // wrap-around to 20
+                PreviewChitNumber = Math.Max(1, total); // wrap-around
             }
         }
 
         [RelayCommand]
         private void NextChit()
         {
-            if (PreviewChitNumber < 20)
+            int total = TotalBandChits;
+            if (PreviewChitNumber < total)
             {
                 PreviewChitNumber++;
             }
@@ -1786,7 +1933,8 @@ namespace pdf_to_Tiles.ViewModels
                 if (IsBandedMode)
                 {
                     using var previewMat = GridSlicerService.ExtractBandedCellPreview(
-                        _deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex);
+                        _deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex,
+                        EffectiveBandRows, EffectiveBandColumns);
                     ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
                 }
                 else
@@ -1928,12 +2076,12 @@ namespace pdf_to_Tiles.ViewModels
 
             string targetDir = folderDialog.FolderName;
 
-            int pieceCount = IsBandedMode ? 20 : (SelectedProfile.Rows * SelectedProfile.Columns);
+            int pieceCount = IsBandedMode ? (singleBand ? TotalBandChits : ((SelectedProfile.FrontBands?.Count ?? 5) * TotalBandChits)) : (SelectedProfile.Rows * SelectedProfile.Columns);
 
             IsSlicing = true;
             SliceProgressPercent = 0;
             SliceProgressText = $"Preparing to slice {pieceCount} pieces...";
-            StatusMessage = IsBandedMode ? $"Slicing 2×10 band into 20 PNG pieces..." : $"Slicing grid into {pieceCount} PNG pieces...";
+            StatusMessage = IsBandedMode ? $"Slicing band into {pieceCount} PNG pieces..." : $"Slicing grid into {pieceCount} PNG pieces...";
 
             _sliceCts = new CancellationTokenSource();
 
@@ -1975,7 +2123,9 @@ namespace pdf_to_Tiles.ViewModels
                         targetDir,
                         progress,
                         _sliceCts.Token,
-                        bandIndex
+                        bandIndex,
+                        EffectiveBandRows,
+                        EffectiveBandColumns
                     );
                 }
                 else
@@ -2029,8 +2179,8 @@ namespace pdf_to_Tiles.ViewModels
 
             IsSlicing = true;
             SliceProgressPercent = 0;
-            SliceProgressText = "Slicing 2×10 band into memory for Chit Editor...";
-            StatusMessage = "Slicing 2×10 band into memory for Chit Editor...";
+            SliceProgressText = $"Slicing band into {TotalBandChits} chits in memory for Chit Editor...";
+            StatusMessage = $"Slicing band into {TotalBandChits} chits in memory for Chit Editor...";
 
             _sliceCts = new CancellationTokenSource();
             var progress = new Progress<SliceProgressReport>(report =>
@@ -2068,7 +2218,9 @@ namespace pdf_to_Tiles.ViewModels
                     currentSide,
                     bandIdx,
                     progress,
-                    _sliceCts.Token
+                    _sliceCts.Token,
+                    EffectiveBandRows,
+                    EffectiveBandColumns
                 );
 
                 // Dispose existing loaded chits to prevent memory leaks

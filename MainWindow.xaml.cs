@@ -75,6 +75,9 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.PreviewColIndex):
                 case nameof(MainViewModel.PreviewChitNumber):
                 case nameof(MainViewModel.SelectedProfile):
+                case nameof(MainViewModel.EffectiveBandRows):
+                case nameof(MainViewModel.EffectiveBandColumns):
+                case nameof(MainViewModel.IsDoubleWidthColumns):
                     UpdateGridOverlay();
                     break;
 
@@ -234,22 +237,55 @@ namespace pdf_to_Tiles
                         Canvas.SetTop(activeRect, aby);
                         SlicerGridCanvas.Children.Add(activeRect);
 
-                        // Active row divider
-                        double activeSplitY = aby + (activeBand.RowSplitRatio * abh);
-                        var activeRowLine = new Line
-                        {
-                            X1 = abx,
-                            Y1 = activeSplitY,
-                            X2 = abx + abw,
-                            Y2 = activeSplitY,
-                            Stroke = activeBrush,
-                            StrokeThickness = 2,
-                            StrokeDashArray = new DoubleCollection { 4, 3 }
-                        };
-                        SlicerGridCanvas.Children.Add(activeRowLine);
+                        // Active row dividers
+                        int numRows = vm.EffectiveBandRows;
+                        int numCols = vm.EffectiveBandColumns;
 
-                        // 9 Column dividers
-                        var dividers = activeBand.ColumnDividers ?? Band2x10Definition.GetDefaultEvenDividers(10);
+                        if (numRows == 2)
+                        {
+                            double activeSplitY = aby + (activeBand.RowSplitRatio * abh);
+                            var activeRowLine = new Line
+                            {
+                                X1 = abx,
+                                Y1 = activeSplitY,
+                                X2 = abx + abw,
+                                Y2 = activeSplitY,
+                                Stroke = activeBrush,
+                                StrokeThickness = 2,
+                                StrokeDashArray = new DoubleCollection { 4, 3 }
+                            };
+                            SlicerGridCanvas.Children.Add(activeRowLine);
+                        }
+                        else if (numRows > 1)
+                        {
+                            for (int r = 1; r < numRows; r++)
+                            {
+                                double splitY = aby + (abh * (r / (double)numRows));
+                                var activeRowLine = new Line
+                                {
+                                    X1 = abx,
+                                    Y1 = splitY,
+                                    X2 = abx + abw,
+                                    Y2 = splitY,
+                                    Stroke = activeBrush,
+                                    StrokeThickness = 2,
+                                    StrokeDashArray = new DoubleCollection { 4, 3 }
+                                };
+                                SlicerGridCanvas.Children.Add(activeRowLine);
+                            }
+                        }
+
+                        // Column dividers
+                        List<double> dividers;
+                        if (numCols == 10 && activeBand.ColumnDividers != null && activeBand.ColumnDividers.Count == 9)
+                        {
+                            dividers = activeBand.ColumnDividers;
+                        }
+                        else
+                        {
+                            dividers = Band2x10Definition.GetDefaultEvenDividers(numCols);
+                        }
+
                         var amberBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Amber 500
                         amberBrush.Freeze();
 
@@ -272,17 +308,28 @@ namespace pdf_to_Tiles
                         }
 
                         // Preview cell indicator highlight inside active band
-                        int pRow = Math.Clamp(vm.PreviewRowIndex, 0, 1);
-                        int pCol = Math.Clamp(vm.PreviewColIndex, 0, 9);
+                        int pRow = Math.Clamp(vm.PreviewRowIndex, 0, Math.Max(0, numRows - 1));
+                        int pCol = Math.Clamp(vm.PreviewColIndex, 0, Math.Max(0, numCols - 1));
 
                         var divPositions = new List<double> { 0.0 };
                         divPositions.AddRange(dividers);
                         divPositions.Add(1.0);
 
-                        double cellX1 = abx + (divPositions[pCol] * abw);
-                        double cellX2 = abx + (divPositions[pCol + 1] * abw);
-                        double cellY1 = (pRow == 0 ? aby : activeSplitY);
-                        double cellY2 = (pRow == 0 ? activeSplitY : aby + abh);
+                        double cellX1 = abx + (divPositions[Math.Min(pCol, divPositions.Count - 2)] * abw);
+                        double cellX2 = abx + (divPositions[Math.Min(pCol + 1, divPositions.Count - 1)] * abw);
+
+                        double cellY1, cellY2;
+                        if (numRows == 2)
+                        {
+                            double activeSplitY = aby + (activeBand.RowSplitRatio * abh);
+                            cellY1 = (pRow == 0 ? aby : activeSplitY);
+                            cellY2 = (pRow == 0 ? activeSplitY : aby + abh);
+                        }
+                        else
+                        {
+                            cellY1 = aby + (abh * (pRow / (double)numRows));
+                            cellY2 = aby + (abh * ((pRow + 1) / (double)numRows));
+                        }
 
                         var previewCellBrush = new SolidColorBrush(Color.FromArgb(45, 239, 68, 68)); // Translucent Red
                         previewCellBrush.Freeze();

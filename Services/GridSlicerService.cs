@@ -35,7 +35,9 @@ namespace pdf_to_Tiles.Services
             string outputDirectory,
             IProgress<SliceProgressReport>? progress,
             CancellationToken cancellationToken,
-            int? singleBandIndex = null)
+            int? singleBandIndex = null,
+            int bandRows = 2,
+            int bandCols = 10)
         {
             return Task.Run(() =>
             {
@@ -63,10 +65,13 @@ namespace pdf_to_Tiles.Services
                     Directory.CreateDirectory(outputDirectory);
                 }
 
+                int effectiveRows = Math.Max(1, bandRows);
+                int effectiveCols = Math.Max(1, bandCols);
+
                 int totalSheetBands = bands.Count;
                 int startBand = singleBandIndex.HasValue ? Math.Clamp(singleBandIndex.Value, 0, bands.Count - 1) : 0;
                 int endBand = singleBandIndex.HasValue ? startBand + 1 : bands.Count;
-                int totalPieces = (endBand - startBand) * 2 * 10;
+                int totalPieces = (endBand - startBand) * effectiveRows * effectiveCols;
                 int currentPiece = 0;
 
                 int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
@@ -83,24 +88,35 @@ namespace pdf_to_Tiles.Services
                     int h0 = (int)Math.Round(band.RowSplitRatio * hTotal);
                     int h1 = Math.Max(1, hTotal - h0);
 
-                    // Build strictly monotonic divider list: d0 = 0.0, d1..d9, d10 = 1.0
+                    // Build strictly monotonic divider list: d0 = 0.0, d1..d(cols-1), d(cols) = 1.0
                     var dividers = new List<double> { 0.0 };
-                    if (band.ColumnDividers != null && band.ColumnDividers.Count == 9)
+                    if (effectiveCols == 10 && band.ColumnDividers != null && band.ColumnDividers.Count == 9)
                     {
                         dividers.AddRange(band.ColumnDividers);
                     }
                     else
                     {
-                        dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(10));
+                        dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(effectiveCols));
                     }
                     dividers.Add(1.0);
 
-                    for (int r = 0; r < 2; r++)
+                    for (int r = 0; r < effectiveRows; r++)
                     {
-                        int rowY = (r == 0 ? yStart : yStart + h0);
-                        int rowH = (r == 0 ? h0 : h1);
+                        int rowY;
+                        int rowH;
+                        if (effectiveRows == 2)
+                        {
+                            rowY = (r == 0 ? yStart : yStart + h0);
+                            rowH = (r == 0 ? h0 : h1);
+                        }
+                        else
+                        {
+                            rowY = yStart + (int)Math.Round(hTotal * (r / (double)effectiveRows));
+                            int nextY = yStart + (int)Math.Round(hTotal * ((r + 1) / (double)effectiveRows));
+                            rowH = Math.Max(1, nextY - rowY);
+                        }
 
-                        for (int c = 0; c < 10; c++)
+                        for (int c = 0; c < effectiveCols; c++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
 
@@ -120,7 +136,7 @@ namespace pdf_to_Tiles.Services
                             pieceH = Math.Max(1, Math.Min(pieceH, masterMat.Height - cellY));
 
                             // Global Row and Column mapping
-                            int globalRow = (b * 2) + r + 1; // 1 to 10 for 5 bands
+                            int globalRow = (b * effectiveRows) + r + 1;
                             int mappedCol = c;
                             int mappedRow = globalRow;
 
@@ -129,14 +145,14 @@ namespace pdf_to_Tiles.Services
                                 switch (profile.BackOrientation)
                                 {
                                     case BackOrientationMode.HorizontalFlip:
-                                        mappedCol = 9 - c;
+                                        mappedCol = (effectiveCols - 1) - c;
                                         break;
                                     case BackOrientationMode.VerticalFlip:
-                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
                                         break;
                                     case BackOrientationMode.Rotate180:
-                                        mappedCol = 9 - c;
-                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        mappedCol = (effectiveCols - 1) - c;
+                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
                                         break;
                                     case BackOrientationMode.Direct:
                                     default:
@@ -173,8 +189,8 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Slices a calibrated 2×10 band directly into 20 in-memory ChitItem instances (CV_8UC4 BGRA)
-        /// for real-time editing in the Chit Editor (Tab 3).
+        /// Slices a calibrated discrete band directly into in-memory ChitItem instances (CV_8UC4 BGRA)
+        /// for real-time editing in the Chit Editor (Tab 3). Supports dynamic bandRows and bandCols.
         /// </summary>
         public static Task<List<ChitItem>> SliceBandedGridToMemoryAsync(
             Mat masterMat,
@@ -182,7 +198,9 @@ namespace pdf_to_Tiles.Services
             string side,
             int? bandIndex,
             IProgress<SliceProgressReport>? progress,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            int bandRows = 2,
+            int bandCols = 10)
         {
             return Task.Run(() =>
             {
@@ -205,11 +223,14 @@ namespace pdf_to_Tiles.Services
                     throw new InvalidOperationException("No 2×10 band definitions found for the active profile.");
                 }
 
+                int effectiveRows = Math.Max(1, bandRows);
+                int effectiveCols = Math.Max(1, bandCols);
+
                 int totalSheetBands = bands.Count;
                 int startBand = bandIndex.HasValue ? Math.Clamp(bandIndex.Value, 0, bands.Count - 1) : 0;
                 int endBand = bandIndex.HasValue ? startBand + 1 : bands.Count;
 
-                int totalPieces = (endBand - startBand) * 20;
+                int totalPieces = (endBand - startBand) * effectiveRows * effectiveCols;
                 int currentPiece = 0;
                 string prefix = string.IsNullOrWhiteSpace(profile.NamingPrefix) ? "Piece" : profile.NamingPrefix.Trim();
 
@@ -223,30 +244,40 @@ namespace pdf_to_Tiles.Services
                     int bandW = (int)Math.Round(band.Bounds.Width * masterMat.Width);
                     int bandH = (int)Math.Round(band.Bounds.Height * masterMat.Height);
 
-                    int splitY = bandY + (int)Math.Round(bandH * band.RowSplitRatio);
-                    int row0H = splitY - bandY;
-                    int row1H = (bandY + bandH) - splitY;
+                    int h0 = (int)Math.Round(band.RowSplitRatio * bandH);
+                    int h1 = Math.Max(1, bandH - h0);
 
-                    // Build strictly monotonic divider list: d0 = 0.0, d1..d9, d10 = 1.0
+                    // Build strictly monotonic divider list: d0 = 0.0, d1..d(cols-1), d(cols) = 1.0
                     var dividers = new List<double> { 0.0 };
-                    if (band.ColumnDividers != null && band.ColumnDividers.Count == 9)
+                    if (effectiveCols == 10 && band.ColumnDividers != null && band.ColumnDividers.Count == 9)
                     {
                         dividers.AddRange(band.ColumnDividers);
                     }
                     else
                     {
-                        dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(10));
+                        dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(effectiveCols));
                     }
                     dividers.Add(1.0);
 
                     int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
 
-                    for (int r = 0; r < 2; r++)
+                    for (int r = 0; r < effectiveRows; r++)
                     {
-                        int rowTop = (r == 0) ? bandY : splitY;
-                        int rowHeight = (r == 0) ? row0H : row1H;
+                        int rowTop;
+                        int rowHeight;
+                        if (effectiveRows == 2)
+                        {
+                            rowTop = (r == 0) ? bandY : bandY + h0;
+                            rowHeight = (r == 0) ? h0 : h1;
+                        }
+                        else
+                        {
+                            rowTop = bandY + (int)Math.Round(bandH * (r / (double)effectiveRows));
+                            int nextY = bandY + (int)Math.Round(bandH * ((r + 1) / (double)effectiveRows));
+                            rowHeight = Math.Max(1, nextY - rowTop);
+                        }
 
-                        for (int c = 0; c < 10; c++)
+                        for (int c = 0; c < effectiveCols; c++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
 
@@ -267,7 +298,7 @@ namespace pdf_to_Tiles.Services
                             pieceW = Math.Max(1, Math.Min(pieceW, masterMat.Width - cellX));
                             pieceH = Math.Max(1, Math.Min(pieceH, masterMat.Height - cellY));
 
-                            int globalRow = (b * 2) + r + 1;
+                            int globalRow = (b * effectiveRows) + r + 1;
                             int mappedCol = c;
                             int mappedRow = globalRow;
 
@@ -276,14 +307,14 @@ namespace pdf_to_Tiles.Services
                                 switch (profile.BackOrientation)
                                 {
                                     case BackOrientationMode.HorizontalFlip:
-                                        mappedCol = 9 - c;
+                                        mappedCol = (effectiveCols - 1) - c;
                                         break;
                                     case BackOrientationMode.VerticalFlip:
-                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
                                         break;
                                     case BackOrientationMode.Rotate180:
-                                        mappedCol = 9 - c;
-                                        mappedRow = (totalSheetBands * 2) - globalRow + 1;
+                                        mappedCol = (effectiveCols - 1) - c;
+                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
                                         break;
                                     case BackOrientationMode.Direct:
                                     default:
@@ -476,7 +507,9 @@ namespace pdf_to_Tiles.Services
             string side,
             int bandIndex,
             int localRow,
-            int col)
+            int col,
+            int bandRows = 2,
+            int bandCols = 10)
         {
             if (masterMat == null || masterMat.IsDisposed || masterMat.Width <= 0 || masterMat.Height <= 0)
             {
@@ -495,6 +528,9 @@ namespace pdf_to_Tiles.Services
             int bIdx = Math.Clamp(bandIndex, 0, bands.Count - 1);
             var band = bands[bIdx];
 
+            int effectiveRows = Math.Max(1, bandRows);
+            int effectiveCols = Math.Max(1, bandCols);
+
             int xStart = (int)Math.Round(band.Bounds.Left * masterMat.Width);
             int yStart = (int)Math.Round(band.Bounds.Top * masterMat.Height);
             int wTotal = (int)Math.Round(band.Bounds.Width * masterMat.Width);
@@ -503,22 +539,33 @@ namespace pdf_to_Tiles.Services
             int h0 = (int)Math.Round(band.RowSplitRatio * hTotal);
             int h1 = Math.Max(1, hTotal - h0);
 
-            int r = Math.Clamp(localRow, 0, 1);
-            int c = Math.Clamp(col, 0, 9);
+            int r = Math.Clamp(localRow, 0, effectiveRows - 1);
+            int c = Math.Clamp(col, 0, effectiveCols - 1);
 
             var dividers = new List<double> { 0.0 };
-            if (band.ColumnDividers != null && band.ColumnDividers.Count == 9)
+            if (effectiveCols == 10 && band.ColumnDividers != null && band.ColumnDividers.Count == 9)
             {
                 dividers.AddRange(band.ColumnDividers);
             }
             else
             {
-                dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(10));
+                dividers.AddRange(Band2x10Definition.GetDefaultEvenDividers(effectiveCols));
             }
             dividers.Add(1.0);
 
-            int rowY = (r == 0 ? yStart : yStart + h0);
-            int rowH = (r == 0 ? h0 : h1);
+            int rowY;
+            int rowH;
+            if (effectiveRows == 2)
+            {
+                rowY = (r == 0 ? yStart : yStart + h0);
+                rowH = (r == 0 ? h0 : h1);
+            }
+            else
+            {
+                rowY = yStart + (int)Math.Round(hTotal * (r / (double)effectiveRows));
+                int nextY = yStart + (int)Math.Round(hTotal * ((r + 1) / (double)effectiveRows));
+                rowH = Math.Max(1, nextY - rowY);
+            }
 
             int xLeft = xStart + (int)Math.Round(dividers[c] * wTotal);
             int xRight = xStart + (int)Math.Round(dividers[c + 1] * wTotal);
