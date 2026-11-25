@@ -417,7 +417,103 @@ namespace pdf_to_Tiles.ViewModels
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
             };
+
+            LoadRecentPdfs();
         }
+
+        #region Recent PDFs Management
+
+        public ObservableCollection<RecentPdfItem> RecentPdfs { get; } = new();
+
+        public bool HasRecentPdfs => RecentPdfs.Count > 0;
+
+        private void LoadRecentPdfs()
+        {
+            try
+            {
+                string settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pdf-to-Tiles");
+                string recentFile = Path.Combine(settingsDir, "recent_pdfs.txt");
+                if (File.Exists(recentFile))
+                {
+                    var lines = File.ReadAllLines(recentFile);
+                    RecentPdfs.Clear();
+                    foreach (var line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        if (!string.IsNullOrEmpty(trimmed) && RecentPdfs.Count < 5)
+                        {
+                            RecentPdfs.Add(new RecentPdfItem { FilePath = trimmed });
+                        }
+                    }
+                    OnPropertyChanged(nameof(HasRecentPdfs));
+                }
+            }
+            catch
+            {
+                // Graceful fallback
+            }
+        }
+
+        private void SaveRecentPdfs()
+        {
+            try
+            {
+                string settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pdf-to-Tiles");
+                Directory.CreateDirectory(settingsDir);
+                string recentFile = Path.Combine(settingsDir, "recent_pdfs.txt");
+                File.WriteAllLines(recentFile, RecentPdfs.Select(r => r.FilePath));
+            }
+            catch
+            {
+                // Graceful fallback
+            }
+        }
+
+        public void AddRecentPdf(string filePath)
+        {
+            try
+            {
+                var existing = RecentPdfs.FirstOrDefault(r => string.Equals(r.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    RecentPdfs.Remove(existing);
+                }
+                RecentPdfs.Insert(0, new RecentPdfItem { FilePath = filePath });
+                while (RecentPdfs.Count > 5)
+                {
+                    RecentPdfs.RemoveAt(RecentPdfs.Count - 1);
+                }
+                OnPropertyChanged(nameof(HasRecentPdfs));
+                SaveRecentPdfs();
+            }
+            catch
+            {
+                // Graceful fallback
+            }
+        }
+
+        [RelayCommand]
+        private async Task OpenRecentPdfAsync(string? filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath)) return;
+
+            if (!File.Exists(filePath))
+            {
+                StatusMessage = $"Recent PDF file not found: {filePath}";
+                var missing = RecentPdfs.FirstOrDefault(r => string.Equals(r.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+                if (missing != null)
+                {
+                    RecentPdfs.Remove(missing);
+                    OnPropertyChanged(nameof(HasRecentPdfs));
+                    SaveRecentPdfs();
+                }
+                return;
+            }
+
+            await LoadPdfFromPathAsync(filePath);
+        }
+
+        #endregion
 
         #region PDF Viewer Handlers
 
@@ -444,7 +540,13 @@ namespace pdf_to_Tiles.ViewModels
                 return;
             }
 
-            string selectedPath = openFileDialog.FileName;
+            await LoadPdfFromPathAsync(openFileDialog.FileName);
+        }
+
+        public async Task LoadPdfFromPathAsync(string selectedPath)
+        {
+            if (string.IsNullOrWhiteSpace(selectedPath)) return;
+
             IsLoading = true;
             StatusMessage = $"Loading {Path.GetFileName(selectedPath)} into memory (non-locking)...";
 
@@ -486,6 +588,8 @@ namespace pdf_to_Tiles.ViewModels
                     }
                 }
 
+                AddRecentPdf(selectedPath);
+                SelectedTabIndex = 0; // Ensure Tab 1 is active
                 CurrentPageNumber = 1;
                 await LoadPageAsync(1);
             }
@@ -3595,5 +3699,14 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Represents a recently opened PDF rulebook or counter sheet file.
+    /// </summary>
+    public class RecentPdfItem
+    {
+        public string FilePath { get; set; } = string.Empty;
+        public string DisplayName => !string.IsNullOrEmpty(FilePath) ? Path.GetFileName(FilePath) : string.Empty;
     }
 }

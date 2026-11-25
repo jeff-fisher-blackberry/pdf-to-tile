@@ -138,6 +138,21 @@
                             <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
                         </MenuItem.Icon>
                     </MenuItem>
+                    <MenuItem Header="_Recent"
+                              ItemsSource="{Binding RecentPdfs}"
+                              IsEnabled="{Binding HasRecentPdfs}">
+                        <MenuItem.Icon>
+                            <TextBlock Text="🕒" FontSize="14" VerticalAlignment="Center" />
+                        </MenuItem.Icon>
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Header" Value="{Binding DisplayName}" />
+                                <Setter Property="ToolTip" Value="{Binding FilePath}" />
+                                <Setter Property="Command" Value="{Binding DataContext.OpenRecentPdfCommand, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                                <Setter Property="CommandParameter" Value="{Binding FilePath}" />
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
                     <MenuItem Header="Open _Counter Sheet Image..."
                               InputGestureText="Ctrl+Shift+O"
                               Command="{Binding OpenImageForSlicingCommand}">
@@ -494,83 +509,101 @@
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="0,0,0,1"
                         Padding="8,6">
-                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="📂 Open PDF..."
-                                Command="{Binding OpenPdfCommand}"
-                                Padding="12,6"
-                                ToolTip="Open a PDF rulebook or counter sheet (non-locking)" />
+                    <Grid VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                        <!-- Left / Center PDF Toolbar Controls -->
+                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Hidden Open PDF button (PDFs opened via File menu) -->
+                            <Button Content="📂 Open PDF..."
+                                    Command="{Binding OpenPdfCommand}"
+                                    Visibility="Collapsed"
+                                    ToolTip="Open a PDF rulebook or counter sheet (non-locking)" />
 
-                        <!-- Page Navigation -->
-                        <Button Content="◀"
-                                Width="32"
-                                Command="{Binding PreviousPageCommand}"
-                                ToolTip="Previous page" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" Visibility="Collapsed" />
 
-                        <TextBlock Text="Page" Margin="8,0,4,0" />
-                        <TextBox x:Name="PdfPageNumberTextBox"
-                                 Text="{Binding CurrentPageNumber, UpdateSourceTrigger=LostFocus}"
-                                 KeyDown="PdfPageNumberTextBox_KeyDown"
-                                 Width="40"
-                                 TextAlignment="Center"
-                                 ToolTip="Enter page number and press Enter" />
-                        <TextBlock Text="{Binding TotalPages, StringFormat=' of {0}'}" Margin="4,0,8,0" />
+                            <!-- Page Navigation -->
+                            <Button Content="◀"
+                                    Width="32"
+                                    Command="{Binding PreviousPageCommand}"
+                                    ToolTip="Previous page" />
 
-                        <Button Content="▶"
-                                Width="32"
-                                Command="{Binding NextPageCommand}"
-                                ToolTip="Next page" />
+                            <TextBlock Text="Page" Margin="8,0,4,0" VerticalAlignment="Center" />
+                            <TextBox x:Name="PdfPageNumberTextBox"
+                                     Text="{Binding CurrentPageNumber, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="PdfPageNumberTextBox_KeyDown"
+                                     Width="40"
+                                     TextAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     ToolTip="Enter page number and press Enter" />
+                            <TextBlock Text="{Binding TotalPages, StringFormat=' of {0}'}" Margin="4,0,8,0" VerticalAlignment="Center" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <Button Content="▶"
+                                    Width="32"
+                                    Command="{Binding NextPageCommand}"
+                                    ToolTip="Next page" />
 
-                        <!-- Zoom Controls -->
-                        <Button Content="Fit to Page"
-                                Command="{Binding FitToPageCommand}"
-                                ToolTip="Scale page to fit inside the visible viewport" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="Actual Size (100%)"
-                                Command="{Binding ActualSizeCommand}"
-                                ToolTip="Display page at 100% scale" />
+                            <!-- Zoom Controls -->
+                            <Button Content="Fit to Page"
+                                    Command="{Binding FitToPageCommand}"
+                                    ToolTip="Scale page to fit inside the visible viewport" />
 
-                        <Button Content="-"
-                                Width="30"
-                                Command="{Binding ZoomOutCommand}"
-                                ToolTip="Zoom out (1%)" />
+                            <Button Content="Actual Size (100%)"
+                                    Command="{Binding ActualSizeCommand}"
+                                    ToolTip="Display page at 100% scale" />
 
-                        <Button Content="+"
-                                Width="30"
-                                Command="{Binding ZoomInCommand}"
-                                ToolTip="Zoom in (1%)" />
+                            <Button Content="-"
+                                    Width="30"
+                                    Command="{Binding ZoomOutCommand}"
+                                    ToolTip="Zoom out (1%)" />
 
-                        <TextBlock Text="Zoom:" Margin="8,0,2,0" />
-                        <TextBlock Text="{Binding ZoomPercentageText}" FontWeight="Bold" Width="55" />
+                            <Button Content="+"
+                                    Width="30"
+                                    Command="{Binding ZoomInCommand}"
+                                    ToolTip="Zoom in (1%)" />
 
-                        <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <TextBlock Text="Zoom:" Margin="8,0,2,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ZoomPercentageText}" FontWeight="Bold" Width="55" VerticalAlignment="Center" />
 
-                        <TextBlock Text="DPI:" Margin="6,0,2,0" />
-                        <ComboBox ItemsSource="{Binding AvailableDpis}"
-                                  SelectedItem="{Binding SelectedDpi}"
-                                  Width="70"
-                                  ToolTip="Select capture DPI resolution" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <TextBlock Text="Tag:" Margin="6,0,2,0" />
-                        <ComboBox ItemsSource="{Binding AvailableSideTags}"
-                                  SelectedItem="{Binding SelectedSideTag}"
-                                  Width="75"
-                                  ToolTip="Label sheet side (Front, Back, Page)" />
+                            <TextBlock Text="DPI:" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding AvailableDpis}"
+                                      SelectedItem="{Binding SelectedDpi}"
+                                      Width="70"
+                                      VerticalAlignment="Center"
+                                      ToolTip="Select capture DPI resolution" />
 
-                        <Button Content="📸 Capture Page as PNG"
-                                Command="{Binding CapturePageCommand}"
-                                ToolTip="Save current page at high DPI directly to a lossless PNG file" />
+                            <TextBlock Text="Tag:" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding AvailableSideTags}"
+                                      SelectedItem="{Binding SelectedSideTag}"
+                                      Width="75"
+                                      VerticalAlignment="Center"
+                                      ToolTip="Label sheet side (Front, Back, Page)" />
 
-                        <Button Content="📐 Send Page to Slicer"
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                            <Button Content="📸 Capture Page as PNG"
+                                    Command="{Binding CapturePageCommand}"
+                                    ToolTip="Save current page at high DPI directly to a lossless PNG file" />
+                        </WrapPanel>
+
+                        <!-- Far Right: Next Button (Right-Justified) -->
+                        <Button Grid.Column="1"
+                                Content="Next"
                                 Command="{Binding SendPageToSlicerCommand}"
+                                IsEnabled="{Binding HasLoadedPdf}"
                                 Style="{StaticResource AccentButtonStyle}"
-                                Padding="12,6"
-                                Margin="6,0,2,0"
+                                Padding="16,6"
+                                Margin="8,0,4,0"
+                                VerticalAlignment="Center"
                                 ToolTip="Render high-DPI page directly into the Deskew &amp; Grid Slicer workspace" />
-                    </WrapPanel>
+                    </Grid>
                 </Border>
 
                 <!-- PDF Viewport -->
@@ -640,18 +673,19 @@
 
                         <!-- Left / Center Slicer Toolbar Buttons -->
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Hidden Open Image button (Images opened via File menu) -->
                             <Button Content="📂 Open Image..."
                                     Command="{Binding OpenImageForSlicingCommand}"
-                                    Padding="12,6"
+                                    Visibility="Collapsed"
                                     ToolTip="Open a counter sheet image file (PNG, JPG, TIFF, BMP)" />
 
-                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" Visibility="Collapsed" />
 
                             <!-- View Toggles -->
                             <CheckBox Content="Grid Overlay"
                                       IsChecked="{Binding ShowGridOverlay}"
                                       VerticalAlignment="Center"
-                                      Margin="6,0"
+                                      Margin="0,0,6,0"
                                       ToolTip="Show or hide the counter matrix slicing grid overlay" />
 
                             <CheckBox Content="Alignment Crosshairs"
@@ -659,6 +693,15 @@
                                       VerticalAlignment="Center"
                                       Margin="6,0"
                                       ToolTip="Display fine reference crosshairs across the canvas to verify straightening" />
+
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                            <!-- Fine-Rotation Degrees Buttons: Restored & Visible -->
+                            <TextBlock Text="Angle:" Margin="0,0,2,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding DeskewAngleText}" FontWeight="Bold" Width="48" Margin="0,0,4,0" VerticalAlignment="Center" TextAlignment="Center" />
+                            <Button Content="-0.1°" Width="44" Command="{Binding NudgeAngleNegativeCommand}" ToolTip="Nudge angle -0.1°" Margin="1,0" />
+                            <Button Content="+0.1°" Width="44" Command="{Binding NudgeAnglePositiveCommand}" ToolTip="Nudge angle +0.1°" Margin="1,0" />
+                            <Button Content="0.0°" Width="40" Command="{Binding ResetAngleCommand}" ToolTip="Reset tilt angle to 0°" Margin="1,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -688,33 +731,27 @@
                             <TextBlock Text="Zoom:" Margin="8,0,2,0" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding SlicerZoomPercentageText}" FontWeight="Bold" Width="55" VerticalAlignment="Center" />
 
-                            <!-- Auto Detect Tilt & Manual Angle Adjustments (Hidden via Visibility="Collapsed") -->
+                            <!-- Auto Detect Tilt & Angle Slider (Hidden via Visibility="Collapsed") -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-                                <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
                                 <Button Content="📐 Auto-Detect Tilt"
                                         Command="{Binding AutoDetectTiltCommand}"
                                         ToolTip="Automatically detect scan tilt angle using Hough line transform" />
-                                <TextBlock Text="Angle:" Margin="8,0,2,0" />
                                 <Slider Minimum="-5.0" Maximum="5.0" Value="{Binding DeskewAngle}"
                                         Width="120"
                                         SmallChange="0.05" LargeChange="0.5"
                                         TickFrequency="1.0" IsSnapToTickEnabled="False"
                                         VerticalAlignment="Center"
                                         ToolTip="Adjust deskew tilt angle (-5.0° to +5.0°)" />
-                                <TextBlock Text="{Binding DeskewAngleText}" FontWeight="Bold" Width="55" Margin="4,0" TextAlignment="Center" />
-                                <Button Content="-0.1°" Width="44" Command="{Binding NudgeAngleNegativeCommand}" ToolTip="Nudge angle -0.1°" />
-                                <Button Content="+0.1°" Width="44" Command="{Binding NudgeAnglePositiveCommand}" ToolTip="Nudge angle +0.1°" />
-                                <Button Content="0.0°" Width="42" Command="{Binding ResetAngleCommand}" ToolTip="Reset tilt angle to 0°" />
                             </StackPanel>
                         </WrapPanel>
 
-                        <!-- Far Right: Send to Editor Button -->
+                        <!-- Far Right: Next Button (Right-Justified) -->
                         <Button Grid.Column="1"
-                                Content="Send to Editor"
+                                Content="Next"
                                 Command="{Binding SendBandToChitEditorCommand}"
                                 IsEnabled="{Binding HasSlicerImage}"
                                 Style="{StaticResource AccentButtonStyle}"
-                                Padding="14,6"
+                                Padding="16,6"
                                 Margin="8,0,4,0"
                                 VerticalAlignment="Center"
                                 ToolTip="Slice active 2×10 band directly into memory and open in Chit Editor (Tab 3)" />
@@ -1306,14 +1343,14 @@
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="↩ Undo" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit" Padding="8,3" />
-                        <Button Content="↪ Redo" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action" Padding="8,3" Margin="4,0,0,0" />
+                        <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit (Ctrl+Z)" Width="30" Height="26" Padding="0" />
+                        <Button Content="↪" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action (Ctrl+Y)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                        <Button Content="✂ Cut" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Padding="8,3" />
-                        <Button Content="📋 Copy" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Padding="8,3" Margin="4,0,0,0" />
-                        <Button Content="📥 Paste" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Padding="8,3" Margin="4,0,0,0" />
+                        <Button Content="✂" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Width="30" Height="26" Padding="0" />
+                        <Button Content="📋" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                        <Button Content="📥" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
                         <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
