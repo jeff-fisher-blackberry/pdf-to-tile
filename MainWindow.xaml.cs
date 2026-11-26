@@ -460,13 +460,25 @@ namespace pdf_to_Tiles
                 }
             }
 
-            // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking
-            if (e.Key == Key.Escape && (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner))
+            // Escape key handling
+            if (e.Key == Key.Escape)
             {
-                vm.IsSettingUpperLeftCorner = false;
-                vm.IsSettingLowerRightCorner = false;
-                e.Handled = true;
-                return;
+                // If Clone Stamp is active, untoggle it cleanly
+                if (vm.IsCloneStampActive)
+                {
+                    vm.IsCloneStampActive = false;
+                    e.Handled = true;
+                    return;
+                }
+
+                // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking
+                if (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner)
+                {
+                    vm.IsSettingUpperLeftCorner = false;
+                    vm.IsSettingLowerRightCorner = false;
+                    e.Handled = true;
+                    return;
+                }
             }
 
             // Mode switching shortcuts: Ctrl+1, Ctrl+2, Ctrl+3

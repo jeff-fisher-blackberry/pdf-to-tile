@@ -31,6 +31,14 @@ namespace pdf_to_Tiles.Services
         private const int MinDimension = 8;
 
         /// <summary>
+        /// Computes the square dimension as min(targetWidth, targetHeight) clamped to >= MinDimension (8).
+        /// </summary>
+        public static int CalculateSquareDimension(int targetWidth, int targetHeight)
+        {
+            return Math.Max(MinDimension, Math.Min(targetWidth, targetHeight));
+        }
+
+        /// <summary>
         /// Calculates the default 4% perimeter bevel size based on the smaller dimension of the chit,
         /// clamped to at least 1px and at most 1/3 of the chit's primary dimension.
         /// </summary>

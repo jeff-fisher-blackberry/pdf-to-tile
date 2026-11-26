@@ -2801,6 +2801,19 @@ namespace pdf_to_Tiles.ViewModels
         private int _chitEditorHeight = 50;
 
         [ObservableProperty]
+        private bool _isResizeSquare = false;
+
+        partial void OnIsResizeSquareChanged(bool value)
+        {
+            if (value && ChitEditorWidth > 0 && ChitEditorHeight > 0)
+            {
+                int squareSize = ChitEditorService.CalculateSquareDimension(ChitEditorWidth, ChitEditorHeight);
+                ChitEditorWidth = squareSize;
+                ChitEditorHeight = squareSize;
+            }
+        }
+
+        [ObservableProperty]
         private int _chitEditorBevelSize = 4;
 
         [ObservableProperty]
@@ -3941,10 +3954,21 @@ namespace pdf_to_Tiles.ViewModels
             if (SelectedChit?.WorkingMat == null) return;
             var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
 
+            int targetW = ChitEditorWidth;
+            int targetH = ChitEditorHeight;
+            if (IsResizeSquare)
+            {
+                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                targetW = squareSize;
+                targetH = squareSize;
+                ChitEditorWidth = squareSize;
+                ChitEditorHeight = squareSize;
+            }
+
             foreach (var chit in targets)
             {
                 if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight);
+                var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, targetW, targetH);
                 chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
@@ -3953,7 +3977,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} tiles to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched tile #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px." : $"Stretched tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3963,10 +3987,21 @@ namespace pdf_to_Tiles.ViewModels
             var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
 
+            int targetW = ChitEditorWidth;
+            int targetH = ChitEditorHeight;
+            if (IsResizeSquare)
+            {
+                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                targetW = squareSize;
+                targetH = squareSize;
+                ChitEditorWidth = squareSize;
+                ChitEditorHeight = squareSize;
+            }
+
             foreach (var chit in targets)
             {
                 if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight, key);
+                var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, targetW, targetH, key);
                 chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
@@ -3975,7 +4010,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} tiles to fit {ChitEditorWidth}×{ChitEditorHeight} px." : $"Shrunk tile #{SelectedChit.Index} to fit {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px." : $"Shrunk tile #{SelectedChit.Index} to fit {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3985,10 +4020,21 @@ namespace pdf_to_Tiles.ViewModels
             var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
 
+            int targetW = ChitEditorWidth;
+            int targetH = ChitEditorHeight;
+            if (IsResizeSquare)
+            {
+                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                targetW = squareSize;
+                targetH = squareSize;
+                ChitEditorWidth = squareSize;
+                ChitEditorHeight = squareSize;
+            }
+
             foreach (var chit in targets)
             {
                 if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var resized = ChitEditorService.ApplyResize(chit.WorkingMat, ChitEditorWidth, ChitEditorHeight, key);
+                var resized = ChitEditorService.ApplyResize(chit.WorkingMat, targetW, targetH, key);
                 chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
             }
             _lastCommittedSignature = null;
@@ -3997,7 +4043,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} tiles to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for tile #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} tiles to {targetW}×{targetH} px." : $"Resized canvas for tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         #region Chit Directional Bump / Shift Commands
