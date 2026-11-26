@@ -1613,6 +1613,15 @@
                                                          FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
                                                          ToolTip="Clip/round corners to transparent by specified pixels" />
 
+                                            <CheckBox Grid.Column="2" Content="All Tiles"
+                                                      IsChecked="{Binding IsResizeAllChits}"
+                                                      Margin="0,0,12,0"
+                                                      HorizontalAlignment="Right"
+                                                      VerticalAlignment="Center"
+                                                      FontWeight="SemiBold"
+                                                      FontSize="11"
+                                                      ToolTip="Apply Stretch, Shrink, and Resize operations to all loaded tiles" />
+
                                             <CheckBox Grid.Column="3" Content="Square"
                                                       IsChecked="{Binding IsResizeSquare}"
                                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
@@ -1676,11 +1685,20 @@
                                             <StackPanel>
                                                 <!-- 5a: Mode Toggle Button (Anchor & Clear removed; Shift+Click used for anchor) -->
                                                 <Grid Margin="0,0,0,6">
-                                                    <ToggleButton IsChecked="{Binding IsCloneStampActive}"
-                                                                  Style="{StaticResource CloneStampToggleButtonStyle}"
-                                                                  Content="Clone Stamp"
-                                                                  HorizontalAlignment="Left"
-                                                                  ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <ToggleButton IsChecked="{Binding IsCloneStampActive}"
+                                                                      Style="{StaticResource CloneStampToggleButtonStyle}"
+                                                                      Content="Clone Stamp"
+                                                                      HorizontalAlignment="Left"
+                                                                      ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
+                                                        <CheckBox Content="All Tiles"
+                                                                  IsChecked="{Binding IsCloneStampAllChits}"
+                                                                  Margin="12,0,0,0"
+                                                                  VerticalAlignment="Center"
+                                                                  FontWeight="SemiBold"
+                                                                  FontSize="11"
+                                                                  ToolTip="Replay clone stamp strokes across all loaded tiles on release" />
+                                                    </StackPanel>
                                                 </Grid>
 
                                                 <!-- 5b: Shape Selection (Circle / Square) + Size Stepper -->
@@ -1960,9 +1978,18 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <TextBlock Grid.Column="0" Text="WORKING TILE"
-                                                       FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="WORKING TILE"
+                                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <CheckBox Content="All Tiles"
+                                                          IsChecked="{Binding IsWorkingTileAllChits}"
+                                                          Margin="12,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          FontWeight="SemiBold"
+                                                          FontSize="11"
+                                                          ToolTip="Propagate directional bump shifts to all loaded tiles" />
+                                            </StackPanel>
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
@@ -2218,6 +2245,35 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Modal Progress Overlay Card for Batch Operations -->
+                <Grid Grid.RowSpan="2"
+                      Background="#66000000"
+                      Visibility="{Binding IsBatchProgressVisible, Converter={StaticResource BoolToVis}}"
+                      IsHitTestVisible="True"
+                      Panel.ZIndex="100">
+                    <Border Background="{DynamicResource PanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="24,20"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Width="320">
+                        <StackPanel>
+                            <TextBlock Text="{Binding BatchProgressStatus}"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,0,0,12"
+                                       HorizontalAlignment="Center" />
+                            <ProgressBar Value="{Binding BatchProgressCurrent}"
+                                         Maximum="{Binding BatchProgressTotal}"
+                                         Height="8"
+                                         Minimum="0" />
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Grid>

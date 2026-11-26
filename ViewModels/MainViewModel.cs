@@ -1171,6 +1171,8 @@ namespace pdf_to_Tiles.ViewModels
                     chit.Dispose();
                 }
                 LoadedChits.Clear();
+                _batchEditHistory.Clear();
+                _batchEditRedoHistory.Clear();
 
                 _lastCommittedSignature = null;
                 ChitEditorWidth = 0;
@@ -2625,6 +2627,8 @@ namespace pdf_to_Tiles.ViewModels
                     oldChit.Dispose();
                 }
                 LoadedChits.Clear();
+                _batchEditHistory.Clear();
+                _batchEditRedoHistory.Clear();
 
                 foreach (var chit in chits)
                 {
@@ -3055,6 +3059,40 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         private bool _applyToAllChits = false;
+
+        [ObservableProperty]
+        private bool _isWorkingTileAllChits = true;
+
+        [ObservableProperty]
+        private bool _isResizeAllChits = true;
+
+        [ObservableProperty]
+        private bool _isCloneStampAllChits = true;
+
+        [ObservableProperty]
+        private bool _isBatchProgressVisible = false;
+
+        [ObservableProperty]
+        private int _batchProgressCurrent = 0;
+
+        [ObservableProperty]
+        private int _batchProgressTotal = 0;
+
+        [ObservableProperty]
+        private string _batchProgressStatus = string.Empty;
+
+        private readonly Stack<bool> _batchEditHistory = new();
+        private readonly Stack<bool> _batchEditRedoHistory = new();
+
+        public void RecordEditHistory(bool isBatch)
+        {
+            _batchEditHistory.Push(isBatch);
+            _batchEditRedoHistory.Clear();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+        }
 
         public IReadOnlyList<int> AvailableBevelSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         public IReadOnlyList<int> AvailableClipSizes { get; } = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -3823,10 +3861,32 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
-            SelectedChit.Undo();
+
+            bool wasBatch = _batchEditHistory.Count > 0 ? _batchEditHistory.Pop() : false;
+            _batchEditRedoHistory.Push(wasBatch);
+
+            if (wasBatch && LoadedChits.Count > 1)
+            {
+                foreach (var chit in LoadedChits)
+                {
+                    if (chit.CanUndo)
+                    {
+                        chit.Undo();
+                    }
+                }
+            }
+            else
+            {
+                SelectedChit.Undo();
+            }
+
             ChitEditorWidth = SelectedChit.PixelWidth;
             ChitEditorHeight = SelectedChit.PixelHeight;
             UpdateLiveChitPreview();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3836,10 +3896,32 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
-            SelectedChit.Redo();
+
+            bool wasBatch = _batchEditRedoHistory.Count > 0 ? _batchEditRedoHistory.Pop() : false;
+            _batchEditHistory.Push(wasBatch);
+
+            if (wasBatch && LoadedChits.Count > 1)
+            {
+                foreach (var chit in LoadedChits)
+                {
+                    if (chit.CanRedo)
+                    {
+                        chit.Redo();
+                    }
+                }
+            }
+            else
+            {
+                SelectedChit.Redo();
+            }
+
             ChitEditorWidth = SelectedChit.PixelWidth;
             ChitEditorHeight = SelectedChit.PixelHeight;
             UpdateLiveChitPreview();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3855,6 +3937,7 @@ namespace pdf_to_Tiles.ViewModels
                 var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, ChitEditorBevelSize, transparentColor: transColor);
                 chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
             }
+            RecordEditHistory(ApplyToAllChits && targets.Count > 1);
             _lastCommittedBevelSignature = GetCurrentBevelPreviewSignature();
             _lastCommittedSignature = null;
             SelectedChit.SetPreviewMat(null);
@@ -3874,6 +3957,7 @@ namespace pdf_to_Tiles.ViewModels
                 var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, ChitEditorClipSize, key);
                 chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
             }
+            RecordEditHistory(ApplyToAllChits && targets.Count > 1);
             _lastCommittedClipSignature = GetCurrentClipPreviewSignature();
             _lastCommittedBevelSignature = null;
             _lastCommittedSignature = null;
@@ -3903,6 +3987,7 @@ namespace pdf_to_Tiles.ViewModels
                 count++;
             }
 
+            RecordEditHistory(count > 1);
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             _lastCommittedSignature = null;
@@ -3936,6 +4021,7 @@ namespace pdf_to_Tiles.ViewModels
                 count++;
             }
 
+            RecordEditHistory(count > 1);
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             _lastCommittedSignature = null;
@@ -3949,10 +4035,10 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void ApplyStretch()
+        private async Task ApplyStretch()
         {
-            if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
+            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
 
             int targetW = ChitEditorWidth;
             int targetH = ChitEditorHeight;
@@ -3965,26 +4051,54 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = squareSize;
             }
 
-            foreach (var chit in targets)
+            bool isBatch = targets.Count > 1;
+            if (isBatch)
             {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, targetW, targetH);
-                chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
+                IsBatchProgressVisible = true;
+                BatchProgressTotal = targets.Count;
+                BatchProgressCurrent = 0;
             }
+
+            try
+            {
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    var chit = targets[i];
+                    if (isBatch)
+                    {
+                        BatchProgressCurrent = i + 1;
+                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
+                        await Task.Delay(1);
+                    }
+
+                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                    var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, targetW, targetH);
+                    chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
+                }
+            }
+            finally
+            {
+                if (isBatch)
+                {
+                    IsBatchProgressVisible = false;
+                }
+            }
+
+            RecordEditHistory(isBatch);
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px." : $"Stretched tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
+            StatusMessage = isBatch ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px." : $"Stretched tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void ApplyShrink()
+        private async Task ApplyShrink()
         {
-            if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
+            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
 
             int targetW = ChitEditorWidth;
@@ -3998,26 +4112,54 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = squareSize;
             }
 
-            foreach (var chit in targets)
+            bool isBatch = targets.Count > 1;
+            if (isBatch)
             {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, targetW, targetH, key);
-                chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
+                IsBatchProgressVisible = true;
+                BatchProgressTotal = targets.Count;
+                BatchProgressCurrent = 0;
             }
+
+            try
+            {
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    var chit = targets[i];
+                    if (isBatch)
+                    {
+                        BatchProgressCurrent = i + 1;
+                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
+                        await Task.Delay(1);
+                    }
+
+                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                    var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, targetW, targetH, key);
+                    chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
+                }
+            }
+            finally
+            {
+                if (isBatch)
+                {
+                    IsBatchProgressVisible = false;
+                }
+            }
+
+            RecordEditHistory(isBatch);
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px." : $"Shrunk tile #{SelectedChit.Index} to fit {targetW}×{targetH} px.";
+            StatusMessage = isBatch ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px." : $"Shrunk tile #{SelectedChit.Index} to fit {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void ApplyResize()
+        private async Task ApplyResize()
         {
-            if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
+            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
 
             int targetW = ChitEditorWidth;
@@ -4031,19 +4173,47 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = squareSize;
             }
 
-            foreach (var chit in targets)
+            bool isBatch = targets.Count > 1;
+            if (isBatch)
             {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var resized = ChitEditorService.ApplyResize(chit.WorkingMat, targetW, targetH, key);
-                chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
+                IsBatchProgressVisible = true;
+                BatchProgressTotal = targets.Count;
+                BatchProgressCurrent = 0;
             }
+
+            try
+            {
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    var chit = targets[i];
+                    if (isBatch)
+                    {
+                        BatchProgressCurrent = i + 1;
+                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
+                        await Task.Delay(1);
+                    }
+
+                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                    var resized = ChitEditorService.ApplyResize(chit.WorkingMat, targetW, targetH, key);
+                    chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
+                }
+            }
+            finally
+            {
+                if (isBatch)
+                {
+                    IsBatchProgressVisible = false;
+                }
+            }
+
+            RecordEditHistory(isBatch);
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} tiles to {targetW}×{targetH} px." : $"Resized canvas for tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
+            StatusMessage = isBatch ? $"Resized canvas for all {targets.Count} tiles to {targetW}×{targetH} px." : $"Resized canvas for tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         #region Chit Directional Bump / Shift Commands
@@ -4064,31 +4234,58 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void BumpChitLeft() => ApplyBump(-ChitBumpStepPx, 0);
+        private async Task BumpChitLeft() => await ApplyBumpAsync(-ChitBumpStepPx, 0);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void BumpChitRight() => ApplyBump(ChitBumpStepPx, 0);
+        private async Task BumpChitRight() => await ApplyBumpAsync(ChitBumpStepPx, 0);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void BumpChitUp() => ApplyBump(0, -ChitBumpStepPx);
+        private async Task BumpChitUp() => await ApplyBumpAsync(0, -ChitBumpStepPx);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void BumpChitDown() => ApplyBump(0, ChitBumpStepPx);
+        private async Task BumpChitDown() => await ApplyBumpAsync(0, ChitBumpStepPx);
 
-        private void ApplyBump(int dx, int dy)
+        private async Task ApplyBumpAsync(int dx, int dy)
         {
-            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
 
-            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+            var targets = IsWorkingTileAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
             Vec4b fill = ColorToVec4b(TransparentColor);
 
-            foreach (var chit in targets)
+            bool isBatch = targets.Count > 1;
+            if (isBatch)
             {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var bumped = ChitEditorService.ApplyBump(chit.WorkingMat, dx, dy, fill);
-                chit.UpdateWorkingMat(bumped, recordHistory: true, TransparentColor);
+                IsBatchProgressVisible = true;
+                BatchProgressTotal = targets.Count;
+                BatchProgressCurrent = 0;
             }
 
+            try
+            {
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    var chit = targets[i];
+                    if (isBatch)
+                    {
+                        BatchProgressCurrent = i + 1;
+                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
+                        await Task.Delay(1);
+                    }
+
+                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                    var bumped = ChitEditorService.ApplyBump(chit.WorkingMat, dx, dy, fill);
+                    chit.UpdateWorkingMat(bumped, recordHistory: true, TransparentColor);
+                }
+            }
+            finally
+            {
+                if (isBatch)
+                {
+                    IsBatchProgressVisible = false;
+                }
+            }
+
+            RecordEditHistory(isBatch);
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
@@ -4099,7 +4296,7 @@ namespace pdf_to_Tiles.ViewModels
                        : (dy < 0) ? $"{Math.Abs(dy)}px Up"
                        : $"{dy}px Down";
 
-            StatusMessage = ApplyToAllChits
+            StatusMessage = isBatch
                 ? $"Bumped all {targets.Count} tiles {dir}."
                 : $"Bumped tile #{SelectedChit.Index} {dir}.";
         }

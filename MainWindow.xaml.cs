@@ -833,6 +833,7 @@ namespace pdf_to_Tiles
         private bool _hasModifiedInStroke = false;
         private int _cloneDeltaX = 0;
         private int _cloneDeltaY = 0;
+        private readonly List<Point> _currentStrokePoints = new();
 
         private void ChitPreview_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -901,6 +902,7 @@ namespace pdf_to_Tiles
                 _cloneDeltaY = vm.CloneOffsetDeltaY;
                 _isCloning = true;
                 _hasModifiedInStroke = false;
+                _currentStrokePoints.Clear();
                 img.CaptureMouse();
 
                 vm.CloneHoverDstX = px;
@@ -917,6 +919,7 @@ namespace pdf_to_Tiles
                 if (mod)
                 {
                     _hasModifiedInStroke = true;
+                    _currentStrokePoints.Add(new Point(px, py));
                     vm.SelectedChit.UpdateDisplayBitmaps();
                 }
 
@@ -981,17 +984,22 @@ namespace pdf_to_Tiles
 
                 if (_isCloning && e.LeftButton == MouseButtonState.Pressed && vm.HasCloneAnchor)
                 {
-                    bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
-                        vm.SelectedChit.WorkingMat,
-                        px, py,
-                        _cloneDeltaX, _cloneDeltaY,
-                        vm.CloneStampRadius,
-                        vm.ActiveCloneStampShape);
-
-                    if (mod)
+                    Point pt = new Point(px, py);
+                    if (_currentStrokePoints.Count == 0 || _currentStrokePoints[^1] != pt)
                     {
-                        _hasModifiedInStroke = true;
-                        vm.SelectedChit.UpdateDisplayBitmaps();
+                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                            vm.SelectedChit.WorkingMat,
+                            px, py,
+                            _cloneDeltaX, _cloneDeltaY,
+                            vm.CloneStampRadius,
+                            vm.ActiveCloneStampShape);
+
+                        if (mod)
+                        {
+                            _hasModifiedInStroke = true;
+                            _currentStrokePoints.Add(pt);
+                            vm.SelectedChit.UpdateDisplayBitmaps();
+                        }
                     }
                 }
 
@@ -1008,7 +1016,7 @@ namespace pdf_to_Tiles
             }
         }
 
-        private void ChitPreview_MouseUp(object sender, MouseButtonEventArgs e)
+        private async void ChitPreview_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (_isCloning)
             {
@@ -1023,9 +1031,59 @@ namespace pdf_to_Tiles
                     if (_hasModifiedInStroke)
                     {
                         vm.SelectedChit.CommitInPlaceEdit(vm.TransparentColor);
+
+                        bool isBatch = vm.IsCloneStampAllChits && vm.LoadedChits.Count > 1 && _currentStrokePoints.Count > 0;
+                        if (isBatch)
+                        {
+                            vm.IsBatchProgressVisible = true;
+                            vm.BatchProgressTotal = vm.LoadedChits.Count;
+                            vm.BatchProgressCurrent = 1;
+                            vm.BatchProgressStatus = $"Processing Tile 1 of {vm.LoadedChits.Count}...";
+
+                            try
+                            {
+                                var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit).ToList();
+                                for (int i = 0; i < otherChits.Count; i++)
+                                {
+                                    var chit = otherChits[i];
+                                    int progressNum = i + 2;
+                                    vm.BatchProgressCurrent = progressNum;
+                                    vm.BatchProgressStatus = $"Processing Tile {progressNum} of {vm.LoadedChits.Count}...";
+                                    await Task.Delay(1);
+
+                                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+
+                                    bool anyMod = false;
+                                    foreach (var pt in _currentStrokePoints)
+                                    {
+                                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                                            chit.WorkingMat,
+                                            (int)pt.X, (int)pt.Y,
+                                            _cloneDeltaX, _cloneDeltaY,
+                                            vm.CloneStampRadius,
+                                            vm.ActiveCloneStampShape);
+                                        if (mod) anyMod = true;
+                                    }
+
+                                    if (anyMod)
+                                    {
+                                        chit.CommitInPlaceEdit(vm.TransparentColor);
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                vm.IsBatchProgressVisible = false;
+                            }
+                        }
+
+                        vm.RecordEditHistory(isBatch);
                         string shapeName = vm.CloneStampShape == "Square" ? "Square" : "Circle";
-                        vm.StatusMessage = $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px).";
+                        vm.StatusMessage = isBatch
+                            ? $"Applied {shapeName} clone stamp across all {vm.LoadedChits.Count} tiles."
+                            : $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px).";
                         _hasModifiedInStroke = false;
+                        _currentStrokePoints.Clear();
                     }
                 }
                 UpdateWorkingChitOverlay();
