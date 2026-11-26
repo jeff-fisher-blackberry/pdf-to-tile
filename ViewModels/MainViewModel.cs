@@ -2981,15 +2981,11 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (IsCloneStampActive)
                 {
-                    if (IsPickingCloneAnchor)
-                    {
-                        return "Click anywhere on the Working Tile canvas to set the Clone Source Anchor.";
-                    }
                     if (HasCloneAnchor)
                     {
                         return $"Clone Stamp ({CloneStampShape}, {CloneStampRadius * 2}px). Drag to stamp pixels in lockstep; Shift+Click to set new anchor.";
                     }
-                    return "Clone Stamp active. Shift+Click (or click 'Anchor') to set the clone source anchor.";
+                    return "Clone Stamp active. Shift+Click on canvas to set the clone source anchor.";
                 }
                 return "Click to sample background color for Edge Cleanup";
             }
@@ -3001,25 +2997,13 @@ namespace pdf_to_Tiles.ViewModels
             {
                 StatusMessage = HasCloneAnchor
                     ? $"Clone Stamp active ({CloneStampShape}, radius {CloneStampRadius}px). Drag to stamp in lockstep; Shift+Click to set new anchor."
-                    : "Clone Stamp active. Shift+Click on canvas (or click 'Anchor') to set source anchor point.";
+                    : "Clone Stamp active. Shift+Click on canvas to set source anchor point.";
             }
             else
             {
                 IsPickingCloneAnchor = false;
                 IsCloneHovering = false;
             }
-        }
-
-        [RelayCommand]
-        private void PickCloneAnchor()
-        {
-            if (!IsCloneStampActive)
-            {
-                IsCloneStampActive = true;
-            }
-            IsPickingCloneAnchor = true;
-            HasDestinationAnchor = false;
-            StatusMessage = "Click anywhere on the Working Tile canvas to set the clone source anchor.";
         }
 
         [RelayCommand]
@@ -3032,20 +3016,6 @@ namespace pdf_to_Tiles.ViewModels
         private void CloneStampRadiusStepDown()
         {
             CloneStampRadius = Math.Max(1, CloneStampRadius - 1);
-        }
-
-        [RelayCommand]
-        private void ClearCloneAnchor()
-        {
-            HasCloneAnchor = false;
-            HasDestinationAnchor = false;
-            IsPickingCloneAnchor = false;
-            CloneOffsetDeltaX = 0;
-            CloneOffsetDeltaY = 0;
-            CloneHoverDstX = -1;
-            CloneHoverDstY = -1;
-            IsCloneHovering = false;
-            StatusMessage = "Clone source anchor and alignment cleared.";
         }
 
         #endregion

@@ -21,6 +21,7 @@ namespace pdf_to_Tiles
         {
             InitializeComponent();
             PreviewKeyDown += MainWindow_PreviewKeyDown;
+            PreviewKeyUp += MainWindow_PreviewKeyUp;
 
             if (DataContext is MainViewModel vm)
             {
@@ -438,6 +439,16 @@ namespace pdf_to_Tiles
                 return;
             }
 
+            // Clone Stamp anchor setting preview: Shift key hides stamp footprint to show pure crosshair
+            if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
+            {
+                if (vm.IsCloneStampActive)
+                {
+                    vm.IsCloneHovering = false;
+                    UpdateWorkingChitOverlay();
+                }
+            }
+
             // Global Help shortcut: F1
             if (e.Key == Key.F1)
             {
@@ -585,6 +596,19 @@ namespace pdf_to_Tiles
                             e.Handled = true;
                         }
                     }
+                }
+            }
+        }
+
+        private void MainWindow_PreviewKeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
+            {
+                if (DataContext is MainViewModel vm && vm.IsCloneStampActive)
+                {
+                    bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                    vm.IsCloneHovering = !isShift && vm.HasCloneAnchor;
+                    UpdateWorkingChitOverlay();
                 }
             }
         }
@@ -826,10 +850,10 @@ namespace pdf_to_Tiles
             // Paint.NET Clone Stamp Tool handling
             if (vm.IsCloneStampActive)
             {
-                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-                if (isShift || vm.IsPickingCloneAnchor)
+                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+                if (isShift || !vm.HasCloneAnchor || vm.IsPickingCloneAnchor)
                 {
-                    // Set Source Anchor
+                    // Set Source Anchor (Shift+Click or first click when no anchor set yet)
                     vm.CloneAnchorX = px;
                     vm.CloneAnchorY = py;
                     vm.HasCloneAnchor = true;
@@ -837,7 +861,7 @@ namespace pdf_to_Tiles
                     vm.CloneOffsetDeltaX = 0;
                     vm.CloneOffsetDeltaY = 0;
                     vm.IsPickingCloneAnchor = false;
-                    vm.StatusMessage = $"Clone source anchor set at ({px}, {py}). Click or drag on target to stamp.";
+                    vm.StatusMessage = $"Clone source anchor set at ({px}, {py}). Click or drag on target to stamp; Shift+Click to move anchor.";
                     UpdateWorkingChitOverlay();
                     e.Handled = true;
                     return;
@@ -929,11 +953,21 @@ namespace pdf_to_Tiles
 
             if (vm.IsCloneStampActive)
             {
+                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
                 vm.CloneHoverDstX = px;
                 vm.CloneHoverDstY = py;
-                vm.IsCloneHovering = true;
 
-                if (_isCloning && e.LeftButton == MouseButtonState.Pressed)
+                // When setting anchor (Shift held or no anchor set yet), show clean crosshair without stamp footprint
+                if (isShift || !vm.HasCloneAnchor)
+                {
+                    vm.IsCloneHovering = false;
+                }
+                else
+                {
+                    vm.IsCloneHovering = true;
+                }
+
+                if (_isCloning && e.LeftButton == MouseButtonState.Pressed && vm.HasCloneAnchor)
                 {
                     bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
                         vm.SelectedChit.WorkingMat,
@@ -1041,8 +1075,8 @@ namespace pdf_to_Tiles
                 Canvas.SetTop(targetBrushShape, hy - r);
                 WorkingChitOverlayCanvas.Children.Add(targetBrushShape);
 
-                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx - 4, Y1 = hy, X2 = hx + 4, Y2 = hy, Stroke = blueBrush, StrokeThickness = 1 });
-                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx, Y1 = hy - 4, X2 = hx, Y2 = hy + 4, Stroke = blueBrush, StrokeThickness = 1 });
+                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx - (r + 2), Y1 = hy, X2 = hx + (r + 2), Y2 = hy, Stroke = blueBrush, StrokeThickness = 1 });
+                WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx, Y1 = hy - (r + 2), X2 = hx, Y2 = hy + (r + 2), Stroke = blueBrush, StrokeThickness = 1 });
 
                 // If lockstep alignment is established, also render shifting source indicator
                 if (vm.HasDestinationAnchor)
@@ -1058,8 +1092,8 @@ namespace pdf_to_Tiles
                     Canvas.SetTop(shiftSrcShape, shiftSrcY - r);
                     WorkingChitOverlayCanvas.Children.Add(shiftSrcShape);
 
-                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX - 4, Y1 = shiftSrcY, X2 = shiftSrcX + 4, Y2 = shiftSrcY, Stroke = amberBrush, StrokeThickness = 1 });
-                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX, Y1 = shiftSrcY - 4, X2 = shiftSrcX, Y2 = shiftSrcY + 4, Stroke = amberBrush, StrokeThickness = 1 });
+                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX - (r + 2), Y1 = shiftSrcY, X2 = shiftSrcX + (r + 2), Y2 = shiftSrcY, Stroke = amberBrush, StrokeThickness = 1 });
+                    WorkingChitOverlayCanvas.Children.Add(new Line { X1 = shiftSrcX, Y1 = shiftSrcY - (r + 2), X2 = shiftSrcX, Y2 = shiftSrcY + (r + 2), Stroke = amberBrush, StrokeThickness = 1 });
                 }
             }
         }

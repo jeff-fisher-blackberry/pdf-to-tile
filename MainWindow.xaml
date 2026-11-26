@@ -110,6 +110,62 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Clone Stamp Toggle Button Style: Rounded & Blue like Bevel, Light Blue When Active -->
+        <Style x:Key="CloneStampToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                            </Trigger>
+                            <!-- Toggled ON / Active: Distinct Light Blue -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#38BDF8" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0284C7" />
+                                <Setter Property="Foreground" Value="#082F49" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#7DD3FC" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0284C7" />
+                                <Setter Property="Foreground" Value="#082F49" />
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ViewportBackgroundBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -1605,41 +1661,13 @@
                                                 Padding="8,6"
                                                 Margin="0,0,0,4">
                                             <StackPanel>
-                                                <!-- 5a: Mode Toggle + Anchor & Clear Buttons -->
-                                                <Grid Margin="0,0,0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <ToggleButton Grid.Column="0"
-                                                                  IsChecked="{Binding IsCloneStampActive}"
+                                                <!-- 5a: Mode Toggle Button (Anchor & Clear removed; Shift+Click used for anchor) -->
+                                                <Grid Margin="0,0,0,6">
+                                                    <ToggleButton IsChecked="{Binding IsCloneStampActive}"
+                                                                  Style="{StaticResource CloneStampToggleButtonStyle}"
                                                                   Content="🎨 Clone Stamp"
-                                                                  FontSize="11"
-                                                                  FontWeight="SemiBold"
-                                                                  Padding="6,3"
-                                                                  Height="26"
+                                                                  HorizontalAlignment="Left"
                                                                   ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
-
-                                                    <Button Grid.Column="2"
-                                                            Command="{Binding PickCloneAnchorCommand}"
-                                                            Content="Anchor"
-                                                            Width="66" Height="26"
-                                                            Padding="6,2"
-                                                            Margin="0,0,4,0"
-                                                            FontSize="11"
-                                                            ToolTip="Pick clone source anchor point on the Working Tile (or Shift+Click canvas)" />
-
-                                                    <Button Grid.Column="3"
-                                                            Command="{Binding ClearCloneAnchorCommand}"
-                                                            Content="Clear"
-                                                            Width="58" Height="26"
-                                                            Padding="6,2"
-                                                            FontSize="11"
-                                                            IsEnabled="{Binding HasCloneAnchor}"
-                                                            ToolTip="Clear clone source anchor and lockstep alignment offset" />
                                                 </Grid>
 
                                                 <!-- 5b: Shape Selection (Circle / Square) + Size Stepper -->
