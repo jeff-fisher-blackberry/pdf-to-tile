@@ -1412,35 +1412,35 @@
                                             <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 2: Shared Value + Steppers (Left) + Dynamic Action Button (Right) -->
+                                        <!-- Row 2: Shared Value + Steppers & Dynamic Action Button (Left) -->
                                         <Grid Margin="0,0,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Shared Value Display & Stepper Buttons -->
+                                                <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        Margin="0,0,6,0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Size:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        <TextBlock Text="{Binding SharedToolValue, StringFormat={}{0}px}" Width="36" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                        <Button Content="-" Command="{Binding SharedToolValueStepDownCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Decrease size (1px)" />
+                                                        <Button Content="+" Command="{Binding SharedToolValueStepUpCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Increase size (1px)" />
+                                                    </StackPanel>
+                                                </Border>
 
-                                            <!-- Shared Value Display & Stepper Buttons -->
-                                            <Border Grid.Column="0" Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="Size:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                    <TextBlock Text="{Binding SharedToolValue, StringFormat={}{0}px}" Width="36" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
-                                                    <Button Content="-" Command="{Binding SharedToolValueStepDownCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Decrease size (1px)" />
-                                                    <Button Content="+" Command="{Binding SharedToolValueStepUpCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Increase size (1px)" />
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- Dynamic Action Button (Clip, Bevel, or Clear) -->
-                                            <Button Grid.Column="2"
-                                                    Content="{Binding SharedToolActionName}"
-                                                    Command="{Binding ApplySharedToolCommand}"
-                                                    Width="66" Height="28"
-                                                    Style="{StaticResource AccentButtonStyle}"
-                                                    ToolTip="{Binding SharedToolActionToolTip}" />
+                                                <!-- Dynamic Action Button (Clip, Bevel, or Clear) moved left alongside Size row -->
+                                                <Button Content="{Binding SharedToolActionName}"
+                                                        Command="{Binding ApplySharedToolCommand}"
+                                                        Width="66" Height="28"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        ToolTip="{Binding SharedToolActionToolTip}" />
+                                            </StackPanel>
                                         </Grid>
 
                                         <!-- Row 3: Mutually Exclusive Tool Radios (Bevel, Clip, Clear) -->
-                                        <Grid Margin="0,0,0,8">
+                                        <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
@@ -1459,6 +1459,44 @@
                                                          IsChecked="{Binding IsClearModeSelected}"
                                                          FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
                                                          ToolTip="Clear outer border to transparent key color" />
+                                        </Grid>
+
+                                        <!-- Row 4: Batch Action Buttons (Bevel All, Clip All, Clear All) -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Grid.Column="0"
+                                                    Content="Bevel All"
+                                                    Command="{Binding BevelAllCommand}"
+                                                    IsEnabled="{Binding HasChitsLoaded}"
+                                                    Height="28"
+                                                    FontSize="11"
+                                                    FontWeight="SemiBold"
+                                                    ToolTip="Apply current bevel size to all loaded chits" />
+
+                                            <Button Grid.Column="2"
+                                                    Content="Clip All"
+                                                    Command="{Binding ClipAllCommand}"
+                                                    IsEnabled="{Binding HasChitsLoaded}"
+                                                    Height="28"
+                                                    FontSize="11"
+                                                    FontWeight="SemiBold"
+                                                    ToolTip="Apply current corner clip radius to all loaded chits" />
+
+                                            <Button Grid.Column="4"
+                                                    Content="Clear All"
+                                                    Command="{Binding ClearAllCommand}"
+                                                    IsEnabled="{Binding HasChitsLoaded}"
+                                                    Height="28"
+                                                    FontSize="11"
+                                                    FontWeight="SemiBold"
+                                                    ToolTip="Apply current outer border clear to all loaded chits" />
                                         </Grid>
 
                                         <!-- Row 4: Transparent Key Color (Left) + Reset Button (Right) -->

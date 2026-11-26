@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.1";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.2";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -625,6 +625,9 @@ namespace pdf_to_Tiles.ViewModels
                 CloseDocumentCommand.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
+                BevelAllCommand.NotifyCanExecuteChanged();
+                ClipAllCommand.NotifyCanExecuteChanged();
+                ClearAllCommand.NotifyCanExecuteChanged();
             };
 
             LoadRecentPdfs();
@@ -1084,6 +1087,10 @@ namespace pdf_to_Tiles.ViewModels
                 ExportPageToPngCommand.NotifyCanExecuteChanged();
                 SliceGridCommand.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
+                ResetAllChitsCommand.NotifyCanExecuteChanged();
+                BevelAllCommand.NotifyCanExecuteChanged();
+                ClipAllCommand.NotifyCanExecuteChanged();
+                ClearAllCommand.NotifyCanExecuteChanged();
 
                 // Explicit garbage collection to release unmanaged buffers
                 GC.Collect();
@@ -3576,6 +3583,105 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             UpdateLiveChitPreview();
             StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} chits." : $"Cleared {ChitEditorClearSize}px outer border on chit #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void BevelAll()
+        {
+            if (LoadedChits.Count == 0) return;
+            int bevelSize = SelectedSharedToolMode == "Bevel" ? SharedToolValue : (ChitEditorBevelSize > 0 ? ChitEditorBevelSize : SharedToolValue);
+            if (bevelSize <= 0) bevelSize = 4;
+            Vec4b transColor = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in LoadedChits)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                // Per-chit bounds clamping: bevel size cannot exceed 1/3 of width or height
+                int clampedBevel = Math.Clamp(bevelSize, 1, Math.Min(chit.WorkingMat.Width / 3, chit.WorkingMat.Height / 3));
+                var beveled = ChitEditorService.ApplyBevel(chit.WorkingMat, clampedBevel, transparentColor: transColor);
+                chit.UpdateWorkingMat(beveled, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            _lastCommittedSignature = null;
+            SelectedChit?.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+            StatusMessage = $"Applied {bevelSize}px bevel to all {count} loaded chits.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void ClipAll()
+        {
+            if (LoadedChits.Count == 0) return;
+            int clipSize = SelectedSharedToolMode == "Clip" ? SharedToolValue : (ChitEditorClipSize > 0 ? ChitEditorClipSize : SharedToolValue);
+            if (clipSize <= 0) clipSize = 4;
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in LoadedChits)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                // Per-chit bounds clamping: corner clip radius cannot exceed half width or height
+                int clampedClip = Math.Clamp(clipSize, 1, Math.Min(chit.WorkingMat.Width / 2, chit.WorkingMat.Height / 2));
+                var clipped = ChitEditorService.ApplyCornerClip(chit.WorkingMat, clampedClip, key);
+                chit.UpdateWorkingMat(clipped, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            _lastCommittedSignature = null;
+            SelectedChit?.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+            StatusMessage = $"Applied {clipSize}px corner clip to all {count} loaded chits.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void ClearAll()
+        {
+            if (LoadedChits.Count == 0) return;
+            int clearSize = SelectedSharedToolMode == "Clear" ? SharedToolValue : (ChitEditorClearSize > 0 ? ChitEditorClearSize : SharedToolValue);
+            if (clearSize <= 0) clearSize = 1;
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in LoadedChits)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                // Per-chit bounds clamping: clear buffer cannot exceed 1/3 of width or height
+                int clampedClear = Math.Clamp(clearSize, 1, Math.Min(chit.WorkingMat.Width / 3, chit.WorkingMat.Height / 3));
+                var cleared = ChitEditorService.ApplyClearBorder(chit.WorkingMat, clampedClear, key);
+                chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            _lastCommittedSignature = null;
+            SelectedChit?.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+            StatusMessage = $"Cleared {clearSize}px outer border on all {count} loaded chits.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
