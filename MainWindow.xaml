@@ -131,12 +131,14 @@
 
                 <!-- FILE MENU -->
                 <MenuItem Header="_File">
-                    <MenuItem Header="_Open PDF Document..."
+                    <!-- Tab 1: PDF Viewer Section -->
+                    <MenuItem Header="_Open PDF File..."
                               InputGestureText="Ctrl+O"
-                              Command="{Binding OpenPdfCommand}" />
-                    <MenuItem Header="_Recent"
+                              Command="{Binding OpenPdfCommand}"
+                              IsEnabled="{Binding IsPdfViewerTabSelected}" />
+                    <MenuItem Header="_Recent PDF Files..."
                               ItemsSource="{Binding RecentPdfs}"
-                              IsEnabled="{Binding HasRecentPdfs}">
+                              IsEnabled="{Binding CanAccessRecentPdfs}">
                         <MenuItem.ItemContainerStyle>
                             <Style TargetType="MenuItem">
                                 <Setter Property="Header" Value="{Binding DisplayName}" />
@@ -146,31 +148,34 @@
                             </Style>
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
-                    <MenuItem Header="Open _Counter Sheet Image..."
-                              InputGestureText="Ctrl+Shift+O"
-                              Command="{Binding OpenImageForSlicingCommand}" />
                     <Separator />
-                    <MenuItem Header="_Close Active Document"
-                              InputGestureText="Ctrl+W"
-                              Command="{Binding CloseDocumentCommand}"
-                              IsEnabled="{Binding HasActiveDocument}" />
-                    <Separator />
-                    <MenuItem Header="Export Captured _Page to PNG..."
+
+                    <!-- Tab 2: Tile Creator Section -->
+                    <MenuItem Header="_Save Tile Page Image..."
                               InputGestureText="Ctrl+E"
-                              Command="{Binding ExportPageToPngCommand}"
-                              IsEnabled="{Binding HasLoadedPdf}" />
-                    <MenuItem Header="Export Sliced _Grid Pieces..."
-                              Command="{Binding SliceGridCommand}"
-                              IsEnabled="{Binding HasSlicerImage}" />
-                    <MenuItem Header="Export _Active Tile to PNG..."
-                              InputGestureText="Ctrl+S"
-                              Command="{Binding ExportSelectedChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="Export _All 20 Tiles to PNG..."
-                              InputGestureText="Ctrl+Shift+S"
-                              Command="{Binding ExportAllEditedChitsCommand}"
-                              IsEnabled="{Binding HasChitsLoaded}" />
+                              Command="{Binding SaveTilePageImageCommand}"
+                              IsEnabled="{Binding CanSaveTilePageImage}" />
+                    <MenuItem Header="Open Tile _Page Image (PNG)..."
+                              InputGestureText="Ctrl+Shift+O"
+                              Command="{Binding OpenImageForSlicingCommand}"
+                              IsEnabled="{Binding IsTileCreatorTabSelected}" />
                     <Separator />
+
+                    <!-- Tab 3: Tile Editor Section -->
+                    <MenuItem Header="Open _Tile Files..."
+                              Command="{Binding OpenTileFilesCommand}"
+                              IsEnabled="{Binding IsTileEditorTabSelected}" />
+                    <MenuItem Header="Save _All Tiles"
+                              InputGestureText="Ctrl+Shift+S"
+                              Command="{Binding SaveAllTilesCommand}"
+                              IsEnabled="{Binding CanSaveAllTiles}" />
+                    <MenuItem Header="Save _Current Tile..."
+                              InputGestureText="Ctrl+S"
+                              Command="{Binding SaveCurrentTileCommand}"
+                              IsEnabled="{Binding CanSaveCurrentTile}" />
+                    <Separator />
+
+                    <!-- Bottom Item -->
                     <MenuItem Header="E_xit"
                               InputGestureText="Alt+F4"
                               Command="{Binding ExitApplicationCommand}" />

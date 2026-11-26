@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.9";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.10";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -112,7 +112,18 @@ namespace pdf_to_Tiles.ViewModels
         public bool CanUndoChit => SelectedChit?.CanUndo ?? false;
         public bool CanRedoChit => SelectedChit?.CanRedo ?? false;
 
+        public bool IsPdfViewerTabSelected => SelectedTabIndex == 0;
+        public bool IsTileCreatorTabSelected => SelectedTabIndex == 1;
+        public bool IsTileEditorTabSelected => SelectedTabIndex == 2;
+        public bool CanAccessRecentPdfs => IsPdfViewerTabSelected && HasRecentPdfs;
+        public bool CanSaveTilePageImage => IsTileCreatorTabSelected && (HasSlicerImage || HasLoadedPdf);
+        public bool CanSaveCurrentTile => IsTileEditorTabSelected && HasSelectedChit;
+        public bool CanSaveAllTiles => IsTileEditorTabSelected && HasChitsLoaded;
+
         public IRelayCommand ExportPageToPngCommand => CapturePageCommand;
+        public IRelayCommand SaveTilePageImageCommand => SaveTilePageImageInternalCommand;
+        public IRelayCommand SaveCurrentTileCommand => ExportSelectedChitCommand;
+        public IRelayCommand SaveAllTilesCommand => ExportAllEditedChitsCommand;
         public IRelayCommand SendToChitEditorCommand => SendBandToChitEditorCommand;
 
         #endregion
@@ -1205,6 +1216,38 @@ namespace pdf_to_Tiles.ViewModels
         private bool CanCapturePage() => !IsLoading && HasLoadedPdf;
         private bool CanExecuteActions() => !IsLoading;
 
+        [RelayCommand]
+        private async Task SaveTilePageImageInternalAsync()
+        {
+            if (_deskewedMat != null && !_deskewedMat.IsDisposed)
+            {
+                var saveFileDialog = new SaveFileDialog
+                {
+                    Title = "Save Tile Page Image as Lossless PNG",
+                    Filter = "PNG Image (*.png)|*.png",
+                    DefaultExt = ".png",
+                    FileName = !string.IsNullOrWhiteSpace(SlicerSourceFileName) ? Path.GetFileName(SlicerSourceFileName) : "TilePage.png"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    Cv2.ImWrite(saveFileDialog.FileName, _deskewedMat);
+                    StatusMessage = $"Saved tile page image to {saveFileDialog.FileName}";
+                }
+            }
+            else if (CanCapturePage())
+            {
+                await CapturePageAsync();
+            }
+        }
+
+        [RelayCommand]
+        private void OpenTileFiles()
+        {
+            // Placeholder/stub command for Open Tile Files... to be fully implemented in subsequent step
+            StatusMessage = "Open Tile Files feature is ready to be configured.";
+        }
+
         #endregion
 
         #region Phase 2 & 2.5: Slicer & Deskew Handlers
@@ -1571,6 +1614,20 @@ namespace pdf_to_Tiles.ViewModels
             {
                 SelectedChit?.SetPreviewMat(null);
             }
+
+            OnPropertyChanged(nameof(IsPdfViewerTabSelected));
+            OnPropertyChanged(nameof(IsTileCreatorTabSelected));
+            OnPropertyChanged(nameof(IsTileEditorTabSelected));
+            OnPropertyChanged(nameof(CanAccessRecentPdfs));
+            OnPropertyChanged(nameof(CanSaveTilePageImage));
+            OnPropertyChanged(nameof(CanSaveCurrentTile));
+            OnPropertyChanged(nameof(CanSaveAllTiles));
+            OpenPdfCommand.NotifyCanExecuteChanged();
+            OpenImageForSlicingCommand.NotifyCanExecuteChanged();
+            OpenTileFilesCommand.NotifyCanExecuteChanged();
+            SaveTilePageImageCommand.NotifyCanExecuteChanged();
+            SaveCurrentTileCommand.NotifyCanExecuteChanged();
+            SaveAllTilesCommand.NotifyCanExecuteChanged();
         }
 
         partial void OnIsSettingUpperLeftCornerChanged(bool value)
