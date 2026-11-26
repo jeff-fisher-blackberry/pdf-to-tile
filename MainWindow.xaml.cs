@@ -100,8 +100,17 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.HasDestinationAnchor):
                 case nameof(MainViewModel.CloneStampRadius):
                 case nameof(MainViewModel.CloneStampShape):
-                case nameof(MainViewModel.IsCloneStampActive):
                 case nameof(MainViewModel.SelectedChit):
+                    UpdateWorkingChitOverlay();
+                    break;
+
+                case nameof(MainViewModel.IsCloneStampActive):
+                    if (DataContext is MainViewModel vmClone && !vmClone.IsCloneStampActive)
+                    {
+                        _isCloning = false;
+                        _hasModifiedInStroke = false;
+                        _currentStrokePoints.Clear();
+                    }
                     UpdateWorkingChitOverlay();
                     break;
             }
@@ -466,7 +475,7 @@ namespace pdf_to_Tiles
                 // If Clone Stamp is active, untoggle it cleanly
                 if (vm.IsCloneStampActive)
                 {
-                    vm.IsCloneStampActive = false;
+                    vm.DeactivateCloneStamp();
                     e.Handled = true;
                     return;
                 }

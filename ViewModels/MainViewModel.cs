@@ -2885,11 +2885,16 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (value)
                 {
+                    DeactivateCloneStamp();
                     SelectedSharedToolMode = "Clip";
                 }
-                else if (SelectedSharedToolMode == "Clip")
+                else
                 {
-                    OnPropertyChanged(nameof(IsClipModeSelected));
+                    DeactivateCloneStamp();
+                    if (SelectedSharedToolMode == "Clip")
+                    {
+                        OnPropertyChanged(nameof(IsClipModeSelected));
+                    }
                 }
             }
         }
@@ -2901,11 +2906,16 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (value)
                 {
+                    DeactivateCloneStamp();
                     SelectedSharedToolMode = "Bevel";
                 }
-                else if (SelectedSharedToolMode == "Bevel")
+                else
                 {
-                    OnPropertyChanged(nameof(IsBevelModeSelected));
+                    DeactivateCloneStamp();
+                    if (SelectedSharedToolMode == "Bevel")
+                    {
+                        OnPropertyChanged(nameof(IsBevelModeSelected));
+                    }
                 }
             }
         }
@@ -3088,6 +3098,16 @@ namespace pdf_to_Tiles.ViewModels
             {
                 IsPickingCloneAnchor = false;
                 IsCloneHovering = false;
+            }
+        }
+
+        public void DeactivateCloneStamp()
+        {
+            if (IsCloneStampActive)
+            {
+                IsCloneStampActive = false;
+                IsCloneHovering = false;
+                StatusMessage = "Clone Stamp deactivated.";
             }
         }
 
@@ -3943,6 +3963,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplySharedTool()
         {
+            DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
 
             if (SelectedSharedToolMode == "Clip")
@@ -3960,6 +3981,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(HasCheckedChits))]
         private void ApplySharedToolAll()
         {
+            DeactivateCloneStamp();
             if (LoadedChits.Count == 0) return;
 
             if (SelectedSharedToolMode == "Clip")
@@ -4070,6 +4092,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplyBevel()
         {
+            DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null) return;
             var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsChecked).ToList() : new List<ChitItem> { SelectedChit };
             Vec4b transColor = ColorToVec4b(TransparentColor);
@@ -4092,6 +4115,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplyClip()
         {
+            DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null) return;
             var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsChecked).ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
@@ -4116,6 +4140,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(HasCheckedChits))]
         private void BevelAll()
         {
+            DeactivateCloneStamp();
             var targets = LoadedChits.Where(c => c.IsChecked).ToList();
             if (targets.Count == 0)
             {
@@ -4158,6 +4183,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(HasCheckedChits))]
         private void ClipAll()
         {
+            DeactivateCloneStamp();
             var targets = LoadedChits.Where(c => c.IsChecked).ToList();
             if (targets.Count == 0)
             {
@@ -4200,6 +4226,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplyStretch()
         {
+            DeactivateCloneStamp();
             if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
             _isApplyingBatchEdit = true;
             try
@@ -4251,6 +4278,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplyShrink()
         {
+            DeactivateCloneStamp();
             if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
             _isApplyingBatchEdit = true;
             try
@@ -4303,6 +4331,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ApplyResize()
         {
+            DeactivateCloneStamp();
             if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
             _isApplyingBatchEdit = true;
             try
@@ -4383,6 +4412,7 @@ namespace pdf_to_Tiles.ViewModels
 
         private void ApplyBump(int dx, int dy)
         {
+            DeactivateCloneStamp();
             if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
             _isApplyingBatchEdit = true;
             try
@@ -4505,6 +4535,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ResetSelectedChit()
         {
+            DeactivateCloneStamp();
             if (SelectedChit == null) return;
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
@@ -4536,6 +4567,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
         private void ResetAllChits()
         {
+            DeactivateCloneStamp();
             _lastCommittedSignature = null;
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
@@ -4568,6 +4600,7 @@ namespace pdf_to_Tiles.ViewModels
 
         private void RotateCurrentTileInternal(bool clockwise)
         {
+            DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
             if (SelectedChit.WorkingMat.Width < 8 || SelectedChit.WorkingMat.Height < 8) return;
 
@@ -4600,6 +4633,7 @@ namespace pdf_to_Tiles.ViewModels
 
         private void RotateAllTilesInternal(bool clockwise)
         {
+            DeactivateCloneStamp();
             var targets = LoadedChits.Where(c => c.IsChecked).ToList();
             if (targets.Count == 0)
             {
@@ -4702,6 +4736,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void SelectNextChit()
         {
+            DeactivateCloneStamp();
             if (LoadedChits.Count == 0) return;
             int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : -1;
             int nextIdx = (idx + 1) % LoadedChits.Count;
@@ -4711,6 +4746,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void SelectPrevChit()
         {
+            DeactivateCloneStamp();
             if (LoadedChits.Count == 0) return;
             int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : 0;
             int prevIdx = (idx - 1 + LoadedChits.Count) % LoadedChits.Count;
