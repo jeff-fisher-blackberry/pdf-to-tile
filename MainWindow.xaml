@@ -760,7 +760,7 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="Columns and Row" Style="{StaticResource SectionHeaderStyle}" />
+                                        <TextBlock Text="Rows and Columns" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
 
                                         <!-- Numeric [Columns] x [Row] Inputs (Default 2 x 10) with Set Button & Front/Back Radios -->
                                         <Grid Margin="0,4,0,8">
