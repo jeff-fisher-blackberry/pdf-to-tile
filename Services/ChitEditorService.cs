@@ -458,6 +458,22 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Rotates the tile 90 degrees clockwise or counter-clockwise.
+        /// Guards against invalid dimensions (Width >= 8 && Height >= 8) and preserves CV_8UC4 format.
+        /// </summary>
+        public static Mat Rotate(Mat src, bool clockwise)
+        {
+            if (src == null || src.IsDisposed || src.Width < 8 || src.Height < 8)
+            {
+                throw new ArgumentException("Invalid Mat for 90-degree tile rotation.", nameof(src));
+            }
+
+            var dst = new Mat();
+            Cv2.Rotate(src, dst, clockwise ? RotateFlags.Rotate90Clockwise : RotateFlags.Rotate90Counterclockwise);
+            return dst;
+        }
+
+        /// <summary>
         /// Samples an inner perimeter band (depth+1 to depth+4 px) to statistically determine the modal
         /// (dominant) counter background color, ignoring text, numbers, and transparency.
         /// </summary>

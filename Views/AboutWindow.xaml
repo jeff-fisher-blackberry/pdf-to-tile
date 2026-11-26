@@ -22,7 +22,7 @@
                     <TextBlock Text="PDF to Tiles" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock x:Name="VersionTextBlock"
-                           Text="Version 2026-11-24.1"
+                           Text="Version 2026-11-26.15"
                            FontSize="14"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource AccentBrush}"

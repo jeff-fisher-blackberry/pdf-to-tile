@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.13";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.15";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -696,6 +696,8 @@ namespace pdf_to_Tiles.ViewModels
                 CloseDocumentCommand.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
+                RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
+                RotateAllTilesRightCommand.NotifyCanExecuteChanged();
                 BevelAllCommand.NotifyCanExecuteChanged();
                 ClipAllCommand.NotifyCanExecuteChanged();
                 ApplySharedToolAllCommand.NotifyCanExecuteChanged();
@@ -1161,6 +1163,8 @@ namespace pdf_to_Tiles.ViewModels
                 RotateRight90Command.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
+                RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
+                RotateAllTilesRightCommand.NotifyCanExecuteChanged();
                 BevelAllCommand.NotifyCanExecuteChanged();
                 ClipAllCommand.NotifyCanExecuteChanged();
                 ApplySharedToolAllCommand.NotifyCanExecuteChanged();
@@ -2623,6 +2627,10 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ResetEdgeCleanCommand))]
         [NotifyCanExecuteChangedFor(nameof(AutoSampleEdgeColorCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetSelectedChitCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RotateCurrentTileLeftCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RotateCurrentTileRightCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RotateAllTilesLeftCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RotateAllTilesRightCommand))]
         [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
         [NotifyPropertyChangedFor(nameof(ChitStatusBarText))]
         private ChitItem? _selectedChit;
@@ -2705,6 +2713,10 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanRedoChit));
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
+            RotateCurrentTileLeftCommand.NotifyCanExecuteChanged();
+            RotateCurrentTileRightCommand.NotifyCanExecuteChanged();
+            RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
+            RotateAllTilesRightCommand.NotifyCanExecuteChanged();
         }
 
         private void SelectedChit_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -3770,6 +3782,8 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             SelectedChit.Undo();
+            ChitEditorWidth = SelectedChit.PixelWidth;
+            ChitEditorHeight = SelectedChit.PixelHeight;
             UpdateLiveChitPreview();
         }
 
@@ -3781,6 +3795,8 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedBevelSignature = null;
             _lastCommittedClipSignature = null;
             SelectedChit.Redo();
+            ChitEditorWidth = SelectedChit.PixelWidth;
+            ChitEditorHeight = SelectedChit.PixelHeight;
             UpdateLiveChitPreview();
         }
 
@@ -4120,7 +4136,7 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = $"Reset tile #{SelectedChit.Index} to original slice.";
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
         private void ResetAllChits()
         {
             _lastCommittedSignature = null;
@@ -4130,9 +4146,92 @@ namespace pdf_to_Tiles.ViewModels
             {
                 chit.ResetToOriginal();
             }
+            if (SelectedChit != null)
+            {
+                ChitEditorWidth = SelectedChit.PixelWidth;
+                ChitEditorHeight = SelectedChit.PixelHeight;
+            }
             UpdateLiveChitPreview();
             StatusMessage = $"Reset all {LoadedChits.Count} tiles to original slices.";
         }
+
+        #region Tile Rotation Commands
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void RotateCurrentTileLeft()
+        {
+            RotateCurrentTileInternal(clockwise: false);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void RotateCurrentTileRight()
+        {
+            RotateCurrentTileInternal(clockwise: true);
+        }
+
+        private void RotateCurrentTileInternal(bool clockwise)
+        {
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (SelectedChit.WorkingMat.Width < 8 || SelectedChit.WorkingMat.Height < 8) return;
+
+            var rotated = ChitEditorService.Rotate(SelectedChit.WorkingMat, clockwise);
+            SelectedChit.UpdateWorkingMat(rotated, recordHistory: true, TransparentColor);
+
+            ChitEditorWidth = SelectedChit.PixelWidth;
+            ChitEditorHeight = SelectedChit.PixelHeight;
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+
+            string dir = clockwise ? "90° right (clockwise)" : "90° left (counter-clockwise)";
+            StatusMessage = $"Rotated tile #{SelectedChit.Index} {dir}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void RotateAllTilesLeft()
+        {
+            RotateAllTilesInternal(clockwise: false);
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void RotateAllTilesRight()
+        {
+            RotateAllTilesInternal(clockwise: true);
+        }
+
+        private void RotateAllTilesInternal(bool clockwise)
+        {
+            if (LoadedChits.Count == 0) return;
+
+            int count = 0;
+            foreach (var chit in LoadedChits)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                var rotated = ChitEditorService.Rotate(chit.WorkingMat, clockwise);
+                chit.UpdateWorkingMat(rotated, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            if (SelectedChit != null)
+            {
+                ChitEditorWidth = SelectedChit.PixelWidth;
+                ChitEditorHeight = SelectedChit.PixelHeight;
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                UpdateLiveChitPreview();
+            }
+
+            string dir = clockwise ? "90° right (clockwise)" : "90° left (counter-clockwise)";
+            StatusMessage = $"Rotated all {count} tiles {dir}.";
+        }
+
+        #endregion
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
         private void ExportSelectedChit()

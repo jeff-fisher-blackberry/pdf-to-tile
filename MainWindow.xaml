@@ -1407,6 +1407,20 @@
                             <TextBlock Text="{Binding ChitEditorZoomPercentageText}"
                                        FontSize="11" FontWeight="Bold" Width="38"
                                        VerticalAlignment="Center" TextAlignment="Right" Margin="2,0,0,0" />
+
+                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
+
+                            <Button Content="Reset Current"
+                                    Command="{Binding ResetSelectedChitCommand}"
+                                    Height="26"
+                                    Padding="8,3"
+                                    ToolTip="Revert active tile back to original slice" />
+                            <Button Content="Reset All"
+                                    Command="{Binding ResetAllChitsCommand}"
+                                    Height="26"
+                                    Padding="8,3"
+                                    Margin="4,0,0,0"
+                                    ToolTip="Revert all loaded tiles back to original slices" />
                         </WrapPanel>
 
                         <!-- Far Right: Right-Justified Export Buttons -->
@@ -1653,6 +1667,71 @@
                                             </StackPanel>
                                         </Border>
 
+                                        <!-- Row 6: Rotate Subpanel -->
+                                        <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="8,6"
+                                                Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="ROTATE"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+
+                                                <!-- Row 6a: Active Working Tile Rotation -->
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="80" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Current Tile:"
+                                                               FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Content="↺ 90° Left"
+                                                            Command="{Binding RotateCurrentTileLeftCommand}"
+                                                            Height="26" Padding="4,2" FontSize="11"
+                                                            ToolTip="Rotate currently selected working tile 90° counter-clockwise (Left)" />
+                                                    <Button Grid.Column="3" Content="↻ 90° Right"
+                                                            Command="{Binding RotateCurrentTileRightCommand}"
+                                                            Height="26" Padding="4,2" FontSize="11"
+                                                            ToolTip="Rotate currently selected working tile 90° clockwise (Right)" />
+                                                </Grid>
+
+                                                <!-- Row 6b: All Loaded Tiles Rotation -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="80" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="All Tiles:"
+                                                               FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Content="↺ All Left"
+                                                            Command="{Binding RotateAllTilesLeftCommand}"
+                                                            Height="26" Padding="4,2" FontSize="11"
+                                                            ToolTip="Rotate all loaded tiles 90° counter-clockwise (Left)" />
+                                                    <Button Grid.Column="3" Content="↻ All Right"
+                                                            Command="{Binding RotateAllTilesRightCommand}"
+                                                            Height="26" Padding="4,2" FontSize="11"
+                                                            ToolTip="Rotate all loaded tiles 90° clockwise (Right)" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- EDGE CLEANUP SECTION (Hidden via Visibility="Collapsed") -->
                                         <StackPanel Visibility="Collapsed">
                                             <!-- Divider between base tools and Edge Cleanup -->
@@ -1808,33 +1887,6 @@
                                                           ToolTip="Prevent automatic re-sampling when switching active tiles" />
                                             </WrapPanel>
                                         </StackPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- BATCH & HISTORY MANAGEMENT CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12"
-                                        Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="BATCH ACTIONS &amp; RESET" Style="{StaticResource SectionHeaderStyle}" />
-
-                                        <CheckBox Content="Apply edits to all 20 tiles"
-                                                  IsChecked="{Binding ApplyToAllChits}"
-                                                  Margin="0,4,0,8"
-                                                  ToolTip="When checked, Bevel, Clip, Clear, Stretch, and Resize apply to all 20 tiles in the band" />
-
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="8" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Button Grid.Column="0" Content="Reset Current" Command="{Binding ResetSelectedChitCommand}" ToolTip="Revert active tile back to original slice" />
-                                            <Button Grid.Column="2" Content="Reset All 20" Command="{Binding ResetAllChitsCommand}" ToolTip="Revert all 20 tiles back to original slices" />
-                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

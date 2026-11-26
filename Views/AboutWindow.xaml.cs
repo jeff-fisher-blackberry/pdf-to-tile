@@ -11,7 +11,7 @@ namespace pdf_to_Tiles.Views
 
             string rawVersion = Assembly.GetEntryAssembly()?
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion ?? "2026-11-24.1";
+                .InformationalVersion ?? "2026-11-26.15";
 
             // Strip build metadata or commit hash suffix (+...) if present
             string cleanVersion = rawVersion.Split('+')[0].Trim();
