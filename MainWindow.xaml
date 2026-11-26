@@ -162,11 +162,11 @@
                     <MenuItem Header="Export Sliced _Grid Pieces..."
                               Command="{Binding SliceGridCommand}"
                               IsEnabled="{Binding HasSlicerImage}" />
-                    <MenuItem Header="Export _Active Chit to PNG..."
+                    <MenuItem Header="Export _Active Tile to PNG..."
                               InputGestureText="Ctrl+S"
                               Command="{Binding ExportSelectedChitCommand}"
                               IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="Export _All 20 Chits to PNG..."
+                    <MenuItem Header="Export _All 20 Tiles to PNG..."
                               InputGestureText="Ctrl+Shift+S"
                               Command="{Binding ExportAllEditedChitsCommand}"
                               IsEnabled="{Binding HasChitsLoaded}" />
@@ -177,33 +177,33 @@
                 </MenuItem>
 
                 <!-- EDIT MENU -->
-                <MenuItem Header="_Edit">
-                    <MenuItem Header="_Undo Chit Action"
+                <MenuItem Header="_Edit" Visibility="Collapsed">
+                    <MenuItem Header="_Undo Tile Action"
                               InputGestureText="Ctrl+Z"
                               Command="{Binding UndoChitCommand}"
                               IsEnabled="{Binding CanUndoChit}" />
-                    <MenuItem Header="_Redo Chit Action"
+                    <MenuItem Header="_Redo Tile Action"
                               InputGestureText="Ctrl+Y"
                               Command="{Binding RedoChitCommand}"
                               IsEnabled="{Binding CanRedoChit}" />
                     <Separator />
-                    <MenuItem Header="Cu_t Active Chit"
+                    <MenuItem Header="Cu_t Active Tile"
                               InputGestureText="Ctrl+X"
                               Command="{Binding CutChitCommand}"
                               IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="_Copy Active Chit"
+                    <MenuItem Header="_Copy Active Tile"
                               InputGestureText="Ctrl+C"
                               Command="{Binding CopyChitCommand}"
                               IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="_Paste Image to Chit"
+                    <MenuItem Header="_Paste Image to Tile"
                               InputGestureText="Ctrl+V"
                               Command="{Binding PasteChitCommand}"
                               IsEnabled="{Binding HasSelectedChit}" />
                     <Separator />
-                    <MenuItem Header="Reset _Current Chit to Original"
+                    <MenuItem Header="Reset _Current Tile to Original"
                               Command="{Binding ResetSelectedChitCommand}"
                               IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="Reset All _20 Chits to Original"
+                    <MenuItem Header="Reset All _20 Tiles to Original"
                               Command="{Binding ResetAllChitsCommand}"
                               IsEnabled="{Binding HasChitsLoaded}" />
                     <MenuItem Header="Reset _Edge Cleanup Depths"
@@ -212,16 +212,16 @@
                 </MenuItem>
 
                 <!-- VIEW MENU -->
-                <MenuItem Header="_View">
-                    <MenuItem Header="PDF _Viewer &amp; Page Capture"
+                <MenuItem Header="_View" Visibility="Collapsed">
+                    <MenuItem Header="PDF _Viewer"
                               InputGestureText="Ctrl+1"
                               Command="{Binding SwitchTabCommand}"
                               CommandParameter="0" />
-                    <MenuItem Header="_Deskew &amp; Grid Slicer"
+                    <MenuItem Header="_Tile Creator"
                               InputGestureText="Ctrl+2"
                               Command="{Binding SwitchTabCommand}"
                               CommandParameter="1" />
-                    <MenuItem Header="_Chit Editor"
+                    <MenuItem Header="_Tile Editor"
                               InputGestureText="Ctrl+3"
                               Command="{Binding SwitchTabCommand}"
                               CommandParameter="2" />
@@ -273,7 +273,7 @@
                     </Button>
                     <Button Command="{Binding ExportAllEditedChitsCommand}"
                             IsEnabled="{Binding HasChitsLoaded}"
-                            ToolTip="Export All 20 Chits to PNG (Ctrl+Shift+S)"
+                            ToolTip="Export All 20 Tiles to PNG (Ctrl+Shift+S)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -285,7 +285,7 @@
                     <!-- EDIT / CLIPBOARD GROUP -->
                     <Button Command="{Binding UndoChitCommand}"
                             IsEnabled="{Binding CanUndoChit}"
-                            ToolTip="Undo Chit Action (Ctrl+Z)"
+                            ToolTip="Undo Tile Action (Ctrl+Z)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -293,7 +293,7 @@
                     </Button>
                     <Button Command="{Binding RedoChitCommand}"
                             IsEnabled="{Binding CanRedoChit}"
-                            ToolTip="Redo Chit Action (Ctrl+Y)"
+                            ToolTip="Redo Tile Action (Ctrl+Y)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -301,7 +301,7 @@
                     </Button>
                     <Button Command="{Binding CutChitCommand}"
                             IsEnabled="{Binding HasSelectedChit}"
-                            ToolTip="Cut Active Chit (Ctrl+X)"
+                            ToolTip="Cut Active Tile (Ctrl+X)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -309,7 +309,7 @@
                     </Button>
                     <Button Command="{Binding CopyChitCommand}"
                             IsEnabled="{Binding HasSelectedChit}"
-                            ToolTip="Copy Active Chit (Ctrl+C)"
+                            ToolTip="Copy Active Tile (Ctrl+C)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -317,7 +317,7 @@
                     </Button>
                     <Button Command="{Binding PasteChitCommand}"
                             IsEnabled="{Binding HasSelectedChit}"
-                            ToolTip="Paste Image to Chit (Ctrl+V)"
+                            ToolTip="Paste Image to Tile (Ctrl+V)"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -337,7 +337,7 @@
                     </Button>
                     <Button Command="{Binding SendBandToChitEditorCommand}"
                             IsEnabled="{Binding HasSlicerImage}"
-                            ToolTip="Send Active 2×10 Band to Chit Editor"
+                            ToolTip="Send Active 2×10 Band to Tile Editor"
                             Width="30" Height="28"
                             Margin="2,1"
                             Padding="0">
@@ -390,15 +390,15 @@
 
                 <!-- Workspace Switcher Tabs -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <RadioButton Content="📄 PDF Viewer &amp; Page Capture"
+                    <RadioButton Content="📄 PDF Viewer"
                                  Style="{StaticResource ModeTabRadioButton}"
                                  IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=0}" />
 
-                    <RadioButton Content="📐 Deskew &amp; Grid Slicer"
+                    <RadioButton Content="📐 Tile Creator"
                                  Style="{StaticResource ModeTabRadioButton}"
                                  IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=1}" />
 
-                    <RadioButton Content="✂ Chit Editor"
+                    <RadioButton Content="✂ Tile Editor"
                                  Style="{StaticResource ModeTabRadioButton}"
                                  IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=2}" />
                 </StackPanel>
@@ -653,10 +653,10 @@
 
                             <!-- Fine-Rotation Degrees Buttons: Restored & Visible -->
                             <TextBlock Text="Angle:" Margin="0,0,2,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding DeskewAngleText}" FontWeight="Bold" Width="48" Margin="0,0,4,0" VerticalAlignment="Center" TextAlignment="Center" />
-                            <Button Content="-0.1°" Width="44" Command="{Binding NudgeAngleNegativeCommand}" ToolTip="Nudge angle -0.1°" Margin="1,0" />
-                            <Button Content="+0.1°" Width="44" Command="{Binding NudgeAnglePositiveCommand}" ToolTip="Nudge angle +0.1°" Margin="1,0" />
-                            <Button Content="0.0°" Width="40" Command="{Binding ResetAngleCommand}" ToolTip="Reset tilt angle to 0°" Margin="1,0" />
+                            <TextBlock Text="{Binding DeskewAngleText}" FontWeight="Bold" Width="54" Margin="0,0,4,0" VerticalAlignment="Center" TextAlignment="Center" />
+                            <Button Content="-0.1°" Width="52" Padding="4,2" Command="{Binding NudgeAngleNegativeCommand}" ToolTip="Nudge angle -0.1°" Margin="1,0" />
+                            <Button Content="+0.1°" Width="52" Padding="4,2" Command="{Binding NudgeAnglePositiveCommand}" ToolTip="Nudge angle +0.1°" Margin="1,0" />
+                            <Button Content="0.0°" Width="48" Padding="4,2" Command="{Binding ResetAngleCommand}" ToolTip="Reset tilt angle to 0.0°" Margin="1,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -709,7 +709,7 @@
                                 Padding="16,6"
                                 Margin="8,0,4,0"
                                 VerticalAlignment="Center"
-                                ToolTip="Slice active 2×10 band directly into memory and open in Chit Editor (Tab 3)" />
+                                ToolTip="Slice active 2×10 band directly into memory and open in Tile Editor (Tab 3)" />
                     </Grid>
                 </Border>
 
@@ -740,13 +740,13 @@
                                         CornerRadius="6"
                                         Padding="12"
                                         Margin="0,0,0,12">
-                                    <Button Content="🎨 Send 2×10 Band to Chit Editor"
+                                    <Button Content="🎨 Send 2×10 Band to Tile Editor"
                                             Command="{Binding SendBandToChitEditorCommand}"
                                             Style="{StaticResource AccentButtonStyle}"
                                             Padding="14,10"
                                             FontSize="13"
                                             HorizontalAlignment="Stretch"
-                                            ToolTip="Slice active 2×10 band directly into memory and open in Chit Editor (Tab 3)" />
+                                            ToolTip="Slice active 2×10 band directly into memory and open in Tile Editor (Tab 3)" />
                                 </Border>
 
                                 <!-- SINGLE CHIT PREVIEW CARD -->
@@ -757,7 +757,7 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="SINGLE CHIT CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+                                        <TextBlock Text="SINGLE TILE CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
 
                                         <!-- Banded mode Chit 1..20 cycling stepper & dropdown -->
                                         <Grid Margin="0,2,0,6" Width="200" Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
@@ -767,14 +767,14 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousChitCommand}" Width="48" Padding="2,3" ToolTip="Previous Chit (1..20 with wrap-around)" />
+                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousChitCommand}" Width="48" Padding="2,3" ToolTip="Previous Tile (1..20 with wrap-around)" />
 
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock Text="Chit:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+                                                <TextBlock Text="Tile:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
                                                 <ComboBox ItemsSource="{Binding AvailableChitNumbers}" SelectedItem="{Binding PreviewChitNumber}" Width="52" VerticalAlignment="Center" />
                                             </StackPanel>
 
-                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextChitCommand}" Width="48" Padding="2,3" ToolTip="Next Chit (1..20 with wrap-around)" />
+                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextChitCommand}" Width="48" Padding="2,3" ToolTip="Next Tile (1..20 with wrap-around)" />
                                         </Grid>
 
                                         <TextBlock Text="{Binding PreviewCellText}"
@@ -1311,24 +1311,24 @@
 
                         <!-- Left / Center Chit Editor Controls -->
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Content="◀ Prev Chit" Command="{Binding SelectPrevChitCommand}" ToolTip="Select previous chit in strip" />
-                            <Button Content="Next Chit ▶" Command="{Binding SelectNextChitCommand}" ToolTip="Select next chit in strip" Margin="4,0,0,0" />
+                            <Button Content="◀ Prev Tile" Command="{Binding SelectPrevChitCommand}" ToolTip="Select previous tile in strip" />
+                            <Button Content="Next Tile ▶" Command="{Binding SelectNextChitCommand}" ToolTip="Select next tile in strip" Margin="4,0,0,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
                             <TextBlock Text="Active:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" />
-                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='No Chit Loaded'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='No Tile Loaded'}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                            <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected chit (Ctrl+Z)" Width="30" Height="26" Padding="0" />
+                            <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected tile (Ctrl+Z)" Width="30" Height="26" Padding="0" />
                             <Button Content="↪" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action (Ctrl+Y)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                            <Button Content="✂" Command="{Binding CutChitCommand}" ToolTip="Cut selected chit to clipboard (Ctrl+X)" Width="30" Height="26" Padding="0" />
-                            <Button Content="📋" Command="{Binding CopyChitCommand}" ToolTip="Copy selected chit to clipboard (Ctrl+C)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
-                            <Button Content="📥" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active chit (Ctrl+V)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                            <Button Content="✂" Command="{Binding CutChitCommand}" ToolTip="Cut selected tile to clipboard (Ctrl+X)" Width="30" Height="26" Padding="0" />
+                            <Button Content="📋" Command="{Binding CopyChitCommand}" ToolTip="Copy selected tile to clipboard (Ctrl+C)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
+                            <Button Content="📥" Command="{Binding PasteChitCommand}" ToolTip="Paste image from clipboard into active tile (Ctrl+V)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -1354,13 +1354,13 @@
                             <Button Content="Export Current"
                                     Command="{Binding ExportSelectedChitCommand}"
                                     Padding="12,6"
-                                    ToolTip="Export currently selected chit as a lossless PNG file" />
+                                    ToolTip="Export currently selected tile as a lossless PNG file" />
                             <Button Content="Export All"
                                     Command="{Binding ExportAllEditedChitsCommand}"
                                     Style="{StaticResource AccentButtonStyle}"
                                     Margin="6,0,0,0"
                                     Padding="14,6"
-                                    ToolTip="Export all 20 chits to destination folder" />
+                                    ToolTip="Export all 20 tiles to destination folder" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -1386,14 +1386,14 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="12">
                             <StackPanel>
                                 <!-- Export All 20 Chits to PNG Button at Top of Left Panel (Hidden; handled on toolbar) -->
-                                <Button Content="✂️ Export All 20 Chits to PNG..."
+                                <Button Content="✂️ Export All 20 Tiles to PNG..."
                                         Command="{Binding ExportAllEditedChitsCommand}"
                                         Visibility="Collapsed"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Padding="12,8"
                                         FontSize="13"
                                         Margin="0,0,0,12"
-                                        ToolTip="Save all 20 chits to a destination folder" />
+                                        ToolTip="Save all 20 tiles to a destination folder" />
 
                                 <!-- TILE TOOLS CARD (Modeled on GTL Text Editor) -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
@@ -1494,7 +1494,7 @@
                                                     Height="28"
                                                     FontSize="11"
                                                     FontWeight="SemiBold"
-                                                    ToolTip="Apply current bevel size to all loaded chits" />
+                                                    ToolTip="Apply current bevel size to all loaded tiles" />
 
                                             <Button Grid.Column="2"
                                                     Content="Clip All"
@@ -1503,7 +1503,7 @@
                                                     Height="28"
                                                     FontSize="11"
                                                     FontWeight="SemiBold"
-                                                    ToolTip="Apply current corner clip radius to all loaded chits" />
+                                                    ToolTip="Apply current corner clip radius to all loaded tiles" />
 
                                             <Button Grid.Column="4"
                                                     Content="Clear All"
@@ -1512,7 +1512,7 @@
                                                     Height="28"
                                                     FontSize="11"
                                                     FontWeight="SemiBold"
-                                                    ToolTip="Apply current outer border clear to all loaded chits" />
+                                                    ToolTip="Apply current outer border clear to all loaded tiles" />
                                         </Grid>
 
                                         <!-- Row 4: Transparent Key Color (Left) + Reset Button (Right) -->
@@ -1534,7 +1534,7 @@
 
                                             <Button Grid.Column="1" Content="Reset" Command="{Binding ResetSelectedChitCommand}"
                                                     Width="66" Height="28"
-                                                    ToolTip="Reset active working chit to its original unmodified tile (restores slice, pushes Undo snapshot)" />
+                                                    ToolTip="Reset active working tile to its original unmodified tile (restores slice, pushes Undo snapshot)" />
                                         </Grid>
 
                                         <!-- Row 5: Clone Stamp Tool (Paint.NET Style) -->
@@ -1570,7 +1570,7 @@
                                                             Padding="6,2"
                                                             Margin="0,0,4,0"
                                                             FontSize="11"
-                                                            ToolTip="Pick clone source anchor point on the Working Chit (or Shift+Click canvas)" />
+                                                            ToolTip="Pick clone source anchor point on the Working Tile (or Shift+Click canvas)" />
 
                                                     <Button Grid.Column="3"
                                                             Command="{Binding ClearCloneAnchorCommand}"
@@ -1655,12 +1655,12 @@
                                                             ToolTip="Sampled or target background color for edge healing" />
                                                     <Button Content="Auto" Command="{Binding AutoSampleEdgeColorCommand}"
                                                             Height="26" Padding="6,0" Margin="4,0,0,0"
-                                                            ToolTip="Auto-sample dominant background color from active chit" />
+                                                            ToolTip="Auto-sample dominant background color from active tile" />
                                                 </StackPanel>
 
                                                 <!-- Reset & Apply Buttons Right -->
                                                 <Button Grid.Column="2" Content="Reset" Command="{Binding ResetEdgeCleanCommand}" Width="60" Height="28" Margin="0,0,4,0"
-                                                        ToolTip="Revert active chit to pre-cleanup state and reset edge clean depths to 0px" />
+                                                        ToolTip="Revert active tile to pre-cleanup state and reset edge clean depths to 0px" />
                                                 <Button Grid.Column="3" Content="Apply" Command="{Binding ApplyEdgeCleanCommand}" Width="64" Height="28"
                                                         Style="{StaticResource AccentButtonStyle}"
                                                         ToolTip="Heal cut marks and edge artifacts with matching background color" />
@@ -1779,7 +1779,7 @@
                                                 <CheckBox Content="Lock color"
                                                           IsChecked="{Binding LockEdgeCleanColor}"
                                                           FontSize="11"
-                                                          ToolTip="Prevent automatic re-sampling when switching active chits" />
+                                                          ToolTip="Prevent automatic re-sampling when switching active tiles" />
                                             </WrapPanel>
                                         </StackPanel>
                                     </StackPanel>
@@ -1795,10 +1795,10 @@
                                     <StackPanel>
                                         <TextBlock Text="BATCH ACTIONS &amp; RESET" Style="{StaticResource SectionHeaderStyle}" />
 
-                                        <CheckBox Content="Apply edits to all 20 chits"
+                                        <CheckBox Content="Apply edits to all 20 tiles"
                                                   IsChecked="{Binding ApplyToAllChits}"
                                                   Margin="0,4,0,8"
-                                                  ToolTip="When checked, Bevel, Clip, Clear, Stretch, and Resize apply to all 20 chits in the band" />
+                                                  ToolTip="When checked, Bevel, Clip, Clear, Stretch, and Resize apply to all 20 tiles in the band" />
 
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -1806,8 +1806,8 @@
                                                 <ColumnDefinition Width="8" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Button Grid.Column="0" Content="Reset Current" Command="{Binding ResetSelectedChitCommand}" ToolTip="Revert active chit back to original slice" />
-                                            <Button Grid.Column="2" Content="Reset All 20" Command="{Binding ResetAllChitsCommand}" ToolTip="Revert all 20 chits back to original slices" />
+                                            <Button Grid.Column="0" Content="Reset Current" Command="{Binding ResetSelectedChitCommand}" ToolTip="Revert active tile back to original slice" />
+                                            <Button Grid.Column="2" Content="Reset All 20" Command="{Binding ResetAllChitsCommand}" ToolTip="Revert all 20 tiles back to original slices" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -1842,7 +1842,7 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <TextBlock Grid.Column="0" Text="WORKING CHIT"
+                                            <TextBlock Grid.Column="0" Text="WORKING TILE"
                                                        FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
                                                        VerticalAlignment="Center" />
 
@@ -1856,12 +1856,12 @@
                                                     </StackPanel>
                                                 </Border>
 
-                                                <Button Content="💾 Save Chit PNG..."
+                                                <Button Content="💾 Save Tile PNG..."
                                                         Command="{Binding ExportSelectedChitCommand}"
                                                         Visibility="Collapsed"
                                                         Padding="8,2" Margin="8,0,0,0"
                                                         FontSize="11"
-                                                        ToolTip="Save this active chit to PNG file..." />
+                                                        ToolTip="Save this active tile to PNG file..." />
                                             </StackPanel>
                                         </Grid>
 
@@ -2150,7 +2150,7 @@
                                    VerticalAlignment="Center" />
                         <TextBlock Text="{Binding SelectedChit.DimensionsText}" Foreground="{DynamicResource StatusBarSubtleBrush}" VerticalAlignment="Center" />
                         <TextBlock Text="|" Margin="8,0" Foreground="{DynamicResource StatusBarSubtleBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{}{0} Chits Loaded'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{}{0} Tiles Loaded'}" Foreground="{DynamicResource StatusBarForegroundBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
             </Grid>

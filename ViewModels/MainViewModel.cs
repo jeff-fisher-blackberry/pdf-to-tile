@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.3";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.4";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -267,7 +267,7 @@ namespace pdf_to_Tiles.ViewModels
         public int ActiveBandBottomPx => ActiveBandTopPx + ActiveBandHeightPx;
         public string ActiveBandDimensionsText => $"{ActiveBandWidthPx} × {ActiveBandHeightPx} px";
         public string ActiveBandBoundsSummaryText => $"({ActiveBandLeftPx}, {ActiveBandTopPx}) to ({ActiveBandRightPx}, {ActiveBandBottomPx}) px";
-        public string ActiveBandDimensionsSummaryText => $"{ActiveBandWidthPx} × {ActiveBandHeightPx} px (20 Chits, ~{Math.Max(1, ActiveBandWidthPx / 10)} × {Math.Max(1, ActiveBandHeightPx / 2)} px)";
+        public string ActiveBandDimensionsSummaryText => $"{ActiveBandWidthPx} × {ActiveBandHeightPx} px (20 Tiles, ~{Math.Max(1, ActiveBandWidthPx / 10)} × {Math.Max(1, ActiveBandHeightPx / 2)} px)";
         public string ActiveBandLeftPercentText => $"({ActiveBandLeftPercent:F1}%)";
         public string ActiveBandTopPercentText => $"({ActiveBandTopPercent:F1}%)";
         public string ActiveBandWidthPercentText => $"({ActiveBandWidthPercent:F1}%)";
@@ -567,7 +567,7 @@ namespace pdf_to_Tiles.ViewModels
                     int total = TotalBandChits;
                     int row = ((PreviewChitNumber - 1) / cols) + 1;
                     int col = ((PreviewChitNumber - 1) % cols) + 1;
-                    return $"Chit {PreviewChitNumber} of {total} — Row {row}, Col {col}";
+                    return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col}";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
             }
@@ -2381,8 +2381,8 @@ namespace pdf_to_Tiles.ViewModels
 
             IsSlicing = true;
             SliceProgressPercent = 0;
-            SliceProgressText = $"Slicing band into {TotalBandChits} chits in memory for Chit Editor...";
-            StatusMessage = $"Slicing band into {TotalBandChits} chits in memory for Chit Editor...";
+            SliceProgressText = $"Slicing band into {TotalBandChits} tiles in memory for Tile Editor...";
+            StatusMessage = $"Slicing band into {TotalBandChits} tiles in memory for Tile Editor...";
 
             _sliceCts = new CancellationTokenSource();
             var progress = new Progress<SliceProgressReport>(report =>
@@ -2444,8 +2444,8 @@ namespace pdf_to_Tiles.ViewModels
                 }
 
                 SelectedTabIndex = 2; // Switch directly to Tab 3: Chit Editor
-                StatusMessage = $"Loaded {LoadedChits.Count} chits into Chit Editor.";
-                SliceProgressText = $"Loaded {LoadedChits.Count} chits into Chit Editor.";
+                StatusMessage = $"Loaded {LoadedChits.Count} tiles into Tile Editor.";
+                SliceProgressText = $"Loaded {LoadedChits.Count} tiles into Tile Editor.";
             }
             catch (OperationCanceledException)
             {
@@ -2453,7 +2453,7 @@ namespace pdf_to_Tiles.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error loading chits: {ex.Message}";
+                StatusMessage = $"Error loading tiles: {ex.Message}";
                 SliceProgressText = $"Error: {ex.Message}";
             }
             finally
@@ -2797,7 +2797,7 @@ namespace pdf_to_Tiles.ViewModels
                 {
                     if (IsPickingCloneAnchor)
                     {
-                        return "Click anywhere on the Working Chit canvas to set the Clone Source Anchor.";
+                        return "Click anywhere on the Working Tile canvas to set the Clone Source Anchor.";
                     }
                     if (HasCloneAnchor)
                     {
@@ -2833,7 +2833,7 @@ namespace pdf_to_Tiles.ViewModels
             }
             IsPickingCloneAnchor = true;
             HasDestinationAnchor = false;
-            StatusMessage = "Click anywhere on the Working Chit canvas to set the clone source anchor.";
+            StatusMessage = "Click anywhere on the Working Tile canvas to set the clone source anchor.";
         }
 
         [RelayCommand]
@@ -3344,7 +3344,7 @@ namespace pdf_to_Tiles.ViewModels
 
             _lastCommittedSignature = null;
             UpdateLiveEdgeCleanPreview();
-            StatusMessage = $"Cut chit #{SelectedChit.Index} to clipboard ({w} × {h} px).";
+            StatusMessage = $"Cut tile #{SelectedChit.Index} to clipboard ({w} × {h} px).";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3354,7 +3354,7 @@ namespace pdf_to_Tiles.ViewModels
 
             if (CopyChitToClipboardInternal(SelectedChit.WorkingMat))
             {
-                StatusMessage = $"Copied chit #{SelectedChit.Index} to clipboard ({SelectedChit.WorkingMat.Width} × {SelectedChit.WorkingMat.Height} px).";
+                StatusMessage = $"Copied tile #{SelectedChit.Index} to clipboard ({SelectedChit.WorkingMat.Width} × {SelectedChit.WorkingMat.Height} px).";
             }
             else
             {
@@ -3400,8 +3400,8 @@ namespace pdf_to_Tiles.ViewModels
                 UpdateLiveEdgeCleanPreview();
 
                 StatusMessage = ApplyToAllChits
-                    ? $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) to all {targets.Count} chits."
-                    : $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) into chit #{SelectedChit.Index}.";
+                    ? $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) to all {targets.Count} tiles."
+                    : $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) into tile #{SelectedChit.Index}.";
             }
             catch (Exception ex)
             {
@@ -3627,7 +3627,7 @@ namespace pdf_to_Tiles.ViewModels
             if (_preEdgeCleanMat != null && !_preEdgeCleanMat.IsDisposed && SelectedChit != null)
             {
                 SelectedChit.UpdateWorkingMat(_preEdgeCleanMat.Clone(), recordHistory: true, TransparentColor);
-                StatusMessage = $"Reset edge cleanup: reverted chit #{SelectedChit.Index} to pre-cleanup state and set depths to 0px.";
+                StatusMessage = $"Reset edge cleanup: reverted tile #{SelectedChit.Index} to pre-cleanup state and set depths to 0px.";
             }
             else
             {
@@ -3675,7 +3675,7 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedBevelSignature = GetCurrentBevelPreviewSignature();
             _lastCommittedSignature = null;
             SelectedChit.SetPreviewMat(null);
-            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} chits." : $"Applied {ChitEditorBevelSize}px bevel to chit #{SelectedChit.Index}.";
+            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorBevelSize}px bevel to all {targets.Count} tiles." : $"Applied {ChitEditorBevelSize}px bevel to tile #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3696,7 +3696,7 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedSignature = null;
             SelectedChit.SetPreviewMat(null);
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} chits." : $"Applied {ChitEditorClipSize}px corner clip to chit #{SelectedChit.Index}.";
+            StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} tiles." : $"Applied {ChitEditorClipSize}px corner clip to tile #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3717,7 +3717,7 @@ namespace pdf_to_Tiles.ViewModels
             _lastCommittedClipSignature = null;
             SelectedChit.SetPreviewMat(null);
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} chits." : $"Cleared {ChitEditorClearSize}px outer border on chit #{SelectedChit.Index}.";
+            StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} tiles." : $"Cleared {ChitEditorClearSize}px outer border on tile #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
@@ -3750,7 +3750,7 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanRedoChit));
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
-            StatusMessage = $"Applied {bevelSize}px bevel to all {count} loaded chits.";
+            StatusMessage = $"Applied {bevelSize}px bevel to all {count} loaded tiles.";
         }
 
         [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
@@ -3783,7 +3783,7 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanRedoChit));
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
-            StatusMessage = $"Applied {clipSize}px corner clip to all {count} loaded chits.";
+            StatusMessage = $"Applied {clipSize}px corner clip to all {count} loaded tiles.";
         }
 
         [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
@@ -3816,7 +3816,7 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanRedoChit));
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
-            StatusMessage = $"Cleared {clearSize}px outer border on all {count} loaded chits.";
+            StatusMessage = $"Cleared {clearSize}px outer border on all {count} loaded tiles.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3837,7 +3837,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Stretched all {targets.Count} tiles to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Stretched tile #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3859,7 +3859,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} chits to fit {ChitEditorWidth}×{ChitEditorHeight} px." : $"Shrunk chit #{SelectedChit.Index} to fit {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Shrunk all {targets.Count} tiles to fit {ChitEditorWidth}×{ChitEditorHeight} px." : $"Shrunk tile #{SelectedChit.Index} to fit {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -3881,7 +3881,7 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} chits to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for chit #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
+            StatusMessage = ApplyToAllChits ? $"Resized canvas for all {targets.Count} tiles to {ChitEditorWidth}×{ChitEditorHeight} px." : $"Resized canvas for tile #{SelectedChit.Index} to {ChitEditorWidth}×{ChitEditorHeight} px.";
         }
 
         #region Chit Directional Bump / Shift Commands
@@ -3938,8 +3938,8 @@ namespace pdf_to_Tiles.ViewModels
                        : $"{dy}px Down";
 
             StatusMessage = ApplyToAllChits
-                ? $"Bumped all {targets.Count} chits {dir}."
-                : $"Bumped chit #{SelectedChit.Index} {dir}.";
+                ? $"Bumped all {targets.Count} tiles {dir}."
+                : $"Bumped tile #{SelectedChit.Index} {dir}.";
         }
 
         #endregion
@@ -3962,7 +3962,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit?.WorkingMat == null) return;
             AutoSampleEdgeColorInternal(SelectedChit);
-            StatusMessage = $"Auto-sampled background color #{ChitEdgeCleanColor.R:X2}{ChitEdgeCleanColor.G:X2}{ChitEdgeCleanColor.B:X2} from chit #{SelectedChit.Index}.";
+            StatusMessage = $"Auto-sampled background color #{ChitEdgeCleanColor.R:X2}{ChitEdgeCleanColor.G:X2}{ChitEdgeCleanColor.B:X2} from tile #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -4014,8 +4014,8 @@ namespace pdf_to_Tiles.ViewModels
             SelectedChit.SetPreviewMat(null);
 
             StatusMessage = ApplyToAllChits
-                ? $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to all {targets.Count} chits."
-                : $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to chit #{SelectedChit.Index}.";
+                ? $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to all {targets.Count} tiles."
+                : $"Applied {SelectedEdgeCleanMode} edge clean (T:{ChitEdgeCleanTopDepth} B:{ChitEdgeCleanBottomDepth} L:{ChitEdgeCleanLeftDepth} R:{ChitEdgeCleanRightDepth} px) to tile #{SelectedChit.Index}.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -4046,7 +4046,7 @@ namespace pdf_to_Tiles.ViewModels
             IsCloneHovering = false;
             ClampCurrentEdgeCleanDepths();
             UpdateLiveChitPreview();
-            StatusMessage = $"Reset chit #{SelectedChit.Index} to original slice.";
+            StatusMessage = $"Reset tile #{SelectedChit.Index} to original slice.";
         }
 
         [RelayCommand]
@@ -4060,7 +4060,7 @@ namespace pdf_to_Tiles.ViewModels
                 chit.ResetToOriginal();
             }
             UpdateLiveChitPreview();
-            StatusMessage = $"Reset all {LoadedChits.Count} chits to original slices.";
+            StatusMessage = $"Reset all {LoadedChits.Count} tiles to original slices.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -4074,7 +4074,7 @@ namespace pdf_to_Tiles.ViewModels
 
             var saveFileDialog = new SaveFileDialog
             {
-                Title = "Save Chit as PNG",
+                Title = "Save Tile as PNG",
                 Filter = "PNG Image (*.png)|*.png",
                 DefaultExt = "png",
                 InitialDirectory = initialDir,
@@ -4084,7 +4084,7 @@ namespace pdf_to_Tiles.ViewModels
             if (saveFileDialog.ShowDialog() == true)
             {
                 Cv2.ImWrite(saveFileDialog.FileName, SelectedChit.WorkingMat);
-                StatusMessage = $"Saved chit #{SelectedChit.Index} ({SelectedChit.PieceName}) to {saveFileDialog.FileName}";
+                StatusMessage = $"Saved tile #{SelectedChit.Index} ({SelectedChit.PieceName}) to {saveFileDialog.FileName}";
             }
         }
 
@@ -4095,7 +4095,7 @@ namespace pdf_to_Tiles.ViewModels
 
             var folderDialog = new OpenFolderDialog
             {
-                Title = "Select Destination Folder for Edited PNG Chits",
+                Title = "Select Destination Folder for Edited PNG Tiles",
                 InitialDirectory = !string.IsNullOrEmpty(LoadedFilePath) ? Path.GetDirectoryName(LoadedFilePath) : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
             };
 
@@ -4121,7 +4121,7 @@ namespace pdf_to_Tiles.ViewModels
                 }
             });
 
-            StatusMessage = $"Successfully exported all {count} edited chits to: {targetDir}";
+            StatusMessage = $"Successfully exported all {count} edited tiles to: {targetDir}";
         }
 
         [RelayCommand]
