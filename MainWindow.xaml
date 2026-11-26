@@ -1428,7 +1428,24 @@
                                             <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 2: Shared Value + Steppers & Dynamic Action Button (Left) -->
+                                        <!-- Row 2: Mutually Exclusive Tool Radios (Bevel and Clip) -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <RadioButton Grid.Column="0" Content="Bevel" GroupName="SharedTileTool"
+                                                         IsChecked="{Binding IsBevelModeSelected}"
+                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                         ToolTip="Apply 3D raised gradient bevel around perimeter" />
+                                            <RadioButton Grid.Column="1" Content="Clip" GroupName="SharedTileTool"
+                                                         IsChecked="{Binding IsClipModeSelected}"
+                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                         ToolTip="Clip/round corners to transparent by specified pixels" />
+                                        </Grid>
+
+                                        <!-- Row 3: Shared Value + Steppers & Dynamic Action Buttons (Single + Batch) -->
                                         <Grid Margin="0,0,0,8">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <!-- Shared Value Display & Stepper Buttons -->
@@ -1446,73 +1463,22 @@
                                                     </StackPanel>
                                                 </Border>
 
-                                                <!-- Dynamic Action Button (Clip, Bevel, or Clear) moved left alongside Size row -->
+                                                <!-- Dynamic Action Button (Single Tile: Clip or Bevel) -->
                                                 <Button Content="{Binding SharedToolActionName}"
                                                         Command="{Binding ApplySharedToolCommand}"
-                                                        Width="66" Height="28"
+                                                        Width="68" Height="28"
+                                                        Margin="0,0,6,0"
                                                         Style="{StaticResource AccentButtonStyle}"
                                                         ToolTip="{Binding SharedToolActionToolTip}" />
+
+                                                <!-- Dynamic Batch Action Button (All Tiles: Clip All or Bevel All) -->
+                                                <Button Content="{Binding SharedToolBatchActionName}"
+                                                        Command="{Binding ApplySharedToolAllCommand}"
+                                                        IsEnabled="{Binding HasChitsLoaded}"
+                                                        Width="86" Height="28"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        ToolTip="{Binding SharedToolBatchActionToolTip}" />
                                             </StackPanel>
-                                        </Grid>
-
-                                        <!-- Row 3: Mutually Exclusive Tool Radios (Bevel, Clip, Clear) -->
-                                        <Grid Margin="0,0,0,6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <RadioButton Grid.Column="0" Content="Bevel" GroupName="SharedTileTool"
-                                                         IsChecked="{Binding IsBevelModeSelected}"
-                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                         ToolTip="Apply 3D raised gradient bevel around perimeter" />
-                                            <RadioButton Grid.Column="1" Content="Clip" GroupName="SharedTileTool"
-                                                         IsChecked="{Binding IsClipModeSelected}"
-                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                         ToolTip="Clip/round corners to transparent by specified pixels" />
-                                            <RadioButton Grid.Column="2" Content="Clear" GroupName="SharedTileTool"
-                                                         IsChecked="{Binding IsClearModeSelected}"
-                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                         ToolTip="Clear outer border to transparent key color" />
-                                        </Grid>
-
-                                        <!-- Row 4: Batch Action Buttons (Bevel All, Clip All, Clear All) -->
-                                        <Grid Margin="0,0,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Button Grid.Column="0"
-                                                    Content="Bevel All"
-                                                    Command="{Binding BevelAllCommand}"
-                                                    IsEnabled="{Binding HasChitsLoaded}"
-                                                    Height="28"
-                                                    FontSize="11"
-                                                    FontWeight="SemiBold"
-                                                    ToolTip="Apply current bevel size to all loaded tiles" />
-
-                                            <Button Grid.Column="2"
-                                                    Content="Clip All"
-                                                    Command="{Binding ClipAllCommand}"
-                                                    IsEnabled="{Binding HasChitsLoaded}"
-                                                    Height="28"
-                                                    FontSize="11"
-                                                    FontWeight="SemiBold"
-                                                    ToolTip="Apply current corner clip radius to all loaded tiles" />
-
-                                            <Button Grid.Column="4"
-                                                    Content="Clear All"
-                                                    Command="{Binding ClearAllCommand}"
-                                                    IsEnabled="{Binding HasChitsLoaded}"
-                                                    Height="28"
-                                                    FontSize="11"
-                                                    FontWeight="SemiBold"
-                                                    ToolTip="Apply current outer border clear to all loaded tiles" />
                                         </Grid>
 
                                         <!-- Row 4: Transparent Key Color (Left) + Reset Button (Right) -->

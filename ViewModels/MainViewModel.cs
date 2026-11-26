@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.4";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.5";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -629,7 +629,7 @@ namespace pdf_to_Tiles.ViewModels
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
                 BevelAllCommand.NotifyCanExecuteChanged();
                 ClipAllCommand.NotifyCanExecuteChanged();
-                ClearAllCommand.NotifyCanExecuteChanged();
+                ApplySharedToolAllCommand.NotifyCanExecuteChanged();
             };
 
             LoadRecentPdfs();
@@ -1094,7 +1094,7 @@ namespace pdf_to_Tiles.ViewModels
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
                 BevelAllCommand.NotifyCanExecuteChanged();
                 ClipAllCommand.NotifyCanExecuteChanged();
-                ClearAllCommand.NotifyCanExecuteChanged();
+                ApplySharedToolAllCommand.NotifyCanExecuteChanged();
 
                 // Explicit garbage collection to release unmanaged buffers
                 GC.Collect();
@@ -2478,9 +2478,9 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CopyChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(PasteChitCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplySharedToolCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplySharedToolAllCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyBevelCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
-        [NotifyCanExecuteChangedFor(nameof(ApplyClearCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyShrinkCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
@@ -2604,17 +2604,15 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private int _chitEditorClipSize = 4;
 
-        [ObservableProperty]
-        private int _chitEditorClearSize = 1;
-
-        // Shared Tool Mode (Clip, Bevel, Clear)
+        // Shared Tool Mode (Bevel or Clip)
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsClipModeSelected))]
         [NotifyPropertyChangedFor(nameof(IsBevelModeSelected))]
-        [NotifyPropertyChangedFor(nameof(IsClearModeSelected))]
         [NotifyPropertyChangedFor(nameof(SharedToolActionName))]
         [NotifyPropertyChangedFor(nameof(SharedToolActionToolTip))]
-        private string _selectedSharedToolMode = "Bevel"; // "Clip", "Bevel", "Clear"
+        [NotifyPropertyChangedFor(nameof(SharedToolBatchActionName))]
+        [NotifyPropertyChangedFor(nameof(SharedToolBatchActionToolTip))]
+        private string _selectedSharedToolMode = "Bevel"; // "Clip" or "Bevel"
 
         partial void OnSelectedSharedToolModeChanged(string value)
         {
@@ -2627,15 +2625,12 @@ namespace pdf_to_Tiles.ViewModels
                     }
                     SharedToolValue = ChitEditorClipSize;
                     break;
-                case "Bevel":
+                default:
                     if (ChitEditorBevelSize <= 0 && SelectedChit != null)
                     {
                         ChitEditorBevelSize = ChitEditorService.CalculateDefaultBevelSize(SelectedChit.PixelWidth, SelectedChit.PixelHeight);
                     }
                     SharedToolValue = ChitEditorBevelSize;
-                    break;
-                case "Clear":
-                    SharedToolValue = ChitEditorClearSize;
                     break;
             }
             UpdateLiveChitPreview();
@@ -2653,43 +2648,32 @@ namespace pdf_to_Tiles.ViewModels
             set { if (value) SelectedSharedToolMode = "Bevel"; }
         }
 
-        public bool IsClearModeSelected
-        {
-            get => SelectedSharedToolMode == "Clear";
-            set { if (value) SelectedSharedToolMode = "Clear"; }
-        }
+        public string SharedToolActionName => SelectedSharedToolMode == "Clip" ? "Clip" : "Bevel";
 
-        public string SharedToolActionName => SelectedSharedToolMode switch
-        {
-            "Bevel" => "Bevel",
-            "Clear" => "Clear",
-            _ => "Clip"
-        };
+        public string SharedToolActionToolTip => SelectedSharedToolMode == "Clip"
+            ? $"Clip {SharedToolValue}px corners with transparent key color"
+            : $"Apply {SharedToolValue}px 3D raised bevel around perimeter";
 
-        public string SharedToolActionToolTip => SelectedSharedToolMode switch
-        {
-            "Bevel" => $"Apply {SharedToolValue}px 3D raised bevel around perimeter",
-            "Clear" => $"Clear {SharedToolValue}px outer border to transparent key color",
-            _ => $"Clip {SharedToolValue}px corners with transparent key color"
-        };
+        public string SharedToolBatchActionName => SelectedSharedToolMode == "Clip" ? "Clip All" : "Bevel All";
+
+        public string SharedToolBatchActionToolTip => SelectedSharedToolMode == "Clip"
+            ? $"Apply {SharedToolValue}px corner clip to all loaded tiles"
+            : $"Apply {SharedToolValue}px 3D raised bevel to all loaded tiles";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SharedToolActionToolTip))]
+        [NotifyPropertyChangedFor(nameof(SharedToolBatchActionToolTip))]
         private int _sharedToolValue = 2;
 
         partial void OnSharedToolValueChanged(int value)
         {
-            switch (SelectedSharedToolMode)
+            if (SelectedSharedToolMode == "Clip")
             {
-                case "Clip":
-                    _chitEditorClipSize = value;
-                    break;
-                case "Bevel":
-                    _chitEditorBevelSize = value;
-                    break;
-                case "Clear":
-                    _chitEditorClearSize = value;
-                    break;
+                _chitEditorClipSize = value;
+            }
+            else
+            {
+                _chitEditorBevelSize = value;
             }
             UpdateLiveChitPreview();
         }
@@ -3593,20 +3577,30 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
 
-            switch (SelectedSharedToolMode)
+            if (SelectedSharedToolMode == "Clip")
             {
-                case "Clip":
-                    ChitEditorClipSize = SharedToolValue;
-                    ApplyClip();
-                    break;
-                case "Bevel":
-                    ChitEditorBevelSize = SharedToolValue;
-                    ApplyBevel();
-                    break;
-                case "Clear":
-                    ChitEditorClearSize = SharedToolValue;
-                    ApplyClear();
-                    break;
+                ChitEditorClipSize = SharedToolValue;
+                ApplyClip();
+            }
+            else
+            {
+                ChitEditorBevelSize = SharedToolValue;
+                ApplyBevel();
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void ApplySharedToolAll()
+        {
+            if (LoadedChits.Count == 0) return;
+
+            if (SelectedSharedToolMode == "Clip")
+            {
+                ClipAll();
+            }
+            else
+            {
+                BevelAll();
             }
         }
 
@@ -3699,27 +3693,6 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = ApplyToAllChits ? $"Applied {ChitEditorClipSize}px corner clip to all {targets.Count} tiles." : $"Applied {ChitEditorClipSize}px corner clip to tile #{SelectedChit.Index}.";
         }
 
-        [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private void ApplyClear()
-        {
-            if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-            Vec4b key = ColorToVec4b(TransparentColor);
-
-            foreach (var chit in targets)
-            {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                var cleared = ChitEditorService.ApplyClearBorder(chit.WorkingMat, ChitEditorClearSize, key);
-                chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
-            }
-            _lastCommittedSignature = null;
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            SelectedChit.SetPreviewMat(null);
-            UpdateLiveChitPreview();
-            StatusMessage = ApplyToAllChits ? $"Cleared {ChitEditorClearSize}px outer border on all {targets.Count} tiles." : $"Cleared {ChitEditorClearSize}px outer border on tile #{SelectedChit.Index}.";
-        }
-
         [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
         private void BevelAll()
         {
@@ -3784,39 +3757,6 @@ namespace pdf_to_Tiles.ViewModels
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
             StatusMessage = $"Applied {clipSize}px corner clip to all {count} loaded tiles.";
-        }
-
-        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
-        private void ClearAll()
-        {
-            if (LoadedChits.Count == 0) return;
-            int clearSize = SelectedSharedToolMode == "Clear" ? SharedToolValue : (ChitEditorClearSize > 0 ? ChitEditorClearSize : SharedToolValue);
-            if (clearSize <= 0) clearSize = 1;
-            Vec4b key = ColorToVec4b(TransparentColor);
-            int count = 0;
-
-            foreach (var chit in LoadedChits)
-            {
-                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
-
-                // Per-chit bounds clamping: clear buffer cannot exceed 1/3 of width or height
-                int clampedClear = Math.Clamp(clearSize, 1, Math.Min(chit.WorkingMat.Width / 3, chit.WorkingMat.Height / 3));
-                var cleared = ChitEditorService.ApplyClearBorder(chit.WorkingMat, clampedClear, key);
-                chit.UpdateWorkingMat(cleared, recordHistory: true, TransparentColor);
-                count++;
-            }
-
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            _lastCommittedSignature = null;
-            SelectedChit?.SetPreviewMat(null);
-            UpdateLiveChitPreview();
-            OnPropertyChanged(nameof(CanUndoChit));
-            OnPropertyChanged(nameof(CanRedoChit));
-            UndoChitCommand.NotifyCanExecuteChanged();
-            RedoChitCommand.NotifyCanExecuteChanged();
-            StatusMessage = $"Cleared {clearSize}px outer border on all {count} loaded tiles.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
