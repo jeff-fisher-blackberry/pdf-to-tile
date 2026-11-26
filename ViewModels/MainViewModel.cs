@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.11";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.12";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -501,6 +501,33 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             UpdateChitPreview();
+        }
+
+        // Slicer Overlay Color & Swatches
+        [ObservableProperty]
+        private Color _slicerOverlayColor = Color.FromRgb(239, 68, 68); // Red (#EF4444) default
+
+        public ObservableCollection<OverlayColorOption> AvailableOverlayColors { get; } = new()
+        {
+            new OverlayColorOption { Color = Color.FromRgb(239, 68, 68), Name = "Red", IsSelected = true },
+            new OverlayColorOption { Color = Color.FromRgb(255, 255, 255), Name = "White", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(0, 0, 0), Name = "Black", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(234, 179, 8), Name = "Yellow", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(34, 197, 94), Name = "Lime/Green", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(6, 182, 212), Name = "Cyan", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(59, 130, 246), Name = "Blue", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(217, 70, 239), Name = "Magenta", IsSelected = false }
+        };
+
+        [RelayCommand]
+        private void SelectOverlayColor(OverlayColorOption option)
+        {
+            if (option == null) return;
+            SlicerOverlayColor = option.Color;
+            foreach (var opt in AvailableOverlayColors)
+            {
+                opt.IsSelected = (opt == option);
+            }
         }
 
         // Column Divider Fine-Tuning
@@ -4228,5 +4255,17 @@ namespace pdf_to_Tiles.ViewModels
     {
         public string FilePath { get; set; } = string.Empty;
         public string DisplayName => !string.IsNullOrEmpty(FilePath) ? Path.GetFileName(FilePath) : string.Empty;
+    }
+
+    /// <summary>
+    /// Represents a selectable color swatch option for the grid overlay.
+    /// </summary>
+    public partial class OverlayColorOption : ObservableObject
+    {
+        public Color Color { get; init; }
+        public string Name { get; init; } = string.Empty;
+
+        [ObservableProperty]
+        private bool _isSelected;
     }
 }

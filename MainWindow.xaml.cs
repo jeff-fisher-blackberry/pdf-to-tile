@@ -78,6 +78,7 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.EffectiveBandRows):
                 case nameof(MainViewModel.EffectiveBandColumns):
                 case nameof(MainViewModel.IsDoubleWidthColumns):
+                case nameof(MainViewModel.SlicerOverlayColor):
                     UpdateGridOverlay();
                     break;
 
@@ -234,7 +235,7 @@ namespace pdf_to_Tiles
                         double abw = activeBand.Bounds.Width * imgW;
                         double abh = activeBand.Bounds.Height * imgH;
 
-                        var activeBrush = new SolidColorBrush(Color.FromRgb(2, 132, 199)); // #0284C7 Sky 600
+                        var activeBrush = new SolidColorBrush(vm.SlicerOverlayColor);
                         activeBrush.Freeze();
 
                         var activeRect = new Rectangle
@@ -242,7 +243,7 @@ namespace pdf_to_Tiles
                             Width = Math.Max(1, abw),
                             Height = Math.Max(1, abh),
                             Stroke = activeBrush,
-                            StrokeThickness = 3,
+                            StrokeThickness = 6,
                             StrokeDashArray = new DoubleCollection { 6, 3 }
                         };
                         Canvas.SetLeft(activeRect, abx);
@@ -263,7 +264,7 @@ namespace pdf_to_Tiles
                                 X2 = abx + abw,
                                 Y2 = activeSplitY,
                                 Stroke = activeBrush,
-                                StrokeThickness = 2,
+                                StrokeThickness = 4,
                                 StrokeDashArray = new DoubleCollection { 4, 3 }
                             };
                             SlicerGridCanvas.Children.Add(activeRowLine);
@@ -280,7 +281,7 @@ namespace pdf_to_Tiles
                                     X2 = abx + abw,
                                     Y2 = splitY,
                                     Stroke = activeBrush,
-                                    StrokeThickness = 2,
+                                    StrokeThickness = 4,
                                     StrokeDashArray = new DoubleCollection { 4, 3 }
                                 };
                                 SlicerGridCanvas.Children.Add(activeRowLine);
@@ -313,7 +314,7 @@ namespace pdf_to_Tiles
                                 X2 = divX,
                                 Y2 = aby + abh,
                                 Stroke = isSelectedDivider ? amberBrush : activeBrush,
-                                StrokeThickness = isSelectedDivider ? 3 : 1.5,
+                                StrokeThickness = isSelectedDivider ? 6 : 3,
                                 StrokeDashArray = isSelectedDivider ? null : new DoubleCollection { 4, 3 }
                             };
                             SlicerGridCanvas.Children.Add(colLine);
@@ -343,9 +344,9 @@ namespace pdf_to_Tiles
                             cellY2 = aby + (abh * ((pRow + 1) / (double)numRows));
                         }
 
-                        var previewCellBrush = new SolidColorBrush(Color.FromArgb(45, 239, 68, 68)); // Translucent Red
+                        var previewCellBrush = new SolidColorBrush(Color.FromArgb(55, vm.SlicerOverlayColor.R, vm.SlicerOverlayColor.G, vm.SlicerOverlayColor.B));
                         previewCellBrush.Freeze();
-                        var previewCellBorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Solid Red
+                        var previewCellBorderBrush = new SolidColorBrush(vm.SlicerOverlayColor);
                         previewCellBorderBrush.Freeze();
 
                         var cellHighlight = new Rectangle
@@ -354,7 +355,7 @@ namespace pdf_to_Tiles
                             Height = Math.Max(1, cellY2 - cellY1),
                             Fill = previewCellBrush,
                             Stroke = previewCellBorderBrush,
-                            StrokeThickness = 2
+                            StrokeThickness = 4
                         };
                         Canvas.SetLeft(cellHighlight, cellX1);
                         Canvas.SetTop(cellHighlight, cellY1);
@@ -369,7 +370,7 @@ namespace pdf_to_Tiles
                     double h = (vm.GridHeightPercent / 100.0) * imgH;
 
                     // Outer bounding box
-                    var borderBrush = new SolidColorBrush(Color.FromRgb(2, 132, 199)); // #0284C7 Sky 600
+                    var borderBrush = new SolidColorBrush(vm.SlicerOverlayColor);
                     borderBrush.Freeze();
 
                     var outerRect = new Rectangle
@@ -377,7 +378,7 @@ namespace pdf_to_Tiles
                         Width = Math.Max(1, w),
                         Height = Math.Max(1, h),
                         Stroke = borderBrush,
-                        StrokeThickness = 3,
+                        StrokeThickness = 6,
                         StrokeDashArray = new DoubleCollection { 6, 3 }
                     };
                     Canvas.SetLeft(outerRect, x);
@@ -385,7 +386,7 @@ namespace pdf_to_Tiles
                     SlicerGridCanvas.Children.Add(outerRect);
 
                     // Internal row and column grid lines
-                    var gridLineBrush = new SolidColorBrush(Color.FromArgb(180, 2, 132, 199));
+                    var gridLineBrush = new SolidColorBrush(Color.FromArgb(180, vm.SlicerOverlayColor.R, vm.SlicerOverlayColor.G, vm.SlicerOverlayColor.B));
                     gridLineBrush.Freeze();
 
                     double cellW = w / vm.ProfileColumns;
@@ -401,7 +402,7 @@ namespace pdf_to_Tiles
                             X2 = lineX,
                             Y2 = y + h,
                             Stroke = gridLineBrush,
-                            StrokeThickness = 1,
+                            StrokeThickness = 2,
                             StrokeDashArray = new DoubleCollection { 4, 3 }
                         };
                         SlicerGridCanvas.Children.Add(vLine);
@@ -417,7 +418,7 @@ namespace pdf_to_Tiles
                             X2 = x + w,
                             Y2 = lineY,
                             Stroke = gridLineBrush,
-                            StrokeThickness = 1,
+                            StrokeThickness = 2,
                             StrokeDashArray = new DoubleCollection { 4, 3 }
                         };
                         SlicerGridCanvas.Children.Add(hLine);

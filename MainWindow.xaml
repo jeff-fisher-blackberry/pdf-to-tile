@@ -767,8 +767,28 @@
                                     <StackPanel>
                                         <TextBlock Text="Rows and Columns" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
 
+                                        <!-- Corner crosshair pickers: Upper-Left & Lower-Right directly under Rows and Columns header -->
+                                        <Grid Margin="0,4,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0" Content="Set upper-left"
+                                                      IsChecked="{Binding IsSettingUpperLeftCorner, Mode=TwoWay}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip="When checked, click the counter sheet to set the upper-left (X, Y) corner of the band" />
+                                            <CheckBox Grid.Column="1" Content="Set lower-right"
+                                                      IsChecked="{Binding IsSettingLowerRightCorner, Mode=TwoWay}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip="When checked, click the counter sheet to set the lower-right (X, Y) corner of the band" />
+                                        </Grid>
+
                                         <!-- Numeric [Columns] x [Row] Inputs (Default 2 x 10) with Set Button & Front/Back Radios -->
-                                        <Grid Margin="0,4,0,8">
+                                        <Grid Margin="0,2,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
@@ -826,8 +846,74 @@
                                         <!-- Double Width Columns Checkbox -->
                                         <CheckBox Content="Double Width Columns"
                                                   IsChecked="{Binding IsDoubleWidthColumns}"
-                                                  Margin="0,2,0,4"
+                                                  Margin="0,0,0,6"
                                                   ToolTip="Double width columns (~2x) for wide counters (e.g. 5 columns instead of 10)" />
+
+                                        <!-- 8-Color Swatch Picker for Overlay Border & Active-Tile Shading -->
+                                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="4,3"
+                                                Margin="0,0,0,6"
+                                                Background="{DynamicResource ViewportBackgroundBrush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="Color:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+
+                                                <ItemsControl Grid.Column="1" ItemsSource="{Binding AvailableOverlayColors}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <UniformGrid Rows="1" Columns="8" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Width="20" Height="20" Margin="1,0"
+                                                                    Padding="0"
+                                                                    Cursor="Hand"
+                                                                    Command="{Binding DataContext.SelectOverlayColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    ToolTip="{Binding Name}">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border x:Name="border"
+                                                                                CornerRadius="3"
+                                                                                Background="{Binding Color, Converter={StaticResource ColorToBrush}}"
+                                                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                                                BorderThickness="1">
+                                                                            <Ellipse x:Name="indicator"
+                                                                                     Width="6" Height="6"
+                                                                                     HorizontalAlignment="Center"
+                                                                                     VerticalAlignment="Center"
+                                                                                     Fill="#000000"
+                                                                                     Visibility="Collapsed" />
+                                                                        </Border>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                <Setter TargetName="border" Property="BorderThickness" Value="2" />
+                                                                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                                <Setter TargetName="indicator" Property="Visibility" Value="Visible" />
+                                                                            </DataTrigger>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                                                                                    <Condition Binding="{Binding Name}" Value="Black" />
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter TargetName="indicator" Property="Fill" Value="#FFFFFF" />
+                                                                            </MultiDataTrigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+                                        </Border>
 
                                         <!-- Underlying divider fine-tuning controls preserved for commands and bindings -->
                                         <StackPanel Visibility="Collapsed">
@@ -840,27 +926,6 @@
                                                       SelectedIndex="{Binding SelectedDividerIndex}" />
                                             <Button Content="Reset" Command="{Binding ResetDividersToEvenCommand}" />
                                         </StackPanel>
-
-
-                                        <!-- Corner crosshair pickers: Upper-Left & Lower-Right -->
-                                        <Grid Margin="0,4,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" Content="Set upper-left"
-                                                      IsChecked="{Binding IsSettingUpperLeftCorner, Mode=TwoWay}"
-                                                      FontWeight="SemiBold"
-                                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                                      VerticalAlignment="Center"
-                                                      ToolTip="When checked, click the counter sheet to set the upper-left (X, Y) corner of the 2×10 band" />
-                                            <CheckBox Grid.Column="1" Content="Set lower-right"
-                                                      IsChecked="{Binding IsSettingLowerRightCorner, Mode=TwoWay}"
-                                                      FontWeight="SemiBold"
-                                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                                      VerticalAlignment="Center"
-                                                      ToolTip="When checked, click the counter sheet to set the lower-right (X, Y) corner of the 2×10 band" />
-                                        </Grid>
 
                                         <!-- Band Left (X) -->
                                         <Grid Margin="0,2">
