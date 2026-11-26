@@ -96,10 +96,17 @@
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                </Trigger>
+                <!-- Disabled: Neutral Grey Style (Not Blue) -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ViewportBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>

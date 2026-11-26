@@ -101,6 +101,7 @@ namespace pdf_to_Tiles.ViewModels
         private int _selectedDpi = 600;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsFrontOrBackTagSelected))]
         [NotifyPropertyChangedFor(nameof(CanSendPageToSlicer))]
         [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
         private string _selectedSideTag = "Page";
@@ -113,9 +114,13 @@ namespace pdf_to_Tiles.ViewModels
         public IReadOnlyList<int> AvailableDpis { get; } = new List<int> { 300, 450, 600 };
         public IReadOnlyList<string> AvailableSideTags { get; } = new List<string> { "Page", "Front", "Back" };
 
+        public bool IsFrontOrBackTagSelected =>
+            string.Equals(SelectedSideTag, "Front", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(SelectedSideTag, "Back", StringComparison.OrdinalIgnoreCase);
+
         public string ZoomPercentageText => $"{Math.Round(ZoomScale * 100)}%";
         public bool HasLoadedPdf => _pdfBytes != null && _pdfBytes.Length > 0 && TotalPages > 0;
-        public bool CanSendPageToSlicer => !IsLoading && HasLoadedPdf && HasExplicitlyPickedPage;
+        public bool CanSendPageToSlicer => !IsLoading && HasLoadedPdf && HasExplicitlyPickedPage && IsFrontOrBackTagSelected;
         public bool HasChitsLoaded => LoadedChits.Count > 0;
         public bool HasActiveDocument => HasLoadedPdf || HasSlicerImage || HasChitsLoaded;
         public bool CanUndoChit => SelectedChit?.CanUndo ?? false;
@@ -831,6 +836,9 @@ namespace pdf_to_Tiles.ViewModels
             {
                 HasExplicitlyPickedPage = true;
             }
+            OnPropertyChanged(nameof(IsFrontOrBackTagSelected));
+            OnPropertyChanged(nameof(CanSendPageToSlicer));
+            SendPageToSlicerCommand.NotifyCanExecuteChanged();
         }
 
         [RelayCommand(CanExecute = nameof(CanExecuteActions))]
@@ -902,6 +910,7 @@ namespace pdf_to_Tiles.ViewModels
                     AddRecentPdf(selectedPath);
                     SelectedTabIndex = 0; // Ensure Tab 1 is active
                     CurrentPageNumber = 1;
+                    SelectedSideTag = "Page";
                     await LoadPageAsync(1);
                     HasExplicitlyPickedPage = false;
                 }
@@ -1124,6 +1133,7 @@ namespace pdf_to_Tiles.ViewModels
                 CurrentPageImage = null;
                 TotalPages = 0;
                 CurrentPageNumber = 0;
+                SelectedSideTag = "Page";
                 HasExplicitlyPickedPage = false;
                 PagePixelWidth = 0;
                 PagePixelHeight = 0;
