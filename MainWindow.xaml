@@ -133,17 +133,10 @@
                 <MenuItem Header="_File">
                     <MenuItem Header="_Open PDF Document..."
                               InputGestureText="Ctrl+O"
-                              Command="{Binding OpenPdfCommand}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              Command="{Binding OpenPdfCommand}" />
                     <MenuItem Header="_Recent"
                               ItemsSource="{Binding RecentPdfs}"
                               IsEnabled="{Binding HasRecentPdfs}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="🕒" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
                         <MenuItem.ItemContainerStyle>
                             <Style TargetType="MenuItem">
                                 <Setter Property="Header" Value="{Binding DisplayName}" />
@@ -155,60 +148,32 @@
                     </MenuItem>
                     <MenuItem Header="Open _Counter Sheet Image..."
                               InputGestureText="Ctrl+Shift+O"
-                              Command="{Binding OpenImageForSlicingCommand}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="🖼" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              Command="{Binding OpenImageForSlicingCommand}" />
                     <Separator />
                     <MenuItem Header="_Close Active Document"
                               InputGestureText="Ctrl+W"
                               Command="{Binding CloseDocumentCommand}"
-                              IsEnabled="{Binding HasActiveDocument}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="✕" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasActiveDocument}" />
                     <Separator />
                     <MenuItem Header="Export Captured _Page to PNG..."
                               InputGestureText="Ctrl+E"
                               Command="{Binding ExportPageToPngCommand}"
-                              IsEnabled="{Binding HasLoadedPdf}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasLoadedPdf}" />
                     <MenuItem Header="Export Sliced _Grid Pieces..."
                               Command="{Binding SliceGridCommand}"
-                              IsEnabled="{Binding HasSlicerImage}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasSlicerImage}" />
                     <MenuItem Header="Export _Active Chit to PNG..."
                               InputGestureText="Ctrl+S"
                               Command="{Binding ExportSelectedChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasSelectedChit}" />
                     <MenuItem Header="Export _All 20 Chits to PNG..."
                               InputGestureText="Ctrl+Shift+S"
                               Command="{Binding ExportAllEditedChitsCommand}"
-                              IsEnabled="{Binding HasChitsLoaded}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="💾" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasChitsLoaded}" />
                     <Separator />
                     <MenuItem Header="E_xit"
                               InputGestureText="Alt+F4"
-                              Command="{Binding ExitApplicationCommand}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="🚪" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              Command="{Binding ExitApplicationCommand}" />
                 </MenuItem>
 
                 <!-- EDIT MENU -->
@@ -216,44 +181,24 @@
                     <MenuItem Header="_Undo Chit Action"
                               InputGestureText="Ctrl+Z"
                               Command="{Binding UndoChitCommand}"
-                              IsEnabled="{Binding CanUndoChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="↩" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding CanUndoChit}" />
                     <MenuItem Header="_Redo Chit Action"
                               InputGestureText="Ctrl+Y"
                               Command="{Binding RedoChitCommand}"
-                              IsEnabled="{Binding CanRedoChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="↪" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding CanRedoChit}" />
                     <Separator />
                     <MenuItem Header="Cu_t Active Chit"
                               InputGestureText="Ctrl+X"
                               Command="{Binding CutChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="✂" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasSelectedChit}" />
                     <MenuItem Header="_Copy Active Chit"
                               InputGestureText="Ctrl+C"
                               Command="{Binding CopyChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="📋" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasSelectedChit}" />
                     <MenuItem Header="_Paste Image to Chit"
                               InputGestureText="Ctrl+V"
                               Command="{Binding PasteChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="📥" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              IsEnabled="{Binding HasSelectedChit}" />
                     <Separator />
                     <MenuItem Header="Reset _Current Chit to Original"
                               Command="{Binding ResetSelectedChitCommand}"
@@ -271,27 +216,15 @@
                     <MenuItem Header="PDF _Viewer &amp; Page Capture"
                               InputGestureText="Ctrl+1"
                               Command="{Binding SwitchTabCommand}"
-                              CommandParameter="0">
-                        <MenuItem.Icon>
-                            <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              CommandParameter="0" />
                     <MenuItem Header="_Deskew &amp; Grid Slicer"
                               InputGestureText="Ctrl+2"
                               Command="{Binding SwitchTabCommand}"
-                              CommandParameter="1">
-                        <MenuItem.Icon>
-                            <TextBlock Text="📐" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              CommandParameter="1" />
                     <MenuItem Header="_Chit Editor"
                               InputGestureText="Ctrl+3"
                               Command="{Binding SwitchTabCommand}"
-                              CommandParameter="2">
-                        <MenuItem.Icon>
-                            <TextBlock Text="✂" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              CommandParameter="2" />
                     <Separator />
                     <MenuItem Header="Fit to _Width"
                               Command="{Binding FitWidthCommand}" />
@@ -305,18 +238,10 @@
                 <MenuItem Header="_Help">
                     <MenuItem Header="_Keyboard Shortcuts Reference..."
                               InputGestureText="F1"
-                              Command="{Binding ShowShortcutsCommand}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="⌨" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              Command="{Binding ShowShortcutsCommand}" />
                     <Separator />
                     <MenuItem Header="_About PDF to Tiles..."
-                              Command="{Binding ShowAboutCommand}">
-                        <MenuItem.Icon>
-                            <TextBlock Text="ℹ" FontSize="14" VerticalAlignment="Center" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                              Command="{Binding ShowAboutCommand}" />
                 </MenuItem>
             </Menu>
 
