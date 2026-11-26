@@ -160,6 +160,22 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Rotates the image 90 degrees in the specified direction (lossless, orthogonal swap of width/height).
+        /// Guards against invalid dimensions (Width >= 8 && Height >= 8) and preserves channel format.
+        /// </summary>
+        public static Mat Rotate90(Mat srcMat, bool clockwise)
+        {
+            if (srcMat == null || srcMat.IsDisposed || srcMat.Width < 8 || srcMat.Height < 8)
+            {
+                throw new ArgumentException("Invalid Mat for 90 degree rotation.", nameof(srcMat));
+            }
+
+            var dst = new Mat();
+            Cv2.Rotate(srcMat, dst, clockwise ? RotateFlags.Rotate90Clockwise : RotateFlags.Rotate90Counterclockwise);
+            return dst;
+        }
+
+        /// <summary>
         /// Encodes an OpenCV Mat into a frozen WPF BitmapSource for UI preview.
         /// </summary>
         public static BitmapSource MatToBitmapSource(Mat mat)

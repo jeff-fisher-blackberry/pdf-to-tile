@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.2";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.3";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -126,6 +126,8 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(SliceAllBandsCommand))]
         [NotifyCanExecuteChangedFor(nameof(SliceActiveBandCommand))]
         [NotifyCanExecuteChangedFor(nameof(SendBandToChitEditorCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RotateLeft90Command))]
+        [NotifyCanExecuteChangedFor(nameof(RotateRight90Command))]
         private BitmapSource? _slicerImage;
 
         [ObservableProperty]
@@ -1086,6 +1088,8 @@ namespace pdf_to_Tiles.ViewModels
                 CloseDocumentCommand.NotifyCanExecuteChanged();
                 ExportPageToPngCommand.NotifyCanExecuteChanged();
                 SliceGridCommand.NotifyCanExecuteChanged();
+                RotateLeft90Command.NotifyCanExecuteChanged();
+                RotateRight90Command.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
                 BevelAllCommand.NotifyCanExecuteChanged();
@@ -1268,11 +1272,16 @@ namespace pdf_to_Tiles.ViewModels
                     _masterMat?.Dispose();
                     _deskewedMat?.Dispose();
 
-                    _masterMat = Cv2.ImRead(filePath, ImreadModes.Color);
+                    _masterMat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
+                    if (_masterMat == null || _masterMat.Empty())
+                    {
+                        _masterMat = Cv2.ImRead(filePath, ImreadModes.Color);
+                    }
                     if (_masterMat == null || _masterMat.Empty())
                     {
                         throw new InvalidOperationException("Failed to read image buffer.");
                     }
+                    _masterMat = EnsureBgraMat(_masterMat);
 
                     if (isTempFile)
                     {
@@ -1297,6 +1306,8 @@ namespace pdf_to_Tiles.ViewModels
                 SlicerPixelHeight = _masterMat!.Height;
 
                 DeskewAngle = 0.0;
+                RotateLeft90Command.NotifyCanExecuteChanged();
+                RotateRight90Command.NotifyCanExecuteChanged();
                 await ApplyDeskewRotationAsync();
                 SyncFromActiveBand();
 
@@ -1985,6 +1996,130 @@ namespace pdf_to_Tiles.ViewModels
         private void ResetAngle()
         {
             DeskewAngle = 0.0;
+        }
+
+        [RelayCommand(CanExecute = nameof(HasSlicerImage))]
+        private async Task RotateLeft90Async()
+        {
+            await RotateSheet90Async(clockwise: false);
+        }
+
+        [RelayCommand(CanExecute = nameof(HasSlicerImage))]
+        private async Task RotateRight90Async()
+        {
+            await RotateSheet90Async(clockwise: true);
+        }
+
+        private async Task RotateSheet90Async(bool clockwise)
+        {
+            if (_masterMat == null || _masterMat.IsDisposed || _masterMat.Width < 8 || _masterMat.Height < 8)
+            {
+                return;
+            }
+
+            IsLoading = true;
+            string dirName = clockwise ? "clockwise" : "counter-clockwise";
+            StatusMessage = $"Rotating sheet 90° {dirName}...";
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    var rotated = DeskewService.Rotate90(_masterMat, clockwise);
+                    _masterMat.Dispose();
+                    _masterMat = rotated;
+                });
+
+                SlicerPixelWidth = _masterMat.Width;
+                SlicerPixelHeight = _masterMat.Height;
+
+                // Re-fit / clamp band bounds within new rotated dimensions
+                ClampBandsToDimensions(SlicerPixelWidth, SlicerPixelHeight);
+
+                // Apply deskew (retains any fine angle on top of new 90° orientation)
+                await ApplyDeskewRotationAsync();
+
+                // Refresh active band UI properties and previews
+                SyncFromActiveBand();
+
+                // Recalculate zoom if fit-to-width or fit-to-view is active
+                if (IsSlicerFitToWidth && GetSlicerViewportSize != null)
+                {
+                    var (vWidth, _) = GetSlicerViewportSize();
+                    if (vWidth > 0) RecalculateSlicerFitToWidth(vWidth);
+                }
+                else if (IsSlicerFitToPage && GetSlicerViewportSize != null)
+                {
+                    var (vWidth, vHeight) = GetSlicerViewportSize();
+                    if (vWidth > 0 && vHeight > 0) RecalculateSlicerFitToPage(vWidth, vHeight);
+                }
+
+                StatusMessage = $"Rotated sheet 90° {dirName} ({SlicerPixelWidth} × {SlicerPixelHeight} px).";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Sheet rotation error: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        private void ClampBandsToDimensions(int width, int height)
+        {
+            if (width < 8 || height < 8) return;
+
+            if (SelectedProfile != null)
+            {
+                var allBands = (SelectedProfile.FrontBands ?? Enumerable.Empty<Band2x10Definition>())
+                    .Concat(SelectedProfile.BackBands ?? Enumerable.Empty<Band2x10Definition>());
+                foreach (var b in allBands)
+                {
+                    if (b?.Bounds == null) continue;
+                    int bLeft = (int)Math.Round(b.Bounds.Left * width);
+                    int bTop = (int)Math.Round(b.Bounds.Top * height);
+                    int bWidth = (int)Math.Round(b.Bounds.Width * width);
+                    int bHeight = (int)Math.Round(b.Bounds.Height * height);
+
+                    bLeft = Math.Clamp(bLeft, 0, Math.Max(0, width - 20));
+                    bTop = Math.Clamp(bTop, 0, Math.Max(0, height - 4));
+                    bWidth = Math.Clamp(bWidth, 20, Math.Max(20, width - bLeft));
+                    bHeight = Math.Clamp(bHeight, 4, Math.Max(4, height - bTop));
+
+                    b.Bounds.Left = Math.Clamp((double)bLeft / width, 0.0, 0.9999);
+                    b.Bounds.Top = Math.Clamp((double)bTop / height, 0.0, 0.9999);
+                    b.Bounds.Width = Math.Clamp((double)bWidth / width, 20.0 / width, 1.0 - b.Bounds.Left);
+                    b.Bounds.Height = Math.Clamp((double)bHeight / height, 4.0 / height, 1.0 - b.Bounds.Top);
+                }
+
+                if (SelectedProfile.FrontBounds != null)
+                {
+                    ClampGridBounds(SelectedProfile.FrontBounds, width, height);
+                }
+                if (SelectedProfile.BackBounds != null)
+                {
+                    ClampGridBounds(SelectedProfile.BackBounds, width, height);
+                }
+            }
+        }
+
+        private static void ClampGridBounds(GridRelativeBounds bounds, int width, int height)
+        {
+            int bLeft = (int)Math.Round(bounds.Left * width);
+            int bTop = (int)Math.Round(bounds.Top * height);
+            int bWidth = (int)Math.Round(bounds.Width * width);
+            int bHeight = (int)Math.Round(bounds.Height * height);
+
+            bLeft = Math.Clamp(bLeft, 0, Math.Max(0, width - 20));
+            bTop = Math.Clamp(bTop, 0, Math.Max(0, height - 4));
+            bWidth = Math.Clamp(bWidth, 20, Math.Max(20, width - bLeft));
+            bHeight = Math.Clamp(bHeight, 4, Math.Max(4, height - bTop));
+
+            bounds.Left = Math.Clamp((double)bLeft / width, 0.0, 0.9999);
+            bounds.Top = Math.Clamp((double)bTop / height, 0.0, 0.9999);
+            bounds.Width = Math.Clamp((double)bWidth / width, 20.0 / width, 1.0 - bounds.Left);
+            bounds.Height = Math.Clamp((double)bHeight / height, 4.0 / height, 1.0 - bounds.Top);
         }
 
         private void UpdateChitPreview()
