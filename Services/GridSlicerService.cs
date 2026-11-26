@@ -259,7 +259,7 @@ namespace pdf_to_Tiles.Services
                     }
                     dividers.Add(1.0);
 
-                    int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
+                    bool isBack = side.Equals("Back", StringComparison.OrdinalIgnoreCase);
 
                     for (int r = 0; r < effectiveRows; r++)
                     {
@@ -277,9 +277,12 @@ namespace pdf_to_Tiles.Services
                             rowHeight = Math.Max(1, nextY - rowTop);
                         }
 
-                        for (int c = 0; c < effectiveCols; c++)
+                        for (int colStep = 0; colStep < effectiveCols; colStep++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
+
+                            // Front: left-to-right (0 to cols-1). Back: right-to-left (cols-1 down to 0)
+                            int c = isBack ? (effectiveCols - 1 - colStep) : colStep;
 
                             double leftRatio = dividers[c];
                             double rightRatio = dividers[c + 1];
@@ -288,10 +291,11 @@ namespace pdf_to_Tiles.Services
                             int colRight = bandX + (int)Math.Round(rightRatio * bandW);
                             int colWidth = colRight - colLeft;
 
-                            int cellX = colLeft + inset;
-                            int cellY = rowTop + inset;
-                            int pieceW = colWidth - (2 * inset);
-                            int pieceH = rowHeight - (2 * inset);
+                            // Slicing uses grid boundaries directly without bleed inset
+                            int cellX = colLeft;
+                            int cellY = rowTop;
+                            int pieceW = colWidth;
+                            int pieceH = rowHeight;
 
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
                             cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));
@@ -299,30 +303,8 @@ namespace pdf_to_Tiles.Services
                             pieceH = Math.Max(1, Math.Min(pieceH, masterMat.Height - cellY));
 
                             int globalRow = (b * effectiveRows) + r + 1;
-                            int mappedCol = c;
-                            int mappedRow = globalRow;
-
-                            if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
-                            {
-                                switch (profile.BackOrientation)
-                                {
-                                    case BackOrientationMode.HorizontalFlip:
-                                        mappedCol = (effectiveCols - 1) - c;
-                                        break;
-                                    case BackOrientationMode.VerticalFlip:
-                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
-                                        break;
-                                    case BackOrientationMode.Rotate180:
-                                        mappedCol = (effectiveCols - 1) - c;
-                                        mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
-                                        break;
-                                    case BackOrientationMode.Direct:
-                                    default:
-                                        break;
-                                }
-                            }
-
-                            string filename = $"{prefix}_R{mappedRow:D2}_C{mappedCol + 1:D2}_{side}.png";
+                            // File naming preserves sequential tile number matching front tiles
+                            string filename = $"{prefix}_R{globalRow:D2}_C{currentPiece + 1:D2}_{side}.png";
 
                             if (pieceW > 0 && pieceH > 0)
                             {
@@ -571,8 +553,6 @@ namespace pdf_to_Tiles.Services
             int xRight = xStart + (int)Math.Round(dividers[c + 1] * wTotal);
             int colW = Math.Max(1, xRight - xLeft);
 
-            int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
-
             // Clamp
             int cellX = Math.Max(0, Math.Min(xLeft, masterMat.Width - 1));
             int cellY = Math.Max(0, Math.Min(rowY, masterMat.Height - 1));
@@ -582,15 +562,7 @@ namespace pdf_to_Tiles.Services
             Rect cellRoi = new Rect(cellX, cellY, cellWidthInt, cellHeightInt);
             using var cellMat = new Mat(masterMat, cellRoi);
 
-            // Create a preview copy and draw inset guideline (red rectangle)
-            var previewMat = cellMat.Clone();
-            if (inset > 0 && cellWidthInt > 2 * inset && cellHeightInt > 2 * inset)
-            {
-                Rect insetRect = new Rect(inset, inset, cellWidthInt - 2 * inset, cellHeightInt - 2 * inset);
-                Cv2.Rectangle(previewMat, insetRect, new Scalar(0, 0, 255), thickness: 2); // Red border showing crop line
-            }
-
-            return previewMat;
+            return cellMat.Clone();
         }
 
         /// <summary>

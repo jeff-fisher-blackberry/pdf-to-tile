@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.7";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.8";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -467,9 +467,7 @@ namespace pdf_to_Tiles.ViewModels
             }
             else
             {
-                int effectiveCols = EffectiveBandColumns;
-                PreviewRowIndex = (PreviewChitNumber - 1) / effectiveCols;
-                PreviewColIndex = (PreviewChitNumber - 1) % effectiveCols;
+                SyncPreviewRowColFromChitNumber(PreviewChitNumber);
             }
 
             UpdateChitPreview();
@@ -563,10 +561,9 @@ namespace pdf_to_Tiles.ViewModels
             {
                 if (IsBandedMode)
                 {
-                    int cols = EffectiveBandColumns;
                     int total = TotalBandChits;
-                    int row = ((PreviewChitNumber - 1) / cols) + 1;
-                    int col = ((PreviewChitNumber - 1) % cols) + 1;
+                    int row = PreviewRowIndex + 1;
+                    int col = PreviewColIndex + 1;
                     return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col}";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
@@ -577,7 +574,21 @@ namespace pdf_to_Tiles.ViewModels
         private double _inwardInsetPx = 4.0;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsFrontSide))]
+        [NotifyPropertyChangedFor(nameof(IsBackSide))]
         private string _selectedSide = "Front";
+
+        public bool IsFrontSide
+        {
+            get => SelectedSide.Equals("Front", StringComparison.OrdinalIgnoreCase);
+            set { if (value) SelectedSide = "Front"; }
+        }
+
+        public bool IsBackSide
+        {
+            get => SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase);
+            set { if (value) SelectedSide = "Back"; }
+        }
 
         [ObservableProperty]
         private BackOrientationMode _selectedOrientation = BackOrientationMode.HorizontalFlip;
@@ -1532,6 +1543,11 @@ namespace pdf_to_Tiles.ViewModels
 
                 SyncFromActiveBand();
             }
+
+            // Re-sync row/col from current PreviewChitNumber under new side ordering
+            SyncPreviewRowColFromChitNumber(PreviewChitNumber);
+            OnPropertyChanged(nameof(PreviewCellText));
+            UpdateChitPreview();
         }
 
         partial void OnDeskewAngleChanged(double value)
@@ -1606,6 +1622,21 @@ namespace pdf_to_Tiles.ViewModels
         partial void OnPreviewRowIndexChanged(int value) => UpdateChitPreview();
         partial void OnPreviewColIndexChanged(int value) => UpdateChitPreview();
 
+        private void SyncPreviewRowColFromChitNumber(int chitNumber)
+        {
+            int total = TotalBandChits;
+            int clamped = Math.Clamp(chitNumber, 1, Math.Max(1, total));
+            int cols = EffectiveBandColumns;
+            int r = (clamped - 1) / cols;
+            int colIndexInRow = (clamped - 1) % cols;
+            int c = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                ? (cols - 1 - colIndexInRow)
+                : colIndexInRow;
+
+            PreviewRowIndex = r;
+            PreviewColIndex = c;
+        }
+
         partial void OnPreviewChitNumberChanged(int value)
         {
             int total = TotalBandChits;
@@ -1616,11 +1647,7 @@ namespace pdf_to_Tiles.ViewModels
                 return;
             }
 
-            int cols = EffectiveBandColumns;
-            _previewRowIndex = (clamped - 1) / cols;
-            _previewColIndex = (clamped - 1) % cols;
-            OnPropertyChanged(nameof(PreviewRowIndex));
-            OnPropertyChanged(nameof(PreviewColIndex));
+            SyncPreviewRowColFromChitNumber(clamped);
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
         }

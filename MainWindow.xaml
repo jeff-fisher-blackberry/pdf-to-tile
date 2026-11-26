@@ -762,36 +762,61 @@
                                     <StackPanel>
                                         <TextBlock Text="Columns and Row" Style="{StaticResource SectionHeaderStyle}" />
 
-                                        <!-- Numeric [Columns] x [Row] Inputs (Default 2 x 10) with Set Button -->
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,0,8">
-                                            <TextBox Text="{Binding PendingBandBox1, UpdateSourceTrigger=PropertyChanged}"
-                                                     KeyDown="BandDimensionTextBox_KeyDown"
-                                                     Width="44"
-                                                     Height="24"
-                                                     TextAlignment="Center"
-                                                     VerticalContentAlignment="Center"
-                                                     ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
-                                            <TextBlock Text=" x "
-                                                       VerticalAlignment="Center"
-                                                       Margin="6,0"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="13"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <TextBox Text="{Binding PendingBandBox2, UpdateSourceTrigger=PropertyChanged}"
-                                                     KeyDown="BandDimensionTextBox_KeyDown"
-                                                     Width="44"
-                                                     Height="24"
-                                                     TextAlignment="Center"
-                                                     VerticalContentAlignment="Center"
-                                                     ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
-                                            <Button Content="Set"
-                                                    Command="{Binding SetBandDimensionsCommand}"
-                                                    Width="44"
-                                                    Height="24"
-                                                    Margin="8,0,0,0"
-                                                    Padding="0"
-                                                    ToolTip="Apply the configured Columns and Row dimensions to the band and grid" />
-                                        </StackPanel>
+                                        <!-- Numeric [Columns] x [Row] Inputs (Default 2 x 10) with Set Button & Front/Back Radios -->
+                                        <Grid Margin="0,4,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Columns x Row Inputs with Set Button -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBox Text="{Binding PendingBandBox1, UpdateSourceTrigger=PropertyChanged}"
+                                                         KeyDown="BandDimensionTextBox_KeyDown"
+                                                         Width="44"
+                                                         Height="24"
+                                                         TextAlignment="Center"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
+                                                <TextBlock Text=" x "
+                                                           VerticalAlignment="Center"
+                                                           Margin="6,0"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <TextBox Text="{Binding PendingBandBox2, UpdateSourceTrigger=PropertyChanged}"
+                                                         KeyDown="BandDimensionTextBox_KeyDown"
+                                                         Width="44"
+                                                         Height="24"
+                                                         TextAlignment="Center"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
+                                                <Button Content="Set"
+                                                        Command="{Binding SetBandDimensionsCommand}"
+                                                        Width="44"
+                                                        Height="24"
+                                                        Margin="8,0,0,0"
+                                                        Padding="0"
+                                                        ToolTip="Apply the configured Columns and Row dimensions to the band and grid" />
+                                            </StackPanel>
+
+                                            <!-- Front / Back Vertical Radios -->
+                                            <StackPanel Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <RadioButton Content="Front"
+                                                             GroupName="SheetSideGroup"
+                                                             IsChecked="{Binding IsFrontSide, Mode=TwoWay}"
+                                                             FontSize="11"
+                                                             FontWeight="SemiBold"
+                                                             Margin="0,0,0,2"
+                                                             ToolTip="Front side: left-to-right tile navigation and creation" />
+                                                <RadioButton Content="Back"
+                                                             GroupName="SheetSideGroup"
+                                                             IsChecked="{Binding IsBackSide, Mode=TwoWay}"
+                                                             FontSize="11"
+                                                             FontWeight="SemiBold"
+                                                             ToolTip="Back side: right-to-left tile navigation and creation per row to align with front tiles" />
+                                            </StackPanel>
+                                        </Grid>
 
                                         <!-- Double Width Columns Checkbox -->
                                         <CheckBox Content="Double Width Columns"
@@ -1125,35 +1150,6 @@
                                                           Width="22" Height="22" Padding="0" Delay="300" Interval="50" Margin="4,0,4,0" ToolTip="Nudge matrix bottom boundary down / expand height (+0.1%)" />
                                             <TextBlock Grid.Column="4" Text="{Binding GridHeightPercent, StringFormat='{}{0:F1}%'}" TextAlignment="Right" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- INSET & REVERSE ORIENTATION CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12"
-                                        Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="BLEED INSET &amp; BACK ALIGNMENT" Style="{StaticResource SectionHeaderStyle}" />
-
-                                        <!-- Inward Inset -->
-                                        <Grid Margin="0,2,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="100" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="45" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Inward Inset:" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <Slider Grid.Column="1" Minimum="0" Maximum="15" Value="{Binding InwardInsetPx}" SmallChange="1" LargeChange="2" />
-                                            <TextBlock Grid.Column="2" Text="{Binding InwardInsetPx, StringFormat='{}{0:F0} px'}" TextAlignment="Right" FontWeight="SemiBold" />
-                                        </Grid>
-
-                                        <!-- Back Orientation Mode -->
-                                        <TextBlock Text="Back-Side Orientation Mapping:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
-                                        <ComboBox ItemsSource="{Binding AvailableOrientations}"
-                                                  SelectedItem="{Binding SelectedOrientation}" />
                                     </StackPanel>
                                 </Border>
 
