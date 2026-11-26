@@ -749,48 +749,6 @@
                                             ToolTip="Slice active 2×10 band directly into memory and open in Tile Editor (Tab 3)" />
                                 </Border>
 
-                                <!-- SINGLE CHIT PREVIEW CARD -->
-                                <Border Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12"
-                                        Margin="0,0,0,12">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="SINGLE TILE CUT PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
-
-                                        <!-- Banded mode Chit 1..20 cycling stepper & dropdown -->
-                                        <Grid Margin="0,2,0,6" Width="200" Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousChitCommand}" Width="48" Padding="2,3" ToolTip="Previous Tile (1..20 with wrap-around)" />
-
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock Text="Tile:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
-                                                <ComboBox ItemsSource="{Binding AvailableChitNumbers}" SelectedItem="{Binding PreviewChitNumber}" Width="52" VerticalAlignment="Center" />
-                                            </StackPanel>
-
-                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextChitCommand}" Width="48" Padding="2,3" ToolTip="Next Tile (1..20 with wrap-around)" />
-                                        </Grid>
-
-                                        <TextBlock Text="{Binding PreviewCellText}"
-                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
-
-                                        <Border BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                Width="140" Height="140"
-                                                Background="#F9FAFB">
-                                            <Image Source="{Binding ChitPreviewImage}"
-                                                   Stretch="Uniform"
-                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-
                                 <!-- ========================================== -->
                                 <!-- BANDED MODE: ACTIVE BAND BOUNDS CARD -->
                                 <!-- ========================================== -->
@@ -923,15 +881,47 @@
                                                           Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge row split line down (+1 px)" />
                                             <TextBlock Grid.Column="4" Text="{Binding ActiveBandRowSplitPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
+                                    </StackPanel>
+                                </Border>
 
-                                        <!-- Dimension & Bounds Summary -->
-                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,6,0,0" Padding="0,6,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding ActiveBandBoundsSummaryText, StringFormat='{}Bounds: {0}'}"
-                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <TextBlock Text="{Binding ActiveBandDimensionsSummaryText}"
-                                                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,2,0,0" />
+                                <!-- SINGLE CHIT PREVIEW CARD -->
+                                <Border Background="{DynamicResource CardBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="TILE PREVIEW" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+
+                                        <!-- Banded mode Chit 1..20 cycling stepper & dropdown -->
+                                        <Grid Margin="0,2,0,6" Width="200" Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Grid.Column="0" Content="◀ Prev" Command="{Binding PreviousChitCommand}" Width="48" Padding="2,3" ToolTip="Previous Tile (1..20 with wrap-around)" />
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="Tile:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+                                                <ComboBox ItemsSource="{Binding AvailableChitNumbers}" SelectedItem="{Binding PreviewChitNumber}" Width="52" VerticalAlignment="Center" />
                                             </StackPanel>
+
+                                            <Button Grid.Column="2" Content="Next ▶" Command="{Binding NextChitCommand}" Width="48" Padding="2,3" ToolTip="Next Tile (1..20 with wrap-around)" />
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding PreviewCellText}"
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8" HorizontalAlignment="Center" />
+
+                                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                Width="140" Height="140"
+                                                Background="#F9FAFB">
+                                            <Image Source="{Binding ChitPreviewImage}"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
                                         </Border>
                                     </StackPanel>
                                 </Border>
