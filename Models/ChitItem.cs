@@ -72,6 +72,9 @@ namespace pdf_to_Tiles.Models
         private bool _isSelected;
 
         [ObservableProperty]
+        private bool _isChecked = true;
+
+        [ObservableProperty]
         private string _dimensionsText = string.Empty;
 
         [ObservableProperty]

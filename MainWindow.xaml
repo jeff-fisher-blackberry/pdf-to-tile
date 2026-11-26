@@ -166,6 +166,60 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Alternating Tool Toggle Button Style: Blue when Checked, Grey when Unchecked -->
+        <Style x:Key="AlternatingToolToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="{DynamicResource ViewportBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ViewportBackgroundBrush}" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -1594,7 +1648,7 @@
                                             <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 2: Tool Radios (Bevel and Clip) + Square Checkbox -->
+                                        <!-- Row 2: Alternating Tool Toggles (Bevel and Clip) + All Tiles & Square Checkboxes -->
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
@@ -1603,15 +1657,15 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <RadioButton Grid.Column="0" Content="Bevel" GroupName="SharedTileTool"
-                                                         IsChecked="{Binding IsBevelModeSelected}"
-                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                         Margin="0,0,24,0"
-                                                         ToolTip="Apply 3D raised gradient bevel around perimeter" />
-                                            <RadioButton Grid.Column="1" Content="Clip" GroupName="SharedTileTool"
-                                                         IsChecked="{Binding IsClipModeSelected}"
-                                                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                         ToolTip="Clip/round corners to transparent by specified pixels" />
+                                            <ToggleButton Grid.Column="0" Content="Bevel"
+                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
+                                                          IsChecked="{Binding IsBevelModeSelected}"
+                                                          Margin="0,0,6,0"
+                                                          ToolTip="Apply 3D raised gradient bevel around perimeter" />
+                                            <ToggleButton Grid.Column="1" Content="Clip"
+                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
+                                                          IsChecked="{Binding IsClipModeSelected}"
+                                                          ToolTip="Clip/round corners to transparent by specified pixels" />
 
                                             <CheckBox Grid.Column="2" Content="All Tiles"
                                                       IsChecked="{Binding IsResizeAllChits}"
@@ -1773,12 +1827,12 @@
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
                                                     <Button Grid.Column="0"
-                                                            Content="↻ All"
+                                                            Content="{Binding RotateBatchActionName, FallbackValue='↻ All'}"
                                                             Command="{Binding RotateAllTilesRightCommand}"
                                                             Height="26"
                                                             Padding="4,2"
                                                             FontSize="11"
-                                                            ToolTip="Rotate all loaded tiles 90° clockwise" />
+                                                            ToolTip="{Binding RotateBatchActionToolTip, FallbackValue='Rotate all loaded tiles 90° clockwise'}" />
                                                     <Button Grid.Column="2"
                                                             Content="↻ Current"
                                                             Command="{Binding RotateCurrentTileRightCommand}"
@@ -2211,11 +2265,20 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Thumbnail on checkerboard -->
-                                                <Border Grid.Column="0"
+                                                <!-- Column 0: Inclusion Checkbox -->
+                                                <CheckBox Grid.Column="0"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,6,0"
+                                                          Focusable="True"
+                                                          ToolTip="Include tile in batch operations" />
+
+                                                <!-- Column 1: Thumbnail on checkerboard -->
+                                                <Border Grid.Column="1"
                                                         Width="52" Height="52"
                                                         Background="{StaticResource CheckerboardBrush}"
                                                         BorderBrush="{DynamicResource BorderBrush}"
@@ -2227,8 +2290,8 @@
                                                            RenderOptions.BitmapScalingMode="NearestNeighbor" />
                                                 </Border>
 
-                                                <!-- Metadata -->
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <!-- Column 2: Metadata -->
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Index, StringFormat='{}#{0:D2}'}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,6,0" />
                                                         <TextBlock Text="{Binding CoordinateText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
