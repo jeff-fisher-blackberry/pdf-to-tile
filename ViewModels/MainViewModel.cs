@@ -3069,17 +3069,7 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private bool _isCloneStampAllChits = true;
 
-        [ObservableProperty]
-        private bool _isBatchProgressVisible = false;
-
-        [ObservableProperty]
-        private int _batchProgressCurrent = 0;
-
-        [ObservableProperty]
-        private int _batchProgressTotal = 0;
-
-        [ObservableProperty]
-        private string _batchProgressStatus = string.Empty;
+        private bool _isApplyingBatchEdit = false;
 
         private readonly Stack<bool> _batchEditHistory = new();
         private readonly Stack<bool> _batchEditRedoHistory = new();
@@ -4035,185 +4025,134 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task ApplyStretch()
+        private void ApplyStretch()
         {
-            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
-            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-
-            int targetW = ChitEditorWidth;
-            int targetH = ChitEditorHeight;
-            if (IsResizeSquare)
-            {
-                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
-                targetW = squareSize;
-                targetH = squareSize;
-                ChitEditorWidth = squareSize;
-                ChitEditorHeight = squareSize;
-            }
-
-            bool isBatch = targets.Count > 1;
-            if (isBatch)
-            {
-                IsBatchProgressVisible = true;
-                BatchProgressTotal = targets.Count;
-                BatchProgressCurrent = 0;
-            }
-
+            if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
+            _isApplyingBatchEdit = true;
             try
             {
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var chit = targets[i];
-                    if (isBatch)
-                    {
-                        BatchProgressCurrent = i + 1;
-                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
-                        await Task.Delay(1);
-                    }
+                var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
 
+                int targetW = ChitEditorWidth;
+                int targetH = ChitEditorHeight;
+                if (IsResizeSquare)
+                {
+                    int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                    targetW = squareSize;
+                    targetH = squareSize;
+                    ChitEditorWidth = squareSize;
+                    ChitEditorHeight = squareSize;
+                }
+
+                bool isBatch = targets.Count > 1;
+                foreach (var chit in targets)
+                {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                     var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, targetW, targetH);
                     chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
                 }
+
+                RecordEditHistory(isBatch);
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                ClampCurrentEdgeCleanDepths();
+                UpdateLiveChitPreview();
+                StatusMessage = isBatch ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px." : $"Stretched tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
             }
             finally
             {
-                if (isBatch)
-                {
-                    IsBatchProgressVisible = false;
-                }
+                _isApplyingBatchEdit = false;
             }
-
-            RecordEditHistory(isBatch);
-            _lastCommittedSignature = null;
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            SelectedChit.SetPreviewMat(null);
-            ClampCurrentEdgeCleanDepths();
-            UpdateLiveChitPreview();
-            StatusMessage = isBatch ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px." : $"Stretched tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task ApplyShrink()
+        private void ApplyShrink()
         {
-            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
-            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-            Vec4b key = ColorToVec4b(TransparentColor);
-
-            int targetW = ChitEditorWidth;
-            int targetH = ChitEditorHeight;
-            if (IsResizeSquare)
-            {
-                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
-                targetW = squareSize;
-                targetH = squareSize;
-                ChitEditorWidth = squareSize;
-                ChitEditorHeight = squareSize;
-            }
-
-            bool isBatch = targets.Count > 1;
-            if (isBatch)
-            {
-                IsBatchProgressVisible = true;
-                BatchProgressTotal = targets.Count;
-                BatchProgressCurrent = 0;
-            }
-
+            if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
+            _isApplyingBatchEdit = true;
             try
             {
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var chit = targets[i];
-                    if (isBatch)
-                    {
-                        BatchProgressCurrent = i + 1;
-                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
-                        await Task.Delay(1);
-                    }
+                var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+                Vec4b key = ColorToVec4b(TransparentColor);
 
+                int targetW = ChitEditorWidth;
+                int targetH = ChitEditorHeight;
+                if (IsResizeSquare)
+                {
+                    int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                    targetW = squareSize;
+                    targetH = squareSize;
+                    ChitEditorWidth = squareSize;
+                    ChitEditorHeight = squareSize;
+                }
+
+                bool isBatch = targets.Count > 1;
+                foreach (var chit in targets)
+                {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                     var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, targetW, targetH, key);
                     chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
                 }
+
+                RecordEditHistory(isBatch);
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                ClampCurrentEdgeCleanDepths();
+                UpdateLiveChitPreview();
+                StatusMessage = isBatch ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px." : $"Shrunk tile #{SelectedChit.Index} to fit {targetW}×{targetH} px.";
             }
             finally
             {
-                if (isBatch)
-                {
-                    IsBatchProgressVisible = false;
-                }
+                _isApplyingBatchEdit = false;
             }
-
-            RecordEditHistory(isBatch);
-            _lastCommittedSignature = null;
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            SelectedChit.SetPreviewMat(null);
-            ClampCurrentEdgeCleanDepths();
-            UpdateLiveChitPreview();
-            StatusMessage = isBatch ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px." : $"Shrunk tile #{SelectedChit.Index} to fit {targetW}×{targetH} px.";
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task ApplyResize()
+        private void ApplyResize()
         {
-            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null) return;
-            var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-            Vec4b key = ColorToVec4b(TransparentColor);
-
-            int targetW = ChitEditorWidth;
-            int targetH = ChitEditorHeight;
-            if (IsResizeSquare)
-            {
-                int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
-                targetW = squareSize;
-                targetH = squareSize;
-                ChitEditorWidth = squareSize;
-                ChitEditorHeight = squareSize;
-            }
-
-            bool isBatch = targets.Count > 1;
-            if (isBatch)
-            {
-                IsBatchProgressVisible = true;
-                BatchProgressTotal = targets.Count;
-                BatchProgressCurrent = 0;
-            }
-
+            if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null) return;
+            _isApplyingBatchEdit = true;
             try
             {
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var chit = targets[i];
-                    if (isBatch)
-                    {
-                        BatchProgressCurrent = i + 1;
-                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
-                        await Task.Delay(1);
-                    }
+                var targets = IsResizeAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+                Vec4b key = ColorToVec4b(TransparentColor);
 
+                int targetW = ChitEditorWidth;
+                int targetH = ChitEditorHeight;
+                if (IsResizeSquare)
+                {
+                    int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
+                    targetW = squareSize;
+                    targetH = squareSize;
+                    ChitEditorWidth = squareSize;
+                    ChitEditorHeight = squareSize;
+                }
+
+                bool isBatch = targets.Count > 1;
+                foreach (var chit in targets)
+                {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                     var resized = ChitEditorService.ApplyResize(chit.WorkingMat, targetW, targetH, key);
                     chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
                 }
+
+                RecordEditHistory(isBatch);
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                ClampCurrentEdgeCleanDepths();
+                UpdateLiveChitPreview();
+                StatusMessage = isBatch ? $"Resized canvas for all {targets.Count} tiles to {targetW}×{targetH} px." : $"Resized canvas for tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
             }
             finally
             {
-                if (isBatch)
-                {
-                    IsBatchProgressVisible = false;
-                }
+                _isApplyingBatchEdit = false;
             }
-
-            RecordEditHistory(isBatch);
-            _lastCommittedSignature = null;
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            SelectedChit.SetPreviewMat(null);
-            ClampCurrentEdgeCleanDepths();
-            UpdateLiveChitPreview();
-            StatusMessage = isBatch ? $"Resized canvas for all {targets.Count} tiles to {targetW}×{targetH} px." : $"Resized canvas for tile #{SelectedChit.Index} to {targetW}×{targetH} px.";
         }
 
         #region Chit Directional Bump / Shift Commands
@@ -4234,71 +4173,53 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task BumpChitLeft() => await ApplyBumpAsync(-ChitBumpStepPx, 0);
+        private void BumpChitLeft() => ApplyBump(-ChitBumpStepPx, 0);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task BumpChitRight() => await ApplyBumpAsync(ChitBumpStepPx, 0);
+        private void BumpChitRight() => ApplyBump(ChitBumpStepPx, 0);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task BumpChitUp() => await ApplyBumpAsync(0, -ChitBumpStepPx);
+        private void BumpChitUp() => ApplyBump(0, -ChitBumpStepPx);
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
-        private async Task BumpChitDown() => await ApplyBumpAsync(0, ChitBumpStepPx);
+        private void BumpChitDown() => ApplyBump(0, ChitBumpStepPx);
 
-        private async Task ApplyBumpAsync(int dx, int dy)
+        private void ApplyBump(int dx, int dy)
         {
-            if (IsBatchProgressVisible || SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
-
-            var targets = IsWorkingTileAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-            Vec4b fill = ColorToVec4b(TransparentColor);
-
-            bool isBatch = targets.Count > 1;
-            if (isBatch)
-            {
-                IsBatchProgressVisible = true;
-                BatchProgressTotal = targets.Count;
-                BatchProgressCurrent = 0;
-            }
-
+            if (_isApplyingBatchEdit || SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            _isApplyingBatchEdit = true;
             try
             {
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var chit = targets[i];
-                    if (isBatch)
-                    {
-                        BatchProgressCurrent = i + 1;
-                        BatchProgressStatus = $"Processing Tile {i + 1} of {targets.Count}...";
-                        await Task.Delay(1);
-                    }
+                var targets = IsWorkingTileAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
+                Vec4b fill = ColorToVec4b(TransparentColor);
 
+                bool isBatch = targets.Count > 1;
+                foreach (var chit in targets)
+                {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                     var bumped = ChitEditorService.ApplyBump(chit.WorkingMat, dx, dy, fill);
                     chit.UpdateWorkingMat(bumped, recordHistory: true, TransparentColor);
                 }
+
+                RecordEditHistory(isBatch);
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                UpdateLiveChitPreview();
+
+                string dir = (dx < 0) ? $"{Math.Abs(dx)}px Left"
+                           : (dx > 0) ? $"{dx}px Right"
+                           : (dy < 0) ? $"{Math.Abs(dy)}px Up"
+                           : $"{dy}px Down";
+
+                StatusMessage = isBatch
+                    ? $"Bumped all {targets.Count} tiles {dir}."
+                    : $"Bumped tile #{SelectedChit.Index} {dir}.";
             }
             finally
             {
-                if (isBatch)
-                {
-                    IsBatchProgressVisible = false;
-                }
+                _isApplyingBatchEdit = false;
             }
-
-            RecordEditHistory(isBatch);
-            _lastCommittedSignature = null;
-            _lastCommittedBevelSignature = null;
-            _lastCommittedClipSignature = null;
-            UpdateLiveChitPreview();
-
-            string dir = (dx < 0) ? $"{Math.Abs(dx)}px Left"
-                       : (dx > 0) ? $"{dx}px Right"
-                       : (dy < 0) ? $"{Math.Abs(dy)}px Up"
-                       : $"{dy}px Down";
-
-            StatusMessage = isBatch
-                ? $"Bumped all {targets.Count} tiles {dir}."
-                : $"Bumped tile #{SelectedChit.Index} {dir}.";
         }
 
         #endregion

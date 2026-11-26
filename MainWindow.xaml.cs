@@ -1016,7 +1016,7 @@ namespace pdf_to_Tiles
             }
         }
 
-        private async void ChitPreview_MouseUp(object sender, MouseButtonEventArgs e)
+        private void ChitPreview_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (_isCloning)
             {
@@ -1035,45 +1035,27 @@ namespace pdf_to_Tiles
                         bool isBatch = vm.IsCloneStampAllChits && vm.LoadedChits.Count > 1 && _currentStrokePoints.Count > 0;
                         if (isBatch)
                         {
-                            vm.IsBatchProgressVisible = true;
-                            vm.BatchProgressTotal = vm.LoadedChits.Count;
-                            vm.BatchProgressCurrent = 1;
-                            vm.BatchProgressStatus = $"Processing Tile 1 of {vm.LoadedChits.Count}...";
-
-                            try
+                            var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit).ToList();
+                            foreach (var chit in otherChits)
                             {
-                                var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit).ToList();
-                                for (int i = 0; i < otherChits.Count; i++)
+                                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+
+                                bool anyMod = false;
+                                foreach (var pt in _currentStrokePoints)
                                 {
-                                    var chit = otherChits[i];
-                                    int progressNum = i + 2;
-                                    vm.BatchProgressCurrent = progressNum;
-                                    vm.BatchProgressStatus = $"Processing Tile {progressNum} of {vm.LoadedChits.Count}...";
-                                    await Task.Delay(1);
-
-                                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-
-                                    bool anyMod = false;
-                                    foreach (var pt in _currentStrokePoints)
-                                    {
-                                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
-                                            chit.WorkingMat,
-                                            (int)pt.X, (int)pt.Y,
-                                            _cloneDeltaX, _cloneDeltaY,
-                                            vm.CloneStampRadius,
-                                            vm.ActiveCloneStampShape);
-                                        if (mod) anyMod = true;
-                                    }
-
-                                    if (anyMod)
-                                    {
-                                        chit.CommitInPlaceEdit(vm.TransparentColor);
-                                    }
+                                    bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                                        chit.WorkingMat,
+                                        (int)pt.X, (int)pt.Y,
+                                        _cloneDeltaX, _cloneDeltaY,
+                                        vm.CloneStampRadius,
+                                        vm.ActiveCloneStampShape);
+                                    if (mod) anyMod = true;
                                 }
-                            }
-                            finally
-                            {
-                                vm.IsBatchProgressVisible = false;
+
+                                if (anyMod)
+                                {
+                                    chit.CommitInPlaceEdit(vm.TransparentColor);
+                                }
                             }
                         }
 

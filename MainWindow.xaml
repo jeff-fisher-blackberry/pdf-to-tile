@@ -2247,35 +2247,6 @@
                         </Grid>
                     </Border>
                 </Grid>
-
-                <!-- Modal Progress Overlay Card for Batch Operations -->
-                <Grid Grid.RowSpan="2"
-                      Background="#66000000"
-                      Visibility="{Binding IsBatchProgressVisible, Converter={StaticResource BoolToVis}}"
-                      IsHitTestVisible="True"
-                      Panel.ZIndex="100">
-                    <Border Background="{DynamicResource PanelBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="24,20"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Width="320">
-                        <StackPanel>
-                            <TextBlock Text="{Binding BatchProgressStatus}"
-                                       FontWeight="SemiBold"
-                                       FontSize="13"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       Margin="0,0,0,12"
-                                       HorizontalAlignment="Center" />
-                            <ProgressBar Value="{Binding BatchProgressCurrent}"
-                                         Maximum="{Binding BatchProgressTotal}"
-                                         Height="8"
-                                         Minimum="0" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
             </Grid>
         </Grid>
 
