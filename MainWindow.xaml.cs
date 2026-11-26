@@ -151,6 +151,10 @@ namespace pdf_to_Tiles
             {
                 var binding = textBox.GetBindingExpression(TextBox.TextProperty);
                 binding?.UpdateSource();
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.HasExplicitlyPickedPage = true;
+                }
                 textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
             }
         }

@@ -526,7 +526,25 @@
                                       SelectedItem="{Binding SelectedSideTag}"
                                       Width="75"
                                       VerticalAlignment="Center"
-                                      ToolTip="Label sheet side (Front, Back, Page)" />
+                                      ToolTip="Label sheet side (Page, Front, Back)">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding}" Value="Page">
+                                                            <Setter Property="Foreground" Value="#EF4444" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -539,7 +557,7 @@
                         <Button Grid.Column="1"
                                 Content="Next"
                                 Command="{Binding SendPageToSlicerCommand}"
-                                IsEnabled="{Binding HasLoadedPdf}"
+                                IsEnabled="{Binding CanSendPageToSlicer}"
                                 Style="{StaticResource AccentButtonStyle}"
                                 Padding="16,6"
                                 Margin="8,0,4,0"
@@ -721,10 +739,10 @@
                 <!-- Slicer Main Content Area: Left Settings Sidebar + Right Viewport -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <!-- Left Settings Column -->
-                        <ColumnDefinition Width="340" MinWidth="300" MaxWidth="440" />
-                        <!-- Splitter -->
-                        <ColumnDefinition Width="4" />
+                        <!-- Left Settings Column (Fixed/Locked width to fit Double Width comfortably) -->
+                        <ColumnDefinition Width="360" MinWidth="360" MaxWidth="360" />
+                        <!-- Splitter (Hidden/Locked) -->
+                        <ColumnDefinition Width="0" />
                         <!-- Viewport Column -->
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
@@ -1282,8 +1300,8 @@
                         </ScrollViewer>
                     </Border>
 
-                    <!-- Splitter -->
-                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" />
+                    <!-- Splitter (Hidden/Locked) -->
+                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" Visibility="Collapsed" IsEnabled="False" />
 
                     <!-- RIGHT VIEWPORT: DESKEWED SHEET & INTERACTIVE GRID OVERLAY -->
                     <ScrollViewer x:Name="SlicerScrollViewer"
@@ -1541,10 +1559,10 @@
                                                         Style="{StaticResource AccentButtonStyle}"
                                                         ToolTip="{Binding SharedToolBatchActionToolTip}" />
 
-                                                <!-- Dynamic Action Button (Single Tile: Clip or Bevel) -->
+                                                <!-- Dynamic Action Button (Single Tile: Clip Current or Bevel Current) -->
                                                 <Button Content="{Binding SharedToolActionName}"
                                                         Command="{Binding ApplySharedToolCommand}"
-                                                        Width="68" Height="28"
+                                                        Width="102" Height="28"
                                                         Style="{StaticResource AccentButtonStyle}"
                                                         ToolTip="{Binding SharedToolActionToolTip}" />
                                             </StackPanel>

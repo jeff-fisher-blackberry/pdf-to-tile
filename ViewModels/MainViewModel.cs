@@ -43,6 +43,7 @@ namespace pdf_to_Tiles.ViewModels
         private string _statusMessage = "Ready. Open a PDF rulebook or counter sheet to begin.";
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanSendPageToSlicer))]
         [NotifyCanExecuteChangedFor(nameof(OpenPdfCommand))]
         [NotifyCanExecuteChangedFor(nameof(FirstPageCommand))]
         [NotifyCanExecuteChangedFor(nameof(PreviousPageCommand))]
@@ -100,13 +101,21 @@ namespace pdf_to_Tiles.ViewModels
         private int _selectedDpi = 600;
 
         [ObservableProperty]
-        private string _selectedSideTag = "Front";
+        [NotifyPropertyChangedFor(nameof(CanSendPageToSlicer))]
+        [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
+        private string _selectedSideTag = "Page";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanSendPageToSlicer))]
+        [NotifyCanExecuteChangedFor(nameof(SendPageToSlicerCommand))]
+        private bool _hasExplicitlyPickedPage = false;
 
         public IReadOnlyList<int> AvailableDpis { get; } = new List<int> { 300, 450, 600 };
-        public IReadOnlyList<string> AvailableSideTags { get; } = new List<string> { "Front", "Back", "Page" };
+        public IReadOnlyList<string> AvailableSideTags { get; } = new List<string> { "Page", "Front", "Back" };
 
         public string ZoomPercentageText => $"{Math.Round(ZoomScale * 100)}%";
         public bool HasLoadedPdf => _pdfBytes != null && _pdfBytes.Length > 0 && TotalPages > 0;
+        public bool CanSendPageToSlicer => !IsLoading && HasLoadedPdf && HasExplicitlyPickedPage;
         public bool HasChitsLoaded => LoadedChits.Count > 0;
         public bool HasActiveDocument => HasLoadedPdf || HasSlicerImage || HasChitsLoaded;
         public bool CanUndoChit => SelectedChit?.CanUndo ?? false;
@@ -802,11 +811,25 @@ namespace pdf_to_Tiles.ViewModels
 
         #region PDF Viewer Handlers
 
+        private bool _suppressExplicitPagePick;
+
         partial void OnCurrentPageNumberChanged(int value)
         {
+            if (!_suppressExplicitPagePick && HasLoadedPdf)
+            {
+                HasExplicitlyPickedPage = true;
+            }
             if (HasLoadedPdf && value >= 1 && value <= TotalPages)
             {
                 _ = LoadPageAsync(value);
+            }
+        }
+
+        partial void OnSelectedSideTagChanged(string value)
+        {
+            if (!_suppressExplicitPagePick && HasLoadedPdf)
+            {
+                HasExplicitlyPickedPage = true;
             }
         }
 
@@ -873,10 +896,19 @@ namespace pdf_to_Tiles.ViewModels
                     }
                 }
 
-                AddRecentPdf(selectedPath);
-                SelectedTabIndex = 0; // Ensure Tab 1 is active
-                CurrentPageNumber = 1;
-                await LoadPageAsync(1);
+                _suppressExplicitPagePick = true;
+                try
+                {
+                    AddRecentPdf(selectedPath);
+                    SelectedTabIndex = 0; // Ensure Tab 1 is active
+                    CurrentPageNumber = 1;
+                    await LoadPageAsync(1);
+                    HasExplicitlyPickedPage = false;
+                }
+                finally
+                {
+                    _suppressExplicitPagePick = false;
+                }
             }
             catch (Exception ex)
             {
@@ -887,6 +919,8 @@ namespace pdf_to_Tiles.ViewModels
                 IsLoading = false;
                 OnPropertyChanged(nameof(HasLoadedPdf));
                 OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(CanSendPageToSlicer));
+                SendPageToSlicerCommand.NotifyCanExecuteChanged();
                 CloseDocumentCommand.NotifyCanExecuteChanged();
             }
         }
@@ -951,6 +985,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanGoPrevious))]
         private void FirstPage()
         {
+            HasExplicitlyPickedPage = true;
             if (CurrentPageNumber > 1)
             {
                 CurrentPageNumber = 1;
@@ -960,6 +995,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanGoPrevious))]
         private void PreviousPage()
         {
+            HasExplicitlyPickedPage = true;
             if (CurrentPageNumber > 1)
             {
                 CurrentPageNumber--;
@@ -971,6 +1007,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanGoNext))]
         private void NextPage()
         {
+            HasExplicitlyPickedPage = true;
             if (CurrentPageNumber < TotalPages)
             {
                 CurrentPageNumber++;
@@ -980,6 +1017,7 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand(CanExecute = nameof(CanGoNext))]
         private void LastPage()
         {
+            HasExplicitlyPickedPage = true;
             if (CurrentPageNumber < TotalPages)
             {
                 CurrentPageNumber = TotalPages;
@@ -1086,6 +1124,7 @@ namespace pdf_to_Tiles.ViewModels
                 CurrentPageImage = null;
                 TotalPages = 0;
                 CurrentPageNumber = 0;
+                HasExplicitlyPickedPage = false;
                 PagePixelWidth = 0;
                 PagePixelHeight = 0;
                 IsFitToPage = true;
@@ -1303,7 +1342,7 @@ namespace pdf_to_Tiles.ViewModels
 
         #region Phase 2 & 2.5: Slicer & Deskew Handlers
 
-        [RelayCommand(CanExecute = nameof(CanCapturePage))]
+        [RelayCommand(CanExecute = nameof(CanSendPageToSlicer))]
         private async Task SendPageToSlicerAsync()
         {
             if (_pdfBytes == null || CurrentPageNumber < 1 || CurrentPageNumber > TotalPages)
@@ -1324,6 +1363,16 @@ namespace pdf_to_Tiles.ViewModels
 
                 await LoadImageFileForSlicingAsync(tempPngPath, isTempFile: true);
                 SelectedTabIndex = 1; // Switch tab to Deskew & Grid Slicer
+
+                // Automatically populate Front/Back if Tag is Front or Back
+                if (SelectedSideTag.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedSide = "Back";
+                }
+                else if (SelectedSideTag.Equals("Front", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedSide = "Front";
+                }
 
                 // Enforce Fit to Width on transfer from PDF Viewer
                 IsSlicerFitToWidth = true;
@@ -2791,7 +2840,7 @@ namespace pdf_to_Tiles.ViewModels
             set { if (value) SelectedSharedToolMode = "Bevel"; }
         }
 
-        public string SharedToolActionName => SelectedSharedToolMode == "Clip" ? "Clip" : "Bevel";
+        public string SharedToolActionName => SelectedSharedToolMode == "Clip" ? "Clip Current" : "Bevel Current";
 
         public string SharedToolActionToolTip => SelectedSharedToolMode == "Clip"
             ? $"Clip {SharedToolValue}px corners with transparent key color"
