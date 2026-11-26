@@ -794,7 +794,7 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Columns x Row Inputs with Set Button -->
+                                            <!-- Columns x Row Inputs with Set Button and Color Swatch Button -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBox Text="{Binding PendingBandBox1, UpdateSourceTrigger=PropertyChanged}"
                                                          KeyDown="BandDimensionTextBox_KeyDown"
@@ -805,7 +805,7 @@
                                                          ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
                                                 <TextBlock Text=" x "
                                                            VerticalAlignment="Center"
-                                                           Margin="6,0"
+                                                           Margin="4,0"
                                                            FontWeight="SemiBold"
                                                            FontSize="13"
                                                            Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -818,15 +818,99 @@
                                                          ToolTip="Columns / Rows (Press Enter or click Set to apply)" />
                                                 <Button Content="Set"
                                                         Command="{Binding SetBandDimensionsCommand}"
-                                                        Width="44"
+                                                        Width="40"
                                                         Height="24"
-                                                        Margin="8,0,0,0"
+                                                        Margin="6,0,0,0"
                                                         Padding="0"
                                                         ToolTip="Apply the configured Columns and Row dimensions to the band and grid" />
+
+                                                <!-- Compact Square Swatch Button opening 3x3 Color Popup -->
+                                                <Button x:Name="OverlayColorPickerButton"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Margin="6,0,0,0"
+                                                        Padding="0"
+                                                        Cursor="Hand"
+                                                        Click="OverlayColorPickerButton_Click"
+                                                        ToolTip="Choose overlay border and active-tile shading color">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border BorderBrush="{DynamicResource BorderBrush}"
+                                                                    BorderThickness="1.5"
+                                                                    CornerRadius="3"
+                                                                    Background="{Binding SlicerOverlayColor, Converter={StaticResource ColorToBrush}}" />
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+
+                                                <!-- 3x3 Color Palette Popup -->
+                                                <Popup x:Name="OverlayColorPopup"
+                                                       DataContext="{Binding}"
+                                                       PlacementTarget="{Binding ElementName=OverlayColorPickerButton}"
+                                                       Placement="Bottom"
+                                                       StaysOpen="False"
+                                                       AllowsTransparency="True">
+                                                    <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1.5"
+                                                            CornerRadius="4"
+                                                            Padding="4"
+                                                            Margin="0,2,0,0">
+                                                        <ItemsControl ItemsSource="{Binding AvailableOverlayColors}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Rows="3" Columns="3" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Button Width="22" Height="22" Margin="2"
+                                                                            Padding="0"
+                                                                            Cursor="Hand"
+                                                                            Command="{Binding DataContext.SelectOverlayColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            Click="OverlayColorSwatch_Click"
+                                                                            ToolTip="{Binding Name}">
+                                                                        <Button.Template>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border x:Name="border"
+                                                                                        CornerRadius="3"
+                                                                                        Background="{Binding Color, Converter={StaticResource ColorToBrush}}"
+                                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                                        BorderThickness="1">
+                                                                                    <Ellipse x:Name="indicator"
+                                                                                             Width="6" Height="6"
+                                                                                             HorizontalAlignment="Center"
+                                                                                             VerticalAlignment="Center"
+                                                                                             Fill="#000000"
+                                                                                             Visibility="Collapsed" />
+                                                                                </Border>
+                                                                                <ControlTemplate.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                        <Setter TargetName="border" Property="BorderThickness" Value="2" />
+                                                                                        <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                                        <Setter TargetName="indicator" Property="Visibility" Value="Visible" />
+                                                                                    </DataTrigger>
+                                                                                    <MultiDataTrigger>
+                                                                                        <MultiDataTrigger.Conditions>
+                                                                                            <Condition Binding="{Binding IsSelected}" Value="True" />
+                                                                                            <Condition Binding="{Binding Name}" Value="Black" />
+                                                                                        </MultiDataTrigger.Conditions>
+                                                                                        <Setter TargetName="indicator" Property="Fill" Value="#FFFFFF" />
+                                                                                    </MultiDataTrigger>
+                                                                                </ControlTemplate.Triggers>
+                                                                            </ControlTemplate>
+                                                                        </Button.Template>
+                                                                    </Button>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Border>
+                                                </Popup>
                                             </StackPanel>
 
                                             <!-- Front / Back Vertical Radios -->
-                                            <StackPanel Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0">
+                                            <StackPanel Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="6,0,0,0">
                                                 <RadioButton Content="Front"
                                                              GroupName="SheetSideGroup"
                                                              IsChecked="{Binding IsFrontSide, Mode=TwoWay}"
@@ -848,72 +932,6 @@
                                                   IsChecked="{Binding IsDoubleWidthColumns}"
                                                   Margin="0,0,0,6"
                                                   ToolTip="Double width columns (~2x) for wide counters (e.g. 5 columns instead of 10)" />
-
-                                        <!-- 8-Color Swatch Picker for Overlay Border & Active-Tile Shading -->
-                                        <Border BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Padding="4,3"
-                                                Margin="0,0,0,6"
-                                                Background="{DynamicResource ViewportBackgroundBrush}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-
-                                                <TextBlock Grid.Column="0" Text="Color:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-
-                                                <ItemsControl Grid.Column="1" ItemsSource="{Binding AvailableOverlayColors}">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <UniformGrid Rows="1" Columns="8" />
-                                                        </ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Button Width="20" Height="20" Margin="1,0"
-                                                                    Padding="0"
-                                                                    Cursor="Hand"
-                                                                    Command="{Binding DataContext.SelectOverlayColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                    CommandParameter="{Binding}"
-                                                                    ToolTip="{Binding Name}">
-                                                                <Button.Template>
-                                                                    <ControlTemplate TargetType="Button">
-                                                                        <Border x:Name="border"
-                                                                                CornerRadius="3"
-                                                                                Background="{Binding Color, Converter={StaticResource ColorToBrush}}"
-                                                                                BorderBrush="{DynamicResource BorderBrush}"
-                                                                                BorderThickness="1">
-                                                                            <Ellipse x:Name="indicator"
-                                                                                     Width="6" Height="6"
-                                                                                     HorizontalAlignment="Center"
-                                                                                     VerticalAlignment="Center"
-                                                                                     Fill="#000000"
-                                                                                     Visibility="Collapsed" />
-                                                                        </Border>
-                                                                        <ControlTemplate.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                                <Setter TargetName="border" Property="BorderThickness" Value="2" />
-                                                                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                                                <Setter TargetName="indicator" Property="Visibility" Value="Visible" />
-                                                                            </DataTrigger>
-                                                                            <MultiDataTrigger>
-                                                                                <MultiDataTrigger.Conditions>
-                                                                                    <Condition Binding="{Binding IsSelected}" Value="True" />
-                                                                                    <Condition Binding="{Binding Name}" Value="Black" />
-                                                                                </MultiDataTrigger.Conditions>
-                                                                                <Setter TargetName="indicator" Property="Fill" Value="#FFFFFF" />
-                                                                            </MultiDataTrigger>
-                                                                        </ControlTemplate.Triggers>
-                                                                    </ControlTemplate>
-                                                                </Button.Template>
-                                                            </Button>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </Grid>
-                                        </Border>
 
                                         <!-- Underlying divider fine-tuning controls preserved for commands and bindings -->
                                         <StackPanel Visibility="Collapsed">

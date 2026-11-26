@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.12";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.13";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -503,20 +503,21 @@ namespace pdf_to_Tiles.ViewModels
             UpdateChitPreview();
         }
 
-        // Slicer Overlay Color & Swatches
+        // Slicer Overlay Color & Swatches (3x3 palette: Black top-left, White bottom-right, 9 distinct colors)
         [ObservableProperty]
         private Color _slicerOverlayColor = Color.FromRgb(239, 68, 68); // Red (#EF4444) default
 
         public ObservableCollection<OverlayColorOption> AvailableOverlayColors { get; } = new()
         {
-            new OverlayColorOption { Color = Color.FromRgb(239, 68, 68), Name = "Red", IsSelected = true },
-            new OverlayColorOption { Color = Color.FromRgb(255, 255, 255), Name = "White", IsSelected = false },
             new OverlayColorOption { Color = Color.FromRgb(0, 0, 0), Name = "Black", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(239, 68, 68), Name = "Red", IsSelected = true },
+            new OverlayColorOption { Color = Color.FromRgb(249, 115, 22), Name = "Orange", IsSelected = false },
             new OverlayColorOption { Color = Color.FromRgb(234, 179, 8), Name = "Yellow", IsSelected = false },
             new OverlayColorOption { Color = Color.FromRgb(34, 197, 94), Name = "Lime/Green", IsSelected = false },
             new OverlayColorOption { Color = Color.FromRgb(6, 182, 212), Name = "Cyan", IsSelected = false },
             new OverlayColorOption { Color = Color.FromRgb(59, 130, 246), Name = "Blue", IsSelected = false },
-            new OverlayColorOption { Color = Color.FromRgb(217, 70, 239), Name = "Magenta", IsSelected = false }
+            new OverlayColorOption { Color = Color.FromRgb(217, 70, 239), Name = "Magenta", IsSelected = false },
+            new OverlayColorOption { Color = Color.FromRgb(255, 255, 255), Name = "White", IsSelected = false }
         };
 
         [RelayCommand]

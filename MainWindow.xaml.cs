@@ -1182,5 +1182,19 @@ namespace pdf_to_Tiles
                 tb.Text = vm.ActiveBandRowSplitText;
             }
         }
+
+        private void OverlayColorPickerButton_Click(object sender, RoutedEventArgs e)
+        {
+            OverlayColorPopup.IsOpen = !OverlayColorPopup.IsOpen;
+        }
+
+        private void OverlayColorSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is OverlayColorOption option && DataContext is MainViewModel vm)
+            {
+                vm.SelectOverlayColorCommand.Execute(option);
+            }
+            OverlayColorPopup.IsOpen = false;
+        }
     }
 }
