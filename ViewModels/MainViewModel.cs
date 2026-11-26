@@ -18,7 +18,7 @@ namespace pdf_to_Tiles.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
-        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.10";
+        private const string AppBaseTitle = "PDF to Tiles 2026-11-26.11";
         private byte[]? _pdfBytes;
 
         // Native OpenCV Mat references for Slicer workspace
@@ -416,13 +416,22 @@ namespace pdf_to_Tiles.ViewModels
             int w = SlicerPixelWidth > 0 ? SlicerPixelWidth : 1000;
             int h = SlicerPixelHeight > 0 ? SlicerPixelHeight : 1000;
 
+            int safeRows = Math.Max(1, rows);
+            int safeCols = Math.Max(1, cols);
+
             int currentHeightPx = ActiveBandHeightPx > 0 ? ActiveBandHeightPx : (int)Math.Round(band.Bounds.Height * h);
             if (currentHeightPx < 8) currentHeightPx = 8;
 
-            double cellHeight = (double)currentHeightPx / Math.Max(1, rows);
+            // Default Row Height Split = Selected Height / Number of Rows (e.g. 50% for 2 rows)
+            double defaultRowSplitRatio = 1.0 / safeRows;
+            int targetRowSplitPx = Math.Max(2, (int)Math.Round(defaultRowSplitRatio * currentHeightPx));
+            targetRowSplitPx = Math.Clamp(targetRowSplitPx, 2, Math.Max(2, currentHeightPx - 2));
+
+            // Default Column Width Split = Selected Width / Number of Columns
+            double cellHeight = (double)currentHeightPx / safeRows;
             double cellWidth = IsDoubleWidthColumns ? (2.0 * cellHeight) : cellHeight;
 
-            int targetWidthPx = (int)Math.Round(cols * cellWidth);
+            int targetWidthPx = (int)Math.Round(safeCols * cellWidth);
             targetWidthPx = Math.Max(8, targetWidthPx);
 
             int currentLeftPx = ActiveBandLeftPx >= 0 ? ActiveBandLeftPx : (int)Math.Round(band.Bounds.Left * w);
@@ -440,14 +449,24 @@ namespace pdf_to_Tiles.ViewModels
                 band.Bounds.Width = Math.Clamp((double)targetWidthPx / w, 8.0 / w, 1.0 - band.Bounds.Left);
                 ActiveBandWidthPercent = Math.Round(band.Bounds.Width * 100, 2);
 
+                // Update row split ratio to default even distribution (e.g. 50.0% for 2 rows)
+                band.RowSplitRatio = Math.Clamp((double)targetRowSplitPx / currentHeightPx, 0.05, 0.95);
+                ActiveBandRowSplitPx = targetRowSplitPx;
+                ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+                ActiveBandRowSplitPercent = Math.Round(band.RowSplitRatio * 100, 1);
+
                 // Update column dividers to even spacing for the active column count
-                band.ColumnDividers = Band2x10Definition.GetDefaultEvenDividers(cols);
+                band.ColumnDividers = Band2x10Definition.GetDefaultEvenDividers(safeCols);
 
                 OnPropertyChanged(nameof(ActiveBandWidthPx));
                 OnPropertyChanged(nameof(ActiveBandWidthText));
                 OnPropertyChanged(nameof(ActiveBandWidthPercent));
                 OnPropertyChanged(nameof(ActiveBandWidthPercentText));
                 OnPropertyChanged(nameof(ActiveBandRightPx));
+                OnPropertyChanged(nameof(ActiveBandRowSplitPx));
+                OnPropertyChanged(nameof(ActiveBandRowSplitText));
+                OnPropertyChanged(nameof(ActiveBandRowSplitPercent));
+                OnPropertyChanged(nameof(ActiveBandRowSplitPercentText));
                 OnPropertyChanged(nameof(ActiveBandDimensionsText));
                 OnPropertyChanged(nameof(ActiveBandDimensionsSummaryText));
             }
