@@ -1330,12 +1330,53 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (_deskewedMat != null && !_deskewedMat.IsDisposed)
             {
+                string rawBaseName = !string.IsNullOrWhiteSpace(LoadedFilePath)
+                    ? Path.GetFileNameWithoutExtension(LoadedFilePath)
+                    : (!string.IsNullOrWhiteSpace(SlicerSourceFileName) && !SlicerSourceFileName.StartsWith("PdfToTiles_Capture_", StringComparison.OrdinalIgnoreCase)
+                        ? Path.GetFileNameWithoutExtension(SlicerSourceFileName)
+                        : "PdfToTiles");
+
+                char[] invalidChars = Path.GetInvalidFileNameChars();
+                string pdfBaseName = string.Concat(rawBaseName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries)).Trim();
+                if (string.IsNullOrWhiteSpace(pdfBaseName))
+                {
+                    pdfBaseName = "PdfToTiles";
+                }
+
+                string side = !string.IsNullOrWhiteSpace(SelectedSide) && (SelectedSide.Equals("Front", StringComparison.OrdinalIgnoreCase) || IsRearSide(SelectedSide))
+                    ? SelectedSide
+                    : SelectedSideTag;
+
+                string defaultFileName;
+                if (IsRearSide(side))
+                {
+                    defaultFileName = $"{pdfBaseName} Tiles Rear.png";
+                }
+                else if (string.Equals(side, "Front", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultFileName = $"{pdfBaseName} Tiles Front.png";
+                }
+                else if (CurrentPageNumber > 0)
+                {
+                    defaultFileName = $"{pdfBaseName} Tiles Page {CurrentPageNumber}.png";
+                }
+                else
+                {
+                    defaultFileName = $"{pdfBaseName} Tiles.png";
+                }
+
+                string initialDir = !string.IsNullOrEmpty(LoadedFilePath)
+                    ? Path.GetDirectoryName(LoadedFilePath)!
+                    : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+
                 var saveFileDialog = new SaveFileDialog
                 {
                     Title = "Save Tile Page Image as Lossless PNG",
                     Filter = "PNG Image (*.png)|*.png",
                     DefaultExt = ".png",
-                    FileName = !string.IsNullOrWhiteSpace(SlicerSourceFileName) ? Path.GetFileName(SlicerSourceFileName) : "TilePage.png"
+                    AddExtension = true,
+                    FileName = defaultFileName,
+                    InitialDirectory = initialDir
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
