@@ -488,7 +488,16 @@ namespace pdf_to_Tiles
                     return;
                 }
 
-                // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking
+                // Tab 2 (Deskew & Grid Slicer): Escape cancels corner picking or pattern capture
+                if (vm.IsCapturingPattern)
+                {
+                    vm.IsCapturingPattern = false;
+                    if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+                    if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                    return;
+                }
+
                 if (vm.IsSettingUpperLeftCorner || vm.IsSettingLowerRightCorner)
                 {
                     vm.IsSettingUpperLeftCorner = false;
@@ -815,15 +824,13 @@ namespace pdf_to_Tiles
 
         private void SlicerScrollViewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (DataContext is not MainViewModel vm || (!vm.IsSettingUpperLeftCorner && !vm.IsSettingLowerRightCorner))
-            {
-                return;
-            }
+            if (DataContext is not MainViewModel vm) return;
 
             if (SlicerImageDisplay == null || SlicerImageDisplay.ActualWidth <= 0 || SlicerImageDisplay.ActualHeight <= 0 || vm.SlicerPixelWidth <= 0 || vm.SlicerPixelHeight <= 0)
             {
                 vm.IsSettingUpperLeftCorner = false;
                 vm.IsSettingLowerRightCorner = false;
+                vm.IsCapturingPattern = false;
                 return;
             }
 
@@ -831,13 +838,28 @@ namespace pdf_to_Tiles
             double imgW = SlicerImageDisplay.ActualWidth;
             double imgH = SlicerImageDisplay.ActualHeight;
 
-            // Only capture clicks within the bounds of the sheet
-            if (clickPos.X >= 0 && clickPos.X <= imgW && clickPos.Y >= 0 && clickPos.Y <= imgH)
+            if (clickPos.X < 0 || clickPos.X > imgW || clickPos.Y < 0 || clickPos.Y > imgH)
             {
-                int clickPxX = (int)Math.Clamp(Math.Round(clickPos.X / imgW * vm.SlicerPixelWidth), 0, vm.SlicerPixelWidth);
-                int clickPxY = (int)Math.Clamp(Math.Round(clickPos.Y / imgH * vm.SlicerPixelHeight), 0, vm.SlicerPixelHeight);
+                return;
+            }
 
-                if (vm.IsSettingUpperLeftCorner)
+            int clickPxX = (int)Math.Clamp(Math.Round(clickPos.X / imgW * vm.SlicerPixelWidth), 0, vm.SlicerPixelWidth);
+            int clickPxY = (int)Math.Clamp(Math.Round(clickPos.Y / imgH * vm.SlicerPixelHeight), 0, vm.SlicerPixelHeight);
+
+            if (vm.IsCapturingPattern)
+            {
+                vm.ApplyCapturedPatternFromSheet(new Point(clickPxX, clickPxY));
+                if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+                return;
+            }
+
+            if (!vm.IsSettingUpperLeftCorner && !vm.IsSettingLowerRightCorner)
+            {
+                return;
+            }
+
+            if (vm.IsSettingUpperLeftCorner)
                 {
                     int currentRight = vm.ActiveBandLeftPx + vm.ActiveBandWidthPx;
                     int currentBottom = vm.ActiveBandTopPx + vm.ActiveBandHeightPx;
@@ -923,7 +945,6 @@ namespace pdf_to_Tiles
                     }
                     e.Handled = true;
                 }
-            }
         }
 
         private bool _hasSetUpperLeftInPass = false;
@@ -933,6 +954,52 @@ namespace pdf_to_Tiles
         {
             _hasSetUpperLeftInPass = false;
             _hasSetLowerRightInPass = false;
+        }
+
+        private void SlicerScrollViewer_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.IsCapturingPattern && SlicerImageDisplay != null && SlicerImageDisplay.ActualWidth > 0 && SlicerImageDisplay.ActualHeight > 0 && SlicerPatternCaptureGuide != null)
+            {
+                Point pos = e.GetPosition(SlicerImageDisplay);
+                double s = vm.PatternSquareSize;
+                Canvas.SetLeft(SlicerPatternCaptureGuide, pos.X - s / 2.0);
+                Canvas.SetTop(SlicerPatternCaptureGuide, pos.Y - s / 2.0);
+                SlicerPatternCaptureGuide.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void SlicerScrollViewer_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+        }
+
+        private void TilePreview_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.IsCapturingPattern && TilePreviewGrid != null)
+            {
+                Point pos = e.GetPosition(TilePreviewGrid);
+                vm.ApplyCapturedPatternFromPreview(pos);
+                if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+            }
+        }
+
+        private void TilePreview_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.IsCapturingPattern && TilePreviewGrid != null && PreviewCaptureGuide != null)
+            {
+                Point pos = e.GetPosition(TilePreviewGrid);
+                double s = vm.PatternSquareSize;
+                PreviewCaptureGuide.Margin = new Thickness(pos.X - s / 2.0, pos.Y - s / 2.0, 0, 0);
+                PreviewCaptureGuide.HorizontalAlignment = HorizontalAlignment.Left;
+                PreviewCaptureGuide.VerticalAlignment = VerticalAlignment.Top;
+                PreviewCaptureGuide.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void TilePreview_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
         }
 
         private bool _isCloning = false;

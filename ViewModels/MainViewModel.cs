@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -425,6 +426,30 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private Geometry? _previewCutLineGeometry;
 
+        // Pattern Swatch & Capture
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PatternCursor))]
+        private bool _isCapturingPattern = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private bool _isPatternFillEnabled = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PatternSquareSizeText))]
+        private int _patternSquareSize = 20;
+
+        public string PatternSquareSizeText => $"{PatternSquareSize}×{PatternSquareSize} px";
+
+        [ObservableProperty]
+        private ImageSource? _capturedPatternSwatchImage;
+
+        private Mat? _capturedPatternMat;
+
+        public bool HasCapturedPattern => _capturedPatternMat != null && !_capturedPatternMat.IsDisposed;
+
+        public Cursor PatternCursor => IsCapturingPattern ? Cursors.Cross : Cursors.Arrow;
+
         // Readouts
         public int ActiveBandRightPx => ActiveBandLeftPx + ActiveBandWidthPx;
         public int ActiveBandBottomPx => ActiveBandTopPx + ActiveBandHeightPx;
@@ -785,6 +810,10 @@ namespace pdf_to_Tiles.ViewModels
                     int total = TotalBandChits;
                     int row = PreviewRowIndex + 1;
                     int col = PreviewColIndex + 1;
+                    if (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0)
+                    {
+                        return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col} ({PreviewCellWidth}×{PreviewCellHeight} px [Pattern Fill])";
+                    }
                     int tw = Math.Max(1, PreviewCellWidth - (2 * ActiveBandBufferPx));
                     int th = Math.Max(1, PreviewCellHeight - (2 * ActiveBandBufferPx));
                     return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col} ({tw}×{th} px)";
@@ -2202,6 +2231,19 @@ namespace pdf_to_Tiles.ViewModels
                 OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 SelectedOrientation = value.BackOrientation;
 
+                PatternSquareSize = Math.Clamp(value.PatternSquareSize, 15, 30);
+                if (!string.IsNullOrWhiteSpace(value.PatternBase64))
+                {
+                    LoadPatternFromBase64(value.PatternBase64);
+                    IsPatternFillEnabled = value.IsPatternFillEnabled;
+                }
+                else if (HasCapturedPattern)
+                {
+                    value.PatternBase64 = GetPatternAsBase64();
+                    value.PatternSquareSize = PatternSquareSize;
+                    value.IsPatternFillEnabled = IsPatternFillEnabled;
+                }
+
                 if (!string.IsNullOrWhiteSpace(LoadedFileName))
                 {
                     NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
@@ -2677,16 +2719,236 @@ namespace pdf_to_Tiles.ViewModels
                 return;
             }
 
-            var outerRect = new RectangleGeometry(new System.Windows.Rect(0, 0, w, h));
-            var innerRect = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
-            var combined = new CombinedGeometry(GeometryCombineMode.Exclude, outerRect, innerRect);
-            combined.Freeze();
-            PreviewHatchGeometry = combined;
+            if (IsPatternFillEnabled && HasCapturedPattern)
+            {
+                PreviewHatchGeometry = null;
+            }
+            else
+            {
+                var outerRect = new RectangleGeometry(new System.Windows.Rect(0, 0, w, h));
+                var innerRect = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
+                var combined = new CombinedGeometry(GeometryCombineMode.Exclude, outerRect, innerRect);
+                combined.Freeze();
+                PreviewHatchGeometry = combined;
+            }
 
             var cutLine = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
             cutLine.Freeze();
             PreviewCutLineGeometry = cutLine;
         }
+
+        #region Pattern Swatch & Capture Commands
+
+        partial void OnIsCapturingPatternChanged(bool value)
+        {
+            if (value)
+            {
+                StatusMessage = $"Click clean pattern on sheet or preview to capture {PatternSquareSize}×{PatternSquareSize} px swatch (Esc to cancel)";
+            }
+            OnPropertyChanged(nameof(PatternCursor));
+        }
+
+        partial void OnIsPatternFillEnabledChanged(bool value)
+        {
+            if (value && !HasCapturedPattern)
+            {
+                IsCapturingPattern = true;
+                StatusMessage = "Sample a clean pattern swatch first";
+            }
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.IsPatternFillEnabled = value;
+            }
+            OnPropertyChanged(nameof(PreviewCellText));
+            UpdateChitPreview();
+        }
+
+        partial void OnPatternSquareSizeChanged(int value)
+        {
+            OnPropertyChanged(nameof(PatternSquareSizeText));
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.PatternSquareSize = value;
+            }
+        }
+
+        [RelayCommand]
+        private void NudgePatternSquareSizeDown()
+        {
+            PatternSquareSize = Math.Max(15, PatternSquareSize - 1);
+            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
+        }
+
+        [RelayCommand]
+        private void NudgePatternSquareSizeUp()
+        {
+            PatternSquareSize = Math.Min(30, PatternSquareSize + 1);
+            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
+        }
+
+        [RelayCommand]
+        private void SetPatternSquareSize(object? param)
+        {
+            if (param is int size)
+            {
+                PatternSquareSize = Math.Clamp(size, 15, 30);
+            }
+            else if (param is string s && int.TryParse(s, out int parsed))
+            {
+                PatternSquareSize = Math.Clamp(parsed, 15, 30);
+            }
+            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
+        }
+
+        [RelayCommand]
+        private void ClearPattern()
+        {
+            _capturedPatternMat?.Dispose();
+            _capturedPatternMat = null;
+            CapturedPatternSwatchImage = null;
+            IsPatternFillEnabled = false;
+            IsCapturingPattern = false;
+
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.PatternBase64 = null;
+                SelectedProfile.IsPatternFillEnabled = false;
+            }
+
+            OnPropertyChanged(nameof(HasCapturedPattern));
+            OnPropertyChanged(nameof(PreviewCellText));
+            StatusMessage = "Cleared pattern swatch.";
+            UpdateChitPreview();
+        }
+
+        public void ApplyCapturedPatternFromSheet(System.Windows.Point clickPos)
+        {
+            if (_deskewedMat == null || _deskewedMat.IsDisposed || SlicerPixelWidth <= 0 || SlicerPixelHeight <= 0)
+            {
+                IsCapturingPattern = false;
+                return;
+            }
+
+            int s = PatternSquareSize;
+            int cx = (int)Math.Clamp(Math.Round(clickPos.X), 0, _deskewedMat.Width);
+            int cy = (int)Math.Clamp(Math.Round(clickPos.Y), 0, _deskewedMat.Height);
+
+            int x0 = Math.Clamp(cx - s / 2, 0, Math.Max(0, _deskewedMat.Width - s));
+            int y0 = Math.Clamp(cy - s / 2, 0, Math.Max(0, _deskewedMat.Height - s));
+            int actualW = Math.Min(s, _deskewedMat.Width - x0);
+            int actualH = Math.Min(s, _deskewedMat.Height - y0);
+
+            if (actualW > 0 && actualH > 0)
+            {
+                using var patch = new Mat(_deskewedMat, new OpenCvSharp.Rect(x0, y0, actualW, actualH));
+                SetCapturedPattern(patch);
+            }
+            else
+            {
+                IsCapturingPattern = false;
+            }
+        }
+
+        public void ApplyCapturedPatternFromPreview(System.Windows.Point cellPos)
+        {
+            if (_deskewedMat == null || _deskewedMat.IsDisposed || SelectedProfile == null)
+            {
+                IsCapturingPattern = false;
+                return;
+            }
+
+            int s = PatternSquareSize;
+            using var previewMat = IsBandedMode
+                ? GridSlicerService.ExtractBandedCellPreview(_deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex, EffectiveBandRows, EffectiveBandColumns)
+                : GridSlicerService.ExtractCellPreview(_deskewedMat, SelectedProfile, SelectedSide, 0, 0);
+
+            int cx = (int)Math.Clamp(Math.Round(cellPos.X), 0, previewMat.Width);
+            int cy = (int)Math.Clamp(Math.Round(cellPos.Y), 0, previewMat.Height);
+
+            int x0 = Math.Clamp(cx - s / 2, 0, Math.Max(0, previewMat.Width - s));
+            int y0 = Math.Clamp(cy - s / 2, 0, Math.Max(0, previewMat.Height - s));
+            int actualW = Math.Min(s, previewMat.Width - x0);
+            int actualH = Math.Min(s, previewMat.Height - y0);
+
+            if (actualW > 0 && actualH > 0)
+            {
+                using var patch = new Mat(previewMat, new OpenCvSharp.Rect(x0, y0, actualW, actualH));
+                SetCapturedPattern(patch);
+            }
+            else
+            {
+                IsCapturingPattern = false;
+            }
+        }
+
+        public void SetCapturedPattern(Mat rawPatch, bool updateProfile = true)
+        {
+            if (rawPatch == null || rawPatch.IsDisposed || rawPatch.Width <= 0 || rawPatch.Height <= 0) return;
+
+            Mat bgra;
+            if (rawPatch.Channels() == 3)
+            {
+                bgra = new Mat();
+                Cv2.CvtColor(rawPatch, bgra, ColorConversionCodes.BGR2BGRA);
+            }
+            else
+            {
+                bgra = rawPatch.Clone();
+            }
+
+            _capturedPatternMat?.Dispose();
+            _capturedPatternMat = bgra;
+
+            CapturedPatternSwatchImage = DeskewService.MatToBitmapSource(_capturedPatternMat);
+            PatternSquareSize = Math.Clamp(_capturedPatternMat.Width, 15, 30);
+            IsCapturingPattern = false;
+            IsPatternFillEnabled = true;
+
+            if (updateProfile && SelectedProfile != null)
+            {
+                SelectedProfile.PatternBase64 = GetPatternAsBase64();
+                SelectedProfile.PatternSquareSize = PatternSquareSize;
+                SelectedProfile.IsPatternFillEnabled = true;
+            }
+
+            OnPropertyChanged(nameof(HasCapturedPattern));
+            OnPropertyChanged(nameof(PreviewCellText));
+            StatusMessage = $"Captured {PatternSquareSize}×{PatternSquareSize} px pattern swatch.";
+            UpdateChitPreview();
+        }
+
+        private void LoadPatternFromBase64(string base64)
+        {
+            try
+            {
+                byte[] bytes = Convert.FromBase64String(base64);
+                using var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
+                if (decoded != null && !decoded.IsDisposed && decoded.Width > 0 && decoded.Height > 0)
+                {
+                    SetCapturedPattern(decoded, updateProfile: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load pattern from base64: {ex.Message}");
+            }
+        }
+
+        private string? GetPatternAsBase64()
+        {
+            if (_capturedPatternMat == null || _capturedPatternMat.IsDisposed) return null;
+            try
+            {
+                Cv2.ImEncode(".png", _capturedPatternMat, out byte[] buf);
+                return Convert.ToBase64String(buf);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        #endregion
 
         public void RecalculateRowSplitToFiftyPercent()
         {
@@ -2981,21 +3243,23 @@ namespace pdf_to_Tiles.ViewModels
 
             try
             {
-                if (IsBandedMode)
-                {
-                    using var previewMat = GridSlicerService.ExtractBandedCellPreview(
+                using var previewMat = IsBandedMode
+                    ? GridSlicerService.ExtractBandedCellPreview(
                         _deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex,
-                        EffectiveBandRows, EffectiveBandColumns);
-                    PreviewCellWidth = previewMat.Width;
-                    PreviewCellHeight = previewMat.Height;
-                    ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
+                        EffectiveBandRows, EffectiveBandColumns)
+                    : GridSlicerService.ExtractCellPreview(
+                        _deskewedMat, SelectedProfile, SelectedSide, 0, 0);
+
+                PreviewCellWidth = previewMat.Width;
+                PreviewCellHeight = previewMat.Height;
+
+                if (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0)
+                {
+                    using var filledMat = GridSlicerService.ApplyBufferPatternFill(previewMat, _capturedPatternMat!, ActiveBandBufferPx);
+                    ChitPreviewImage = DeskewService.MatToBitmapSource(filledMat);
                 }
                 else
                 {
-                    using var previewMat = GridSlicerService.ExtractCellPreview(
-                        _deskewedMat, SelectedProfile, SelectedSide, 0, 0);
-                    PreviewCellWidth = previewMat.Width;
-                    PreviewCellHeight = previewMat.Height;
                     ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
                 }
 
@@ -3230,7 +3494,9 @@ namespace pdf_to_Tiles.ViewModels
                         bandIndex,
                         EffectiveBandRows,
                         EffectiveBandColumns,
-                        skipExisting
+                        skipExisting,
+                        _capturedPatternMat,
+                        IsPatternFillEnabled
                     );
                 }
                 else
@@ -3242,7 +3508,9 @@ namespace pdf_to_Tiles.ViewModels
                         targetDir,
                         progress,
                         _sliceCts.Token,
-                        skipExisting
+                        skipExisting,
+                        _capturedPatternMat,
+                        IsPatternFillEnabled
                     );
                 }
 
@@ -3340,7 +3608,9 @@ namespace pdf_to_Tiles.ViewModels
                     progress,
                     _sliceCts.Token,
                     EffectiveBandRows,
-                    EffectiveBandColumns
+                    EffectiveBandColumns,
+                    _capturedPatternMat,
+                    IsPatternFillEnabled
                 );
 
                 // Dispose existing loaded chits to prevent memory leaks

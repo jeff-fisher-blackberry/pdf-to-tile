@@ -151,7 +151,9 @@ namespace pdf_to_Tiles.Services
             int? singleBandIndex = null,
             int bandRows = 2,
             int bandCols = 10,
-            bool skipExisting = false)
+            bool skipExisting = false,
+            Mat? patternMat = null,
+            bool fillBuffer = false)
         {
             return Task.Run(() =>
             {
@@ -238,10 +240,11 @@ namespace pdf_to_Tiles.Services
                             int xRight = xStart + (int)Math.Round(dividers[c + 1] * wTotal);
                             int colW = Math.Max(1, xRight - xLeft);
 
-                            int cellX = xLeft + inset;
-                            int cellY = rowY + inset;
-                            int pieceW = colW - (2 * inset);
-                            int pieceH = rowH - (2 * inset);
+                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                            int cellX = usePattern ? xLeft : (xLeft + inset);
+                            int cellY = usePattern ? rowY : (rowY + inset);
+                            int pieceW = usePattern ? colW : (colW - (2 * inset));
+                            int pieceH = usePattern ? rowH : (rowH - (2 * inset));
 
                             // Clamp strictly inside master image boundaries
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -298,7 +301,15 @@ namespace pdf_to_Tiles.Services
                                 {
                                     try
                                     {
-                                        Cv2.ImWrite(outPath, pieceMat);
+                                        if (usePattern)
+                                        {
+                                            using var filledMat = ApplyBufferPatternFill(pieceMat, patternMat!, inset);
+                                            Cv2.ImWrite(outPath, filledMat);
+                                        }
+                                        else
+                                        {
+                                            Cv2.ImWrite(outPath, pieceMat);
+                                        }
                                     }
                                     catch (Exception ex)
                                     {
@@ -335,7 +346,9 @@ namespace pdf_to_Tiles.Services
             IProgress<SliceProgressReport>? progress,
             CancellationToken cancellationToken,
             int bandRows = 2,
-            int bandCols = 10)
+            int bandCols = 10,
+            Mat? patternMat = null,
+            bool fillBuffer = false)
         {
             return Task.Run(() =>
             {
@@ -428,10 +441,12 @@ namespace pdf_to_Tiles.Services
 
                             // Slicing applies profile inward inset / buffer
                             int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
-                            int cellX = colLeft + inset;
-                            int cellY = rowTop + inset;
-                            int pieceW = colWidth - (2 * inset);
-                            int pieceH = rowHeight - (2 * inset);
+                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+
+                            int cellX = usePattern ? colLeft : (colLeft + inset);
+                            int cellY = usePattern ? rowTop : (rowTop + inset);
+                            int pieceW = usePattern ? colWidth : (colWidth - (2 * inset));
+                            int pieceH = usePattern ? rowHeight : (rowHeight - (2 * inset));
 
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
                             cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));
@@ -447,14 +462,22 @@ namespace pdf_to_Tiles.Services
                                 Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
                                 using var cropMat = new Mat(masterMat, roi);
 
-                                var bgraMat = new Mat();
-                                if (cropMat.Channels() == 3)
+                                Mat bgraMat;
+                                if (usePattern)
                                 {
-                                    Cv2.CvtColor(cropMat, bgraMat, ColorConversionCodes.BGR2BGRA);
+                                    bgraMat = ApplyBufferPatternFill(cropMat, patternMat!, inset);
                                 }
                                 else
                                 {
-                                    cropMat.CopyTo(bgraMat);
+                                    bgraMat = new Mat();
+                                    if (cropMat.Channels() == 3)
+                                    {
+                                        Cv2.CvtColor(cropMat, bgraMat, ColorConversionCodes.BGR2BGRA);
+                                    }
+                                    else
+                                    {
+                                        cropMat.CopyTo(bgraMat);
+                                    }
                                 }
 
                                 var chit = new ChitItem(
@@ -495,7 +518,9 @@ namespace pdf_to_Tiles.Services
             string outputDirectory,
             IProgress<SliceProgressReport>? progress,
             CancellationToken cancellationToken,
-            bool skipExisting = false)
+            bool skipExisting = false,
+            Mat? patternMat = null,
+            bool fillBuffer = false)
         {
             return Task.Run(() =>
             {
@@ -580,10 +605,11 @@ namespace pdf_to_Tiles.Services
                         }
 
                         // Physical pixel coordinates for this cell
-                        int cellX = (int)Math.Round(gridX + c * cellW) + inset;
-                        int cellY = (int)Math.Round(gridY + r * cellH) + inset;
-                        int pieceW = (int)Math.Round(cellW) - (2 * inset);
-                        int pieceH = (int)Math.Round(cellH) - (2 * inset);
+                        bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                        int cellX = usePattern ? (int)Math.Round(gridX + c * cellW) : ((int)Math.Round(gridX + c * cellW) + inset);
+                        int cellY = usePattern ? (int)Math.Round(gridY + r * cellH) : ((int)Math.Round(gridY + r * cellH) + inset);
+                        int pieceW = usePattern ? (int)Math.Round(cellW) : ((int)Math.Round(cellW) - (2 * inset));
+                        int pieceH = usePattern ? (int)Math.Round(cellH) : ((int)Math.Round(cellH) - (2 * inset));
 
                         // Clamp strictly inside master image boundary
                         cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -615,7 +641,15 @@ namespace pdf_to_Tiles.Services
                         {
                             try
                             {
-                                Cv2.ImWrite(outPath, pieceMat);
+                                if (usePattern)
+                                {
+                                    using var filledMat = ApplyBufferPatternFill(pieceMat, patternMat!, inset);
+                                    Cv2.ImWrite(outPath, filledMat);
+                                }
+                                else
+                                {
+                                    Cv2.ImWrite(outPath, pieceMat);
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -770,6 +804,120 @@ namespace pdf_to_Tiles.Services
             }
 
             return previewMat;
+        }
+
+        /// <summary>
+        /// Tiles patternMat across the full (W, H) cell, blits the inner [inset..W-inset, inset..H-inset]
+        /// core artwork from cellMat into the center, and applies a 1-pixel linear blend along the boundary.
+        /// Returns a new Mat of size (W, H) in CV_8UC4 (BGRA).
+        /// </summary>
+        public static Mat ApplyBufferPatternFill(Mat cellMat, Mat patternMat, int inset)
+        {
+            if (cellMat == null || cellMat.IsDisposed) throw new ArgumentNullException(nameof(cellMat));
+            if (patternMat == null || patternMat.IsDisposed) return cellMat.Clone();
+
+            int w = cellMat.Width;
+            int h = cellMat.Height;
+            if (inset <= 0 || w <= 2 * inset || h <= 2 * inset)
+            {
+                var copy = new Mat();
+                if (cellMat.Channels() == 3)
+                    Cv2.CvtColor(cellMat, copy, ColorConversionCodes.BGR2BGRA);
+                else
+                    cellMat.CopyTo(copy);
+                return copy;
+            }
+
+            // Ensure pattern is BGRA
+            using var bgraPattern = new Mat();
+            if (patternMat.Channels() == 3)
+            {
+                Cv2.CvtColor(patternMat, bgraPattern, ColorConversionCodes.BGR2BGRA);
+            }
+            else
+            {
+                patternMat.CopyTo(bgraPattern);
+            }
+
+            // Tile pattern to at least (w, h)
+            int patW = Math.Max(1, bgraPattern.Width);
+            int patH = Math.Max(1, bgraPattern.Height);
+            int repeatX = (w / patW) + 1;
+            int repeatY = (h / patH) + 1;
+
+            using var repeatedPattern = new Mat();
+            Cv2.Repeat(bgraPattern, repeatY, repeatX, repeatedPattern);
+
+            // Crop to exact (w, h)
+            using var croppedBg = new Mat(repeatedPattern, new Rect(0, 0, w, h));
+            var result = croppedBg.Clone();
+
+            // Ensure source cell is BGRA
+            using var bgraCell = new Mat();
+            if (cellMat.Channels() == 3)
+            {
+                Cv2.CvtColor(cellMat, bgraCell, ColorConversionCodes.BGR2BGRA);
+            }
+            else
+            {
+                cellMat.CopyTo(bgraCell);
+            }
+
+            // Blit inner core [inset, inset, w - 2*inset, h - 2*inset]
+            int innerW = w - 2 * inset;
+            int innerH = h - 2 * inset;
+            var innerRoi = new Rect(inset, inset, innerW, innerH);
+
+            using (var innerCell = new Mat(bgraCell, innerRoi))
+            using (var targetSlot = new Mat(result, innerRoi))
+            {
+                innerCell.CopyTo(targetSlot);
+            }
+
+            // 1-pixel linear seam blend along perimeter if inner size allows
+            if (innerW > 2 && innerH > 2)
+            {
+                // Top & bottom edge rows inside boundary
+                BlendHorizontalSeam(result, bgraCell, inset, inset, innerW);
+                BlendHorizontalSeam(result, bgraCell, inset, inset + innerH - 1, innerW);
+                // Left & right edge columns inside boundary
+                BlendVerticalSeam(result, bgraCell, inset, inset, innerH);
+                BlendVerticalSeam(result, bgraCell, inset + innerW - 1, inset, innerH);
+            }
+
+            return result;
+        }
+
+        private static void BlendHorizontalSeam(Mat dst, Mat src, int startX, int y, int width)
+        {
+            if (y < 0 || y >= dst.Height || y >= src.Height) return;
+            for (int x = startX; x < startX + width; x++)
+            {
+                if (x < 0 || x >= dst.Width || x >= src.Width) continue;
+                Vec4b cDst = dst.Get<Vec4b>(y, x);
+                Vec4b cSrc = src.Get<Vec4b>(y, x);
+                byte b = (byte)((cDst.Item0 + cSrc.Item0) / 2);
+                byte g = (byte)((cDst.Item1 + cSrc.Item1) / 2);
+                byte r = (byte)((cDst.Item2 + cSrc.Item2) / 2);
+                byte a = (byte)((cDst.Item3 + cSrc.Item3) / 2);
+                dst.Set(y, x, new Vec4b(b, g, r, a));
+            }
+        }
+
+        private static void BlendVerticalSeam(Mat dst, Mat src, int x, int startY, int height)
+        {
+            if (x < 0 || x >= dst.Width || x >= src.Width) return;
+            for (int y = startY; y < startY + height; y++)
+            {
+                if (y < 0 || y >= dst.Height || y >= src.Height) continue;
+                Vec4b cDst = dst.Get<Vec4b>(y, x);
+                Vec4b cSrc = src.Get<Vec4b>(y, x);
+                byte b = (byte)((cDst.Item0 + cSrc.Item0) / 2);
+                byte g = (byte)((cDst.Item1 + cSrc.Item1) / 2);
+                byte r = (byte)((cDst.Item2 + cSrc.Item2) / 2);
+                byte a = (byte)((cDst.Item3 + cSrc.Item3) / 2);
+                dst.Set(y, x, new Vec4b(b, g, r, a));
+            }
         }
     }
 }

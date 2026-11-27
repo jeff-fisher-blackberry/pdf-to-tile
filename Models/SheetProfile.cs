@@ -109,6 +109,21 @@ namespace pdf_to_Tiles.Models
         /// </summary>
         public string NamingFormat { get; set; } = "{Prefix}_R{Row:D2}_C{Col:D2}_{Side}";
 
+        /// <summary>
+        /// Optional base64-encoded PNG swatch of clean counter background texture.
+        /// </summary>
+        public string? PatternBase64 { get; set; }
+
+        /// <summary>
+        /// Size of the pattern capture square (15 to 30 px, default 20).
+        /// </summary>
+        public int PatternSquareSize { get; set; } = 20;
+
+        /// <summary>
+        /// Whether buffer margin is filled with seamless pattern texture instead of cropped.
+        /// </summary>
+        public bool IsPatternFillEnabled { get; set; } = false;
+
         public SheetProfile Clone()
         {
             return new SheetProfile
@@ -124,7 +139,10 @@ namespace pdf_to_Tiles.Models
                 InwardInsetPx = InwardInsetPx,
                 BackOrientation = BackOrientation,
                 NamingPrefix = NamingPrefix,
-                NamingFormat = NamingFormat
+                NamingFormat = NamingFormat,
+                PatternBase64 = PatternBase64,
+                PatternSquareSize = PatternSquareSize,
+                IsPatternFillEnabled = IsPatternFillEnabled
             };
         }
     }
