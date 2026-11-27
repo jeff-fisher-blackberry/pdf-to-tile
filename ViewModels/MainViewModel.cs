@@ -2228,6 +2228,19 @@ namespace pdf_to_Tiles.ViewModels
             ActiveBandRowSplitPx = ParsePixelInput(raw, ActiveBandRowSplitPx, 2, max);
         }
 
+        public void RecalculateRowSplitToFiftyPercent()
+        {
+            int safeRows = Math.Max(1, EffectiveBandRows);
+            double ratio = 1.0 / safeRows;
+            int h = ActiveBandHeightPx;
+            if (h < 4) return;
+
+            int targetSplitPx = Math.Clamp((int)Math.Round(ratio * h), 2, Math.Max(2, h - 2));
+
+            ActiveBandRowSplitPx = targetSplitPx;
+            ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+        }
+
         private static int ParsePixelInput(string? raw, int currentVal, int minVal, int maxVal)
         {
             if (string.IsNullOrWhiteSpace(raw)) return currentVal;

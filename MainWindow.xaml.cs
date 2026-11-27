@@ -65,6 +65,13 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.SlicerImage):
                 case nameof(MainViewModel.SelectedSide):
                 case nameof(MainViewModel.ActiveBandIndex):
+                    ResetCornerBoundsPass();
+                    UpdateGridOverlay();
+                    break;
+                case nameof(MainViewModel.BandBoundingBoxHeader):
+                    ResetCornerBoundsPass();
+                    UpdateGridOverlay();
+                    break;
                 case nameof(MainViewModel.ActiveBandLeftPercent):
                 case nameof(MainViewModel.ActiveBandTopPercent):
                 case nameof(MainViewModel.ActiveBandWidthPercent):
@@ -485,6 +492,7 @@ namespace pdf_to_Tiles
                 {
                     vm.IsSettingUpperLeftCorner = false;
                     vm.IsSettingLowerRightCorner = false;
+                    ResetCornerBoundsPass();
                     e.Handled = true;
                     return;
                 }
@@ -713,6 +721,7 @@ namespace pdf_to_Tiles
             {
                 vm.IsSettingUpperLeftCorner = false;
                 vm.IsSettingLowerRightCorner = false;
+                ResetCornerBoundsPass();
             }
         }
 
@@ -792,6 +801,12 @@ namespace pdf_to_Tiles
 
                     vm.StatusMessage = $"Set upper-left corner to ({vm.ActiveBandLeftPx}, {vm.ActiveBandTopPx}) px. Size: {vm.ActiveBandDimensionsText}.";
                     vm.IsSettingUpperLeftCorner = false;
+                    _hasSetUpperLeftInPass = true;
+                    if (_hasSetUpperLeftInPass && _hasSetLowerRightInPass)
+                    {
+                        vm.RecalculateRowSplitToFiftyPercent();
+                        ResetCornerBoundsPass();
+                    }
                     e.Handled = true;
                 }
                 else if (vm.IsSettingLowerRightCorner)
@@ -833,9 +848,24 @@ namespace pdf_to_Tiles
 
                     vm.StatusMessage = $"Set lower-right corner to ({vm.ActiveBandRightPx}, {vm.ActiveBandBottomPx}) px. Size: {vm.ActiveBandDimensionsText}.";
                     vm.IsSettingLowerRightCorner = false;
+                    _hasSetLowerRightInPass = true;
+                    if (_hasSetUpperLeftInPass && _hasSetLowerRightInPass)
+                    {
+                        vm.RecalculateRowSplitToFiftyPercent();
+                        ResetCornerBoundsPass();
+                    }
                     e.Handled = true;
                 }
             }
+        }
+
+        private bool _hasSetUpperLeftInPass = false;
+        private bool _hasSetLowerRightInPass = false;
+
+        private void ResetCornerBoundsPass()
+        {
+            _hasSetUpperLeftInPass = false;
+            _hasSetLowerRightInPass = false;
         }
 
         private bool _isCloning = false;
