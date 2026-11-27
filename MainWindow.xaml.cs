@@ -234,7 +234,7 @@ namespace pdf_to_Tiles
             {
                 if (vm.IsBandedMode)
                 {
-                    var bands = vm.SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                    var bands = MainViewModel.IsRearSide(vm.SelectedSide)
                         ? vm.SelectedProfile?.BackBands
                         : vm.SelectedProfile?.FrontBands;
 

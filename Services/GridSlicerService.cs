@@ -24,6 +24,10 @@ namespace pdf_to_Tiles.Services
     /// </summary>
     public static class GridSlicerService
     {
+        public static bool IsRearSide(string? side) =>
+            string.Equals(side, "Rear", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(side, "Back", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>
         /// Slices a deskewed counter sheet Mat using discrete 2x10 bands asynchronously.
         /// If singleBandIndex is provided, slices only that specific band (20 pieces); otherwise slices all bands (e.g. 100 pieces).
@@ -51,7 +55,7 @@ namespace pdf_to_Tiles.Services
                     throw new ArgumentNullException(nameof(profile));
                 }
 
-                var bands = side.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                var bands = IsRearSide(side)
                     ? profile.BackBands
                     : profile.FrontBands;
 
@@ -140,7 +144,7 @@ namespace pdf_to_Tiles.Services
                             int mappedCol = c;
                             int mappedRow = globalRow;
 
-                            if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                            if (IsRearSide(side))
                             {
                                 switch (profile.BackOrientation)
                                 {
@@ -214,7 +218,7 @@ namespace pdf_to_Tiles.Services
                     throw new ArgumentNullException(nameof(profile));
                 }
 
-                var bands = side.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                var bands = IsRearSide(side)
                     ? profile.BackBands
                     : profile.FrontBands;
 
@@ -259,7 +263,7 @@ namespace pdf_to_Tiles.Services
                     }
                     dividers.Add(1.0);
 
-                    bool isBack = side.Equals("Back", StringComparison.OrdinalIgnoreCase);
+                    bool isBack = IsRearSide(side);
 
                     for (int r = 0; r < effectiveRows; r++)
                     {
@@ -382,7 +386,7 @@ namespace pdf_to_Tiles.Services
                     Directory.CreateDirectory(outputDirectory);
                 }
 
-                var bounds = (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                var bounds = (IsRearSide(side))
                     ? profile.BackBounds
                     : profile.FrontBounds;
 
@@ -415,7 +419,7 @@ namespace pdf_to_Tiles.Services
                         int mappedRow = r;
                         int mappedCol = c;
 
-                        if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                        if (IsRearSide(side))
                         {
                             switch (profile.BackOrientation)
                             {
@@ -498,7 +502,7 @@ namespace pdf_to_Tiles.Services
                 throw new ArgumentException("Invalid master image Mat.", nameof(masterMat));
             }
 
-            var bands = side.Equals("Back", StringComparison.OrdinalIgnoreCase)
+            var bands = IsRearSide(side)
                 ? profile.BackBands
                 : profile.FrontBands;
 
@@ -575,7 +579,7 @@ namespace pdf_to_Tiles.Services
                 throw new ArgumentException("Invalid master image Mat.", nameof(masterMat));
             }
 
-            var bounds = (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+            var bounds = (IsRearSide(side))
                 ? profile.BackBounds
                 : profile.FrontBounds;
 

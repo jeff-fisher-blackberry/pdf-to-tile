@@ -113,11 +113,15 @@ namespace pdf_to_Tiles.ViewModels
         private bool _hasExplicitlyPickedPage = false;
 
         public IReadOnlyList<int> AvailableDpis { get; } = new List<int> { 300, 450, 600 };
-        public IReadOnlyList<string> AvailableSideTags { get; } = new List<string> { "Page", "Front", "Back" };
+        public IReadOnlyList<string> AvailableSideTags { get; } = new List<string> { "Page", "Front", "Rear" };
+
+        public static bool IsRearSide(string? side) =>
+            string.Equals(side, "Rear", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(side, "Back", StringComparison.OrdinalIgnoreCase);
 
         public bool IsFrontOrBackTagSelected =>
             string.Equals(SelectedSideTag, "Front", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(SelectedSideTag, "Back", StringComparison.OrdinalIgnoreCase);
+            IsRearSide(SelectedSideTag);
 
         public string ZoomPercentageText => $"{Math.Round(ZoomScale * 100)}%";
         public bool HasLoadedPdf => _pdfBytes != null && _pdfBytes.Length > 0 && TotalPages > 0;
@@ -660,8 +664,8 @@ namespace pdf_to_Tiles.ViewModels
 
         public bool IsBackSide
         {
-            get => SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase);
-            set { if (value) SelectedSide = "Back"; }
+            get => IsRearSide(SelectedSide);
+            set { if (value) SelectedSide = "Rear"; }
         }
 
         [ObservableProperty]
@@ -670,7 +674,7 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private string _namingPrefix = string.Empty;
 
-        public IReadOnlyList<string> SlicerAvailableSides { get; } = new List<string> { "Front", "Back" };
+        public IReadOnlyList<string> SlicerAvailableSides { get; } = new List<string> { "Front", "Rear" };
         public IReadOnlyList<BackOrientationMode> AvailableOrientations { get; } = Enum.GetValues<BackOrientationMode>();
 
         // Zoomed Chit Preview
@@ -1397,7 +1401,7 @@ namespace pdf_to_Tiles.ViewModels
                             Mat bgraMat = EnsureBgraMat(rawMat);
 
                             string fileName = Path.GetFileName(filePath);
-                            string side = fileName.Contains("_Back", StringComparison.OrdinalIgnoreCase) ? "Back" : "Front";
+                            string side = (fileName.Contains("_Rear", StringComparison.OrdinalIgnoreCase) || fileName.Contains("_Back", StringComparison.OrdinalIgnoreCase)) ? "Rear" : "Front";
 
                             // Attempt to parse row/col from standard naming conventions (e.g. R01_C02)
                             int row = 1;
@@ -1509,10 +1513,10 @@ namespace pdf_to_Tiles.ViewModels
                 await LoadImageFileForSlicingAsync(tempPngPath, isTempFile: true);
                 SelectedTabIndex = 1; // Switch tab to Deskew & Grid Slicer
 
-                // Automatically populate Front/Back if Tag is Front or Back
-                if (SelectedSideTag.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                // Automatically populate Front/Rear if Tag is Front or Rear/Back
+                if (IsRearSide(SelectedSideTag))
                 {
-                    SelectedSide = "Back";
+                    SelectedSide = "Rear";
                 }
                 else if (SelectedSideTag.Equals("Front", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1645,7 +1649,7 @@ namespace pdf_to_Tiles.ViewModels
         public Band2x10Definition? GetActiveBand()
         {
             if (SelectedProfile == null) return null;
-            var bands = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+            var bands = IsRearSide(SelectedSide)
                 ? SelectedProfile.BackBands
                 : SelectedProfile.FrontBands;
 
@@ -1656,7 +1660,7 @@ namespace pdf_to_Tiles.ViewModels
 
         private void SyncFromActiveBand()
         {
-            var bands = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+            var bands = IsRearSide(SelectedSide)
                 ? SelectedProfile?.BackBands
                 : SelectedProfile?.FrontBands;
 
@@ -1803,7 +1807,7 @@ namespace pdf_to_Tiles.ViewModels
                     NamingPrefix = string.Empty;
                 }
 
-                var bounds = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase) ? value.BackBounds : value.FrontBounds;
+                var bounds = IsRearSide(SelectedSide) ? value.BackBounds : value.FrontBounds;
                 GridLeftPercent = Math.Round(bounds.Left * 100, 2);
                 GridTopPercent = Math.Round(bounds.Top * 100, 2);
                 GridWidthPercent = Math.Round(bounds.Width * 100, 2);
@@ -1820,7 +1824,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedProfile != null)
             {
-                var bounds = value.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                var bounds = IsRearSide(value)
                     ? SelectedProfile.BackBounds
                     : SelectedProfile.FrontBounds;
 
@@ -1932,7 +1936,7 @@ namespace pdf_to_Tiles.ViewModels
             int cols = EffectiveBandColumns;
             int r = (clamped - 1) / cols;
             int colIndexInRow = (clamped - 1) % cols;
-            int c = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+            int c = IsRearSide(SelectedSide)
                 ? (cols - 1 - colIndexInRow)
                 : colIndexInRow;
 
@@ -1995,7 +1999,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (SelectedProfile != null && !IsBandedMode)
             {
-                var targetBounds = SelectedSide.Equals("Back", StringComparison.OrdinalIgnoreCase)
+                var targetBounds = IsRearSide(SelectedSide)
                     ? SelectedProfile.BackBounds
                     : SelectedProfile.FrontBounds;
 
