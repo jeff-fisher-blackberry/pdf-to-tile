@@ -132,6 +132,7 @@ namespace pdf_to_Tiles.ViewModels
         public bool IsTileEditorTabSelected => SelectedTabIndex == 2;
         public bool CanAccessRecentPdfs => IsPdfViewerTabSelected && HasRecentPdfs;
         public bool CanSaveTilePageImage => IsTileCreatorTabSelected && (HasSlicerImage || HasLoadedPdf);
+        public bool CanOpenTileFiles => IsTileEditorTabSelected;
         public bool CanSaveCurrentTile => IsTileEditorTabSelected && HasSelectedChit;
         public bool CanSaveAllTiles => IsTileEditorTabSelected && HasChitsLoaded;
 
@@ -1345,7 +1346,7 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanOpenTileFiles))]
         private async Task OpenTileFilesAsync()
         {
             var openFileDialog = new OpenFileDialog
@@ -1864,6 +1865,7 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(IsTileEditorTabSelected));
             OnPropertyChanged(nameof(CanAccessRecentPdfs));
             OnPropertyChanged(nameof(CanSaveTilePageImage));
+            OnPropertyChanged(nameof(CanOpenTileFiles));
             OnPropertyChanged(nameof(CanSaveCurrentTile));
             OnPropertyChanged(nameof(CanSaveAllTiles));
             OpenPdfCommand.NotifyCanExecuteChanged();

@@ -280,7 +280,8 @@
 
                     <!-- Tab 3: Tile Editor Section -->
                     <MenuItem Header="Open _Tile Files..."
-                              Command="{Binding OpenTileFilesCommand}" />
+                              Command="{Binding OpenTileFilesCommand}"
+                              IsEnabled="{Binding CanOpenTileFiles}" />
                     <MenuItem Header="Export _All Tiles"
                               InputGestureText="Ctrl+Shift+S"
                               Command="{Binding SaveAllTilesCommand}"
