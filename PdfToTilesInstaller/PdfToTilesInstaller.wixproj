@@ -3,7 +3,7 @@
     <OutputType>Package</OutputType>
     <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'Any CPU'">x64</Platform>
     <Platforms>x64</Platforms>
-    <OutputName>PDF to Tiles-2026-11-27.18</OutputName>
+    <OutputName>PDF to Tiles-2026-11-27.19</OutputName>
     <DefineConstants>PublishDir=..\bin\x64\$(Configuration)\net8.0-windows\win-x64-publish</DefineConstants>
   </PropertyGroup>
 

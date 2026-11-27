@@ -835,6 +835,9 @@ namespace pdf_to_Tiles.ViewModels
                 ClipAllCommand.NotifyCanExecuteChanged();
                 ApplySharedToolAllCommand.NotifyCanExecuteChanged();
                 SmoothAllTilesCommand.NotifyCanExecuteChanged();
+                DespeckleAllTilesCommand.NotifyCanExecuteChanged();
+                SharpenAllTilesCommand.NotifyCanExecuteChanged();
+                AutoTrimAllTilesCommand.NotifyCanExecuteChanged();
             };
 
             LoadRecentPdfs();
@@ -3636,14 +3639,56 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (IsSmoothStrong)
             {
-                return (9, 100.0, 100.0);
+                return (5, 45.0, 45.0);
             }
             if (IsSmoothMedium)
             {
-                return (7, 75.0, 75.0);
+                return (5, 30.0, 30.0);
             }
             // Default: Light (preserves realistic subtle counter grain)
-            return (5, 50.0, 50.0);
+            return (3, 18.0, 18.0);
+        }
+
+        public string DespeckleBatchActionName =>
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "Despeckle All" : (HasSelectedChits ? "Despeckle Selected" : "Despeckle All");
+
+        public string DespeckleBatchActionToolTip
+        {
+            get
+            {
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0 || selectedCount == LoadedChits.Count)
+                    return $"Despeckle all {LoadedChits.Count} loaded tiles";
+                return $"Despeckle {selectedCount} selected tiles";
+            }
+        }
+
+        public string SharpenBatchActionName =>
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "Sharpen All" : (HasSelectedChits ? "Sharpen Selected" : "Sharpen All");
+
+        public string SharpenBatchActionToolTip
+        {
+            get
+            {
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0 || selectedCount == LoadedChits.Count)
+                    return $"Gentle sharpen all {LoadedChits.Count} loaded tiles";
+                return $"Gentle sharpen {selectedCount} selected tiles";
+            }
+        }
+
+        public string AutoTrimBatchActionName =>
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "Trim All" : (HasSelectedChits ? "Trim Selected" : "Trim All");
+
+        public string AutoTrimBatchActionToolTip
+        {
+            get
+            {
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0 || selectedCount == LoadedChits.Count)
+                    return $"Auto-trim borders for all {LoadedChits.Count} loaded tiles";
+                return $"Auto-trim borders for {selectedCount} selected tiles";
+            }
         }
 
         [ObservableProperty]
@@ -4019,12 +4064,21 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(RotateBatchActionToolTip));
             OnPropertyChanged(nameof(SmoothBatchActionName));
             OnPropertyChanged(nameof(SmoothBatchActionToolTip));
+            OnPropertyChanged(nameof(DespeckleBatchActionName));
+            OnPropertyChanged(nameof(DespeckleBatchActionToolTip));
+            OnPropertyChanged(nameof(SharpenBatchActionName));
+            OnPropertyChanged(nameof(SharpenBatchActionToolTip));
+            OnPropertyChanged(nameof(AutoTrimBatchActionName));
+            OnPropertyChanged(nameof(AutoTrimBatchActionToolTip));
             ApplySharedToolAllCommand.NotifyCanExecuteChanged();
             RotateAllTilesRightCommand.NotifyCanExecuteChanged();
             RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
             BevelAllCommand.NotifyCanExecuteChanged();
             ClipAllCommand.NotifyCanExecuteChanged();
             SmoothAllTilesCommand.NotifyCanExecuteChanged();
+            DespeckleAllTilesCommand.NotifyCanExecuteChanged();
+            SharpenAllTilesCommand.NotifyCanExecuteChanged();
+            AutoTrimAllTilesCommand.NotifyCanExecuteChanged();
             ApplyScaleImageCommand.NotifyCanExecuteChanged();
             ApplyResizeImageCommand.NotifyCanExecuteChanged();
             BumpChitLeftCommand.NotifyCanExecuteChanged();
@@ -5891,6 +5945,262 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = targets.Count == LoadedChits.Count
                 ? $"Applied {presetName} smooth background to all {count} loaded tiles."
                 : $"Applied {presetName} smooth background to {count} selected tiles{excludedNote}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void DespeckleCurrentTile()
+        {
+            DeactivateCloneStamp();
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (SelectedChit.WorkingMat.Width < 8 || SelectedChit.WorkingMat.Height < 8) return;
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            var despeckled = ChitEditorService.ApplyDespeckle(SelectedChit.WorkingMat, 25, key);
+            SelectedChit.UpdateWorkingMat(despeckled, recordHistory: true, TransparentColor);
+
+            RecordEditHistory(new List<ChitItem> { SelectedChit });
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+
+            StatusMessage = $"Applied despeckle to tile #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void DespeckleAllTiles()
+        {
+            DeactivateCloneStamp();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
+            if (targets.Count == 0)
+            {
+                if (SelectedChit != null)
+                {
+                    targets = new List<ChitItem> { SelectedChit };
+                }
+                else
+                {
+                    StatusMessage = "No tiles selected for Despeckle operation.";
+                    return;
+                }
+            }
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                var despeckled = ChitEditorService.ApplyDespeckle(chit.WorkingMat, 25, key);
+                chit.UpdateWorkingMat(despeckled, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            RecordEditHistory(targets);
+            if (SelectedChit != null)
+            {
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                UpdateLiveChitPreview();
+            }
+
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
+                ? $" (active tile #{SelectedChit.Index} was excluded)"
+                : string.Empty;
+
+            StatusMessage = targets.Count == LoadedChits.Count
+                ? $"Applied despeckle to all {count} loaded tiles."
+                : $"Applied despeckle to {count} selected tiles{excludedNote}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void SharpenCurrentTile()
+        {
+            DeactivateCloneStamp();
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (SelectedChit.WorkingMat.Width < 8 || SelectedChit.WorkingMat.Height < 8) return;
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            var sharpened = ChitEditorService.ApplySharpen(SelectedChit.WorkingMat, 0.35, 1.0, key);
+            SelectedChit.UpdateWorkingMat(sharpened, recordHistory: true, TransparentColor);
+
+            RecordEditHistory(new List<ChitItem> { SelectedChit });
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+
+            StatusMessage = $"Applied gentle sharpen to tile #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void SharpenAllTiles()
+        {
+            DeactivateCloneStamp();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
+            if (targets.Count == 0)
+            {
+                if (SelectedChit != null)
+                {
+                    targets = new List<ChitItem> { SelectedChit };
+                }
+                else
+                {
+                    StatusMessage = "No tiles selected for Sharpen operation.";
+                    return;
+                }
+            }
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                var sharpened = ChitEditorService.ApplySharpen(chit.WorkingMat, 0.35, 1.0, key);
+                chit.UpdateWorkingMat(sharpened, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            RecordEditHistory(targets);
+            if (SelectedChit != null)
+            {
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                UpdateLiveChitPreview();
+            }
+
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
+                ? $" (active tile #{SelectedChit.Index} was excluded)"
+                : string.Empty;
+
+            StatusMessage = targets.Count == LoadedChits.Count
+                ? $"Applied gentle sharpen to all {count} loaded tiles."
+                : $"Applied gentle sharpen to {count} selected tiles{excludedNote}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void AutoTrimCurrentTile()
+        {
+            DeactivateCloneStamp();
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (SelectedChit.WorkingMat.Width < 16 || SelectedChit.WorkingMat.Height < 16) return;
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int oldW = SelectedChit.PixelWidth;
+            int oldH = SelectedChit.PixelHeight;
+
+            var trimmed = ChitEditorService.ApplyAutoTrim(SelectedChit.WorkingMat, 15, 1, IsSquareChecked, key);
+            if (trimmed.Width == oldW && trimmed.Height == oldH)
+            {
+                trimmed.Dispose();
+                StatusMessage = $"Tile #{SelectedChit.Index} has no detectable uniform border to trim.";
+                return;
+            }
+
+            SelectedChit.UpdateWorkingMat(trimmed, recordHistory: true, TransparentColor);
+            ChitEditorWidth = SelectedChit.PixelWidth;
+            ChitEditorHeight = SelectedChit.PixelHeight;
+
+            RecordEditHistory(new List<ChitItem> { SelectedChit });
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+
+            StatusMessage = $"Auto-trimmed tile #{SelectedChit.Index} from {oldW}×{oldH} px to {SelectedChit.PixelWidth}×{SelectedChit.PixelHeight} px.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void AutoTrimAllTiles()
+        {
+            DeactivateCloneStamp();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
+            if (targets.Count == 0)
+            {
+                if (SelectedChit != null)
+                {
+                    targets = new List<ChitItem> { SelectedChit };
+                }
+                else
+                {
+                    StatusMessage = "No tiles selected for Auto-Trim operation.";
+                    return;
+                }
+            }
+
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int trimmedCount = 0;
+            var affectedTargets = new List<ChitItem>();
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 16 || chit.WorkingMat.Height < 16) continue;
+
+                int oldW = chit.PixelWidth;
+                int oldH = chit.PixelHeight;
+                var trimmed = ChitEditorService.ApplyAutoTrim(chit.WorkingMat, 15, 1, IsSquareChecked, key);
+                if (trimmed.Width == oldW && trimmed.Height == oldH)
+                {
+                    trimmed.Dispose();
+                    continue;
+                }
+
+                chit.UpdateWorkingMat(trimmed, recordHistory: true, TransparentColor);
+                affectedTargets.Add(chit);
+                trimmedCount++;
+            }
+
+            if (affectedTargets.Count > 0)
+            {
+                RecordEditHistory(affectedTargets);
+            }
+
+            if (SelectedChit != null)
+            {
+                ChitEditorWidth = SelectedChit.PixelWidth;
+                ChitEditorHeight = SelectedChit.PixelHeight;
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                UpdateLiveChitPreview();
+            }
+
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
+                ? $" (active tile #{SelectedChit.Index} was excluded)"
+                : string.Empty;
+
+            StatusMessage = trimmedCount > 0
+                ? $"Auto-trimmed {trimmedCount} of {targets.Count} tiles{excludedNote}."
+                : $"No tiles required border trimming{excludedNote}.";
         }
 
         #endregion

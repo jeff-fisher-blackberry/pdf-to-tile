@@ -513,6 +513,241 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Removes isolated high-frequency dust specks and scanner artifacts (salt-and-pepper noise)
+        /// using a 3x3 median outlier filter with an edge-preserving difference threshold.
+        /// Thin typography, punctuation dots, and division lines are strictly protected.
+        /// </summary>
+        public static Mat ApplyDespeckle(Mat src, int threshold = 25, Vec4b? transparentColor = null)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for despeckle operation.", nameof(src));
+            }
+
+            int clampedThreshold = Math.Clamp(threshold, 5, 150);
+
+            using Mat bgr = new Mat();
+            using Mat alpha = new Mat();
+            Cv2.CvtColor(src, bgr, ColorConversionCodes.BGRA2BGR);
+            Cv2.ExtractChannel(src, alpha, 3);
+
+            using Mat median = new Mat();
+            Cv2.MedianBlur(bgr, median, 3);
+
+            using Mat diff = new Mat();
+            Cv2.Absdiff(bgr, median, diff);
+
+            using Mat diffGray = new Mat();
+            Cv2.CvtColor(diff, diffGray, ColorConversionCodes.BGR2GRAY);
+
+            Mat result = src.Clone();
+            var resIdx = result.GetGenericIndexer<Vec4b>();
+            var medIdx = median.GetGenericIndexer<Vec3b>();
+            var diffIdx = diffGray.GetGenericIndexer<byte>();
+            var srcIdx = src.GetGenericIndexer<Vec4b>();
+
+            int width = src.Width;
+            int height = src.Height;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b orig = srcIdx[y, x];
+                    if (orig.Item3 == 0) continue;
+                    if (transparentColor.HasValue &&
+                        orig.Item0 == transparentColor.Value.Item0 &&
+                        orig.Item1 == transparentColor.Value.Item1 &&
+                        orig.Item2 == transparentColor.Value.Item2 &&
+                        orig.Item3 == transparentColor.Value.Item3)
+                    {
+                        continue;
+                    }
+
+                    if (diffIdx[y, x] >= clampedThreshold)
+                    {
+                        Vec3b med = medIdx[y, x];
+                        resIdx[y, x] = new Vec4b(med.Item0, med.Item1, med.Item2, orig.Item3);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Applies gentle unsharp masking to restore crispness on soft scans without harsh halos
+        /// or noise amplification, with low-contrast noise floor protection.
+        /// </summary>
+        public static Mat ApplySharpen(Mat src, double amount = 0.35, double sigma = 1.0, Vec4b? transparentColor = null)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for sharpen operation.", nameof(src));
+            }
+
+            double clampedAmount = Math.Clamp(amount, 0.1, 1.5);
+            double clampedSigma = Math.Clamp(sigma, 0.5, 3.0);
+
+            using Mat bgr = new Mat();
+            using Mat alpha = new Mat();
+            Cv2.CvtColor(src, bgr, ColorConversionCodes.BGRA2BGR);
+            Cv2.ExtractChannel(src, alpha, 3);
+
+            using Mat blurred = new Mat();
+            Cv2.GaussianBlur(bgr, blurred, new OpenCvSharp.Size(0, 0), sigmaX: clampedSigma, sigmaY: clampedSigma);
+
+            using Mat sharpenedBgr = new Mat();
+            Cv2.AddWeighted(bgr, 1.0 + clampedAmount, blurred, -clampedAmount, 0, sharpenedBgr);
+
+            using Mat chB = new Mat();
+            using Mat chG = new Mat();
+            using Mat chR = new Mat();
+            Cv2.ExtractChannel(sharpenedBgr, chB, 0);
+            Cv2.ExtractChannel(sharpenedBgr, chG, 1);
+            Cv2.ExtractChannel(sharpenedBgr, chR, 2);
+
+            Mat result = new Mat();
+            Cv2.Merge(new[] { chB, chG, chR, alpha }, result);
+
+            var srcIdx = src.GetGenericIndexer<Vec4b>();
+            var resIdx = result.GetGenericIndexer<Vec4b>();
+            var bgrIdx = bgr.GetGenericIndexer<Vec3b>();
+            var blurIdx = blurred.GetGenericIndexer<Vec3b>();
+
+            int width = src.Width;
+            int height = src.Height;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b orig = srcIdx[y, x];
+                    if (orig.Item3 == 0)
+                    {
+                        resIdx[y, x] = orig;
+                        continue;
+                    }
+                    if (transparentColor.HasValue &&
+                        orig.Item0 == transparentColor.Value.Item0 &&
+                        orig.Item1 == transparentColor.Value.Item1 &&
+                        orig.Item2 == transparentColor.Value.Item2 &&
+                        orig.Item3 == transparentColor.Value.Item3)
+                    {
+                        resIdx[y, x] = orig;
+                        continue;
+                    }
+
+                    // Low-contrast guard: if difference from blur is minimal (paper texture), leave untouched
+                    Vec3b b = bgrIdx[y, x];
+                    Vec3b bl = blurIdx[y, x];
+                    int maxDiff = Math.Max(Math.Abs(b.Item0 - bl.Item0), Math.Max(Math.Abs(b.Item1 - bl.Item1), Math.Abs(b.Item2 - bl.Item2)));
+                    if (maxDiff <= 2)
+                    {
+                        resIdx[y, x] = orig;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Detects outer transparent or uniform border margins and crops cleanly to the foreground bounding box.
+        /// Returns a safe clone of src if no trimmable border is found or bounds are degenerate.
+        /// </summary>
+        public static Mat ApplyAutoTrim(Mat src, int tolerance = 15, int padding = 1, bool forceSquare = false, Vec4b? transparentColor = null)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for auto-trim operation.", nameof(src));
+            }
+
+            int width = src.Width;
+            int height = src.Height;
+
+            using Mat mask = new Mat(height, width, MatType.CV_8UC1, new Scalar(0));
+            var srcIdx = src.GetGenericIndexer<Vec4b>();
+            var maskIdx = mask.GetGenericIndexer<byte>();
+
+            Vec4b c0 = srcIdx[0, 0];
+            Vec4b c1 = srcIdx[0, width - 1];
+            Vec4b c2 = srcIdx[height - 1, 0];
+            Vec4b c3 = srcIdx[height - 1, width - 1];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b p = srcIdx[y, x];
+                    if (p.Item3 == 0) continue;
+                    if (transparentColor.HasValue &&
+                        p.Item0 == transparentColor.Value.Item0 &&
+                        p.Item1 == transparentColor.Value.Item1 &&
+                        p.Item2 == transparentColor.Value.Item2 &&
+                        p.Item3 == transparentColor.Value.Item3)
+                    {
+                        continue;
+                    }
+
+                    bool matchesBorder = false;
+                    if (tolerance > 0)
+                    {
+                        int d0 = Math.Abs(p.Item0 - c0.Item0) + Math.Abs(p.Item1 - c0.Item1) + Math.Abs(p.Item2 - c0.Item2);
+                        int d1 = Math.Abs(p.Item0 - c1.Item0) + Math.Abs(p.Item1 - c1.Item1) + Math.Abs(p.Item2 - c1.Item2);
+                        int d2 = Math.Abs(p.Item0 - c2.Item0) + Math.Abs(p.Item1 - c2.Item1) + Math.Abs(p.Item2 - c2.Item2);
+                        int d3 = Math.Abs(p.Item0 - c3.Item0) + Math.Abs(p.Item1 - c3.Item1) + Math.Abs(p.Item2 - c3.Item2);
+                        if (d0 <= tolerance * 3 && d1 <= tolerance * 3 && d2 <= tolerance * 3 && d3 <= tolerance * 3)
+                        {
+                            matchesBorder = true;
+                        }
+                    }
+
+                    if (!matchesBorder)
+                    {
+                        maskIdx[y, x] = 255;
+                    }
+                }
+            }
+
+            Rect bounds = Cv2.BoundingRect(mask);
+            if (bounds.Width < 16 || bounds.Height < 16 || (bounds.Width == width && bounds.Height == height))
+            {
+                return src.Clone();
+            }
+
+            int clampedPad = Math.Max(0, padding);
+            int x0 = Math.Max(0, bounds.X - clampedPad);
+            int y0 = Math.Max(0, bounds.Y - clampedPad);
+            int x1 = Math.Min(width, bounds.X + bounds.Width + clampedPad);
+            int y1 = Math.Min(height, bounds.Y + bounds.Height + clampedPad);
+            int bw = x1 - x0;
+            int bh = y1 - y0;
+
+            if (forceSquare)
+            {
+                int maxSide = Math.Max(bw, bh);
+                int cx = x0 + bw / 2;
+                int cy = y0 + bh / 2;
+                x0 = Math.Clamp(cx - maxSide / 2, 0, Math.Max(0, width - maxSide));
+                y0 = Math.Clamp(cy - maxSide / 2, 0, Math.Max(0, height - maxSide));
+                bw = Math.Min(maxSide, width - x0);
+                bh = Math.Min(maxSide, height - y0);
+                int squareSide = Math.Min(bw, bh);
+                bw = squareSide;
+                bh = squareSide;
+            }
+
+            if (bw < 16 || bh < 16 || (bw == width && bh == height))
+            {
+                return src.Clone();
+            }
+
+            using Mat subView = new Mat(src, new Rect(x0, y0, bw, bh));
+            return subView.Clone();
+        }
+
+        /// <summary>
         /// Samples an inner perimeter band (depth+1 to depth+4 px) to statistically determine the modal
         /// (dominant) counter background color, ignoring text, numbers, and transparency.
         /// </summary>

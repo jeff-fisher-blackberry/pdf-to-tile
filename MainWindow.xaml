@@ -1948,18 +1948,18 @@
                                                                      IsChecked="{Binding IsSmoothLight}"
                                                                      FontSize="10" FontWeight="SemiBold"
                                                                      Margin="0,0,4,0"
-                                                                     ToolTip="Subtle smoothing: preserves natural grain and fine print (d=5)" />
+                                                                     ToolTip="Subtle grain-preserving: preserves natural counter grain and fine print (d=3, σ=18)" />
                                                         <RadioButton Content="Med"
                                                                      GroupName="SmoothPreset"
                                                                      IsChecked="{Binding IsSmoothMedium}"
                                                                      FontSize="10" FontWeight="SemiBold"
                                                                      Margin="0,0,4,0"
-                                                                     ToolTip="Moderate smoothing: evens out paper texture while keeping text crisp (d=7)" />
+                                                                     ToolTip="Moderate smoothing: evens out paper texture while keeping text crisp (d=5, σ=30)" />
                                                         <RadioButton Content="Strong"
                                                                      GroupName="SmoothPreset"
                                                                      IsChecked="{Binding IsSmoothStrong}"
                                                                      FontSize="10" FontWeight="SemiBold"
-                                                                     ToolTip="Heavy smoothing: aggressive texture removal for rough cardboard (d=9)" />
+                                                                     ToolTip="Controlled smoothing: suppresses heavy scan texture without washing out text (d=5, σ=45)" />
                                                     </StackPanel>
                                                 </Grid>
 
@@ -1984,6 +1984,90 @@
                                                             Padding="4,2"
                                                             FontSize="11"
                                                             ToolTip="Smooth background on currently selected working tile" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Subpanel 6: Tile Cleanup Tools (Despeckle, Sharpen, Auto-Trim) -->
+                                        <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="8,6"
+                                                Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <TextBlock Text="TILE CLEANUP"
+                                                           FontSize="11" FontWeight="Bold"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           Margin="0,0,0,6" />
+
+                                                <!-- Row 1: Despeckle -->
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding DespeckleBatchActionName, FallbackValue='Despeckle All'}"
+                                                            Command="{Binding DespeckleAllTilesCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="{Binding DespeckleBatchActionToolTip, FallbackValue='Remove dust and scanner specks across tiles'}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="Despeckle Current"
+                                                            Command="{Binding DespeckleCurrentTileCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="Remove isolated dust specks on current tile without eroding text" />
+                                                </Grid>
+
+                                                <!-- Row 2: Gentle Sharpen -->
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding SharpenBatchActionName, FallbackValue='Sharpen All'}"
+                                                            Command="{Binding SharpenAllTilesCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="{Binding SharpenBatchActionToolTip, FallbackValue='Restore edge crispness across tiles'}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="Sharpen Current"
+                                                            Command="{Binding SharpenCurrentTileCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="Gentle unsharp mask to restore edge crispness on current tile" />
+                                                </Grid>
+
+                                                <!-- Row 3: Auto-Trim -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding AutoTrimBatchActionName, FallbackValue='Trim All'}"
+                                                            Command="{Binding AutoTrimAllTilesCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="{Binding AutoTrimBatchActionToolTip, FallbackValue='Auto-trim uniform or transparent margins across tiles'}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="Trim Current"
+                                                            Command="{Binding AutoTrimCurrentTileCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="Auto-trim uniform or transparent outer border on current tile" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
