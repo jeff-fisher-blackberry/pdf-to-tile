@@ -631,10 +631,21 @@ namespace pdf_to_Tiles
                     }
                     else if (e.Key == Key.V)
                     {
-                        if (vm.PasteImageToTileCommand.CanExecute(null))
+                        if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
                         {
-                            vm.PasteImageToTileCommand.Execute(null);
-                            e.Handled = true;
+                            if (vm.PasteImageToNewTileCommand.CanExecute(null))
+                            {
+                                vm.PasteImageToNewTileCommand.Execute(null);
+                                e.Handled = true;
+                            }
+                        }
+                        else
+                        {
+                            if (vm.PasteImageToTileCommand.CanExecute(null))
+                            {
+                                vm.PasteImageToTileCommand.Execute(null);
+                                e.Handled = true;
+                            }
                         }
                     }
                 }
@@ -743,6 +754,14 @@ namespace pdf_to_Tiles
         }
 
         private void EditMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.UpdateClipboardState();
+            }
+        }
+
+        private void TileStripContextMenu_Opened(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel vm)
             {

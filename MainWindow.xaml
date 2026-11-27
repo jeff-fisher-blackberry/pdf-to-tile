@@ -331,11 +331,10 @@
                               IsEnabled="{Binding CanCopyTile}" />
                     <MenuItem Header="_Paste Image..."
                               InputGestureText="Ctrl+V"
-                              Command="{Binding PasteImageToTileCommand}"
-                              IsEnabled="{Binding CanPasteImageToTile}" />
+                              Command="{Binding PasteImageToTileCommand}" />
                     <MenuItem Header="Paste Image into _New Tile..."
-                              Command="{Binding PasteImageToNewTileCommand}"
-                              IsEnabled="{Binding CanPasteImageToNewTile}" />
+                              InputGestureText="Ctrl+Shift+V"
+                              Command="{Binding PasteImageToNewTileCommand}" />
                     <Separator />
                     <MenuItem Header="_Delete Current Tile..."
                               InputGestureText="Del"
@@ -2347,7 +2346,7 @@
                                         <EventSetter Event="PreviewMouseRightButtonDown" Handler="TileStripItem_PreviewMouseRightButtonDown" />
                                         <Setter Property="ContextMenu">
                                             <Setter.Value>
-                                                <ContextMenu>
+                                                <ContextMenu Opened="TileStripContextMenu_Opened">
                                                     <MenuItem Header="Select _All"
                                                               InputGestureText="Ctrl+A"
                                                               Command="{Binding PlacementTarget.Tag.SelectAllTilesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
@@ -2380,11 +2379,9 @@
                                                               IsEnabled="{Binding PlacementTarget.Tag.CanCopyTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                     <MenuItem Header="_Paste Image..."
                                                               InputGestureText="Ctrl+V"
-                                                              Command="{Binding PlacementTarget.Tag.PasteImageToTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              IsEnabled="{Binding PlacementTarget.Tag.CanPasteImageToTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                              Command="{Binding PlacementTarget.Tag.PasteImageToTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                     <MenuItem Header="Paste Image into _New Tile..."
-                                                              Command="{Binding PlacementTarget.Tag.PasteImageToNewTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              IsEnabled="{Binding PlacementTarget.Tag.CanPasteImageToNewTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                              Command="{Binding PlacementTarget.Tag.PasteImageToNewTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                     <Separator />
                                                     <MenuItem Header="_Delete Current Tile..."
                                                               InputGestureText="Del"

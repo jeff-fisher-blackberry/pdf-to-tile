@@ -156,46 +156,99 @@ namespace pdf_to_Tiles.ViewModels
         public bool CanResetAllTiles => IsTileEditorTabSelected && HasChitsLoaded;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanPasteImageToTile))]
+        [NotifyPropertyChangedFor(nameof(CanPasteImageToNewTile))]
         [NotifyCanExecuteChangedFor(nameof(PasteImageToTileCommand))]
         [NotifyCanExecuteChangedFor(nameof(PasteImageToNewTileCommand))]
         private bool _hasClipboardImage = false;
 
         public void UpdateClipboardState()
         {
-            try
+            for (int attempt = 0; attempt < 3; attempt++)
             {
-                var dataObj = System.Windows.Clipboard.GetDataObject();
-                if (dataObj == null)
+                try
+                {
+                    var dataObj = System.Windows.Clipboard.GetDataObject();
+                    if (dataObj == null)
+                    {
+                        HasClipboardImage = false;
+                        NotifyPasteProperties();
+                        return;
+                    }
+
+                    if (dataObj.GetDataPresent("PNG") ||
+                        dataObj.GetDataPresent("image/png") ||
+                        dataObj.GetDataPresent("image/x-png") ||
+                        dataObj.GetDataPresent(System.Windows.DataFormats.Bitmap) ||
+                        dataObj.GetDataPresent(System.Windows.DataFormats.Dib) ||
+                        System.Windows.Clipboard.ContainsImage())
+                    {
+                        HasClipboardImage = true;
+                        NotifyPasteProperties();
+                        return;
+                    }
+
+                    if (dataObj.GetDataPresent(System.Windows.DataFormats.FileDrop))
+                    {
+                        var fileList = System.Windows.Clipboard.GetFileDropList();
+                        if (fileList != null && fileList.Count > 0)
+                        {
+                            foreach (var f in fileList)
+                            {
+                                if (!string.IsNullOrWhiteSpace(f))
+                                {
+                                    string ext = Path.GetExtension(f).ToLowerInvariant();
+                                    if (ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tif" or ".tiff")
+                                    {
+                                        HasClipboardImage = true;
+                                        NotifyPasteProperties();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        else if (dataObj.GetData(System.Windows.DataFormats.FileDrop) is string[] files && files.Length > 0)
+                        {
+                            HasClipboardImage = files.Any(f => {
+                                string ext = Path.GetExtension(f).ToLowerInvariant();
+                                return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tif" or ".tiff";
+                            });
+                            NotifyPasteProperties();
+                            return;
+                        }
+                    }
+
+                    HasClipboardImage = false;
+                    NotifyPasteProperties();
+                    return;
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    if (attempt < 2)
+                    {
+                        Thread.Sleep(25);
+                    }
+                    else
+                    {
+                        HasClipboardImage = false;
+                        NotifyPasteProperties();
+                    }
+                }
+                catch
                 {
                     HasClipboardImage = false;
+                    NotifyPasteProperties();
                     return;
                 }
-
-                if (dataObj.GetDataPresent("PNG") ||
-                    dataObj.GetDataPresent(System.Windows.DataFormats.Bitmap) ||
-                    System.Windows.Clipboard.ContainsImage())
-                {
-                    HasClipboardImage = true;
-                    return;
-                }
-
-                if (dataObj.GetDataPresent(System.Windows.DataFormats.FileDrop) &&
-                    dataObj.GetData(System.Windows.DataFormats.FileDrop) is string[] files &&
-                    files.Length > 0)
-                {
-                    HasClipboardImage = files.Any(f => {
-                        string ext = Path.GetExtension(f).ToLowerInvariant();
-                        return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tif" or ".tiff";
-                    });
-                    return;
-                }
-
-                HasClipboardImage = false;
             }
-            catch
-            {
-                HasClipboardImage = false;
-            }
+        }
+
+        private void NotifyPasteProperties()
+        {
+            OnPropertyChanged(nameof(CanPasteImageToTile));
+            OnPropertyChanged(nameof(CanPasteImageToNewTile));
+            PasteImageToTileCommand.NotifyCanExecuteChanged();
+            PasteImageToNewTileCommand.NotifyCanExecuteChanged();
         }
 
         public IRelayCommand ExportPageToPngCommand => CapturePageCommand;
@@ -3188,6 +3241,8 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(RotateAllTilesLeftCommand))]
         [NotifyCanExecuteChangedFor(nameof(RotateAllTilesRightCommand))]
         [NotifyCanExecuteChangedFor(nameof(ExportSelectedChitCommand))]
+        [NotifyPropertyChangedFor(nameof(CanPasteImageToTile))]
+        [NotifyPropertyChangedFor(nameof(CanDeleteCurrentTile))]
         [NotifyPropertyChangedFor(nameof(ChitStatusBarText))]
         private ChitItem? _selectedChit;
 
@@ -4705,29 +4760,33 @@ namespace pdf_to_Tiles.ViewModels
                     if (dataObj == null) return null;
 
                     // 1. First priority: Check for 32-bit PNG stream for lossless alpha
-                    if (dataObj.GetDataPresent("PNG"))
+                    string[] pngFormats = { "PNG", "image/png", "image/x-png" };
+                    foreach (var format in pngFormats)
                     {
-                        var pngData = dataObj.GetData("PNG");
-                        if (pngData is Stream stream)
+                        if (dataObj.GetDataPresent(format))
                         {
-                            using var ms = new MemoryStream();
-                            stream.CopyTo(ms);
-                            byte[] bytes = ms.ToArray();
-                            if (bytes.Length > 0)
+                            var pngData = dataObj.GetData(format);
+                            if (pngData is Stream stream)
+                            {
+                                using var ms = new MemoryStream();
+                                stream.CopyTo(ms);
+                                byte[] bytes = ms.ToArray();
+                                if (bytes.Length > 0)
+                                {
+                                    var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
+                                    if (decoded != null && !decoded.Empty())
+                                    {
+                                        return EnsureBgraMat(decoded);
+                                    }
+                                }
+                            }
+                            else if (pngData is byte[] bytes && bytes.Length > 0)
                             {
                                 var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
                                 if (decoded != null && !decoded.Empty())
                                 {
                                     return EnsureBgraMat(decoded);
                                 }
-                            }
-                        }
-                        else if (pngData is byte[] bytes && bytes.Length > 0)
-                        {
-                            var decoded = Cv2.ImDecode(bytes, ImreadModes.Unchanged);
-                            if (decoded != null && !decoded.Empty())
-                            {
-                                return EnsureBgraMat(decoded);
                             }
                         }
                     }
