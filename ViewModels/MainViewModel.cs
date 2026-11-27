@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -1345,10 +1346,140 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand]
-        private void OpenTileFiles()
+        private async Task OpenTileFilesAsync()
         {
-            // Placeholder/stub command for Open Tile Files... to be fully implemented in subsequent step
-            StatusMessage = "Open Tile Files feature is ready to be configured.";
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Open Tile Image Files",
+                Filter = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff|PNG Files (*.png)|*.png|All Files (*.*)|*.*",
+                Multiselect = true,
+                CheckFileExists = true
+            };
+
+            if (openFileDialog.ShowDialog() != true || openFileDialog.FileNames.Length == 0)
+            {
+                return;
+            }
+
+            string[] fileNames = openFileDialog.FileNames;
+
+            // Natural alphanumeric sort so numbered files (e.g., Tile_1, Tile_2, Tile_10) load in human order
+            var sortedFiles = fileNames
+                .OrderBy(f => Regex.Replace(Path.GetFileName(f), @"\d+", m => m.Value.PadLeft(10, '0')), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            IsLoading = true;
+            StatusMessage = $"Loading {sortedFiles.Count} tile files...";
+
+            try
+            {
+                var loadedChits = await Task.Run(() =>
+                {
+                    var chits = new List<ChitItem>();
+                    for (int i = 0; i < sortedFiles.Count; i++)
+                    {
+                        string filePath = sortedFiles[i];
+                        try
+                        {
+                            Mat rawMat = Cv2.ImRead(filePath, ImreadModes.Unchanged);
+                            if (rawMat == null || rawMat.Empty())
+                            {
+                                rawMat = Cv2.ImRead(filePath, ImreadModes.Color);
+                            }
+
+                            if (rawMat == null || rawMat.Empty() || rawMat.Width < 8 || rawMat.Height < 8)
+                            {
+                                rawMat?.Dispose();
+                                continue;
+                            }
+
+                            Mat bgraMat = EnsureBgraMat(rawMat);
+
+                            string fileName = Path.GetFileName(filePath);
+                            string side = fileName.Contains("_Back", StringComparison.OrdinalIgnoreCase) ? "Back" : "Front";
+
+                            // Attempt to parse row/col from standard naming conventions (e.g. R01_C02)
+                            int row = 1;
+                            int col = i + 1;
+                            var coordMatch = Regex.Match(fileName, @"[_\b]R(?<r>\d+)[_\b]C(?<c>\d+)", RegexOptions.IgnoreCase);
+                            if (coordMatch.Success &&
+                                int.TryParse(coordMatch.Groups["r"].Value, out int parsedR) &&
+                                int.TryParse(coordMatch.Groups["c"].Value, out int parsedC))
+                            {
+                                row = parsedR;
+                                col = parsedC;
+                            }
+
+                            var chit = new ChitItem(
+                                index: i + 1,
+                                row: row,
+                                col: col,
+                                side: side,
+                                pieceName: fileName,
+                                bgraMat: bgraMat
+                            );
+
+                            chits.Add(chit);
+                        }
+                        catch
+                        {
+                            // Skip corrupted / unreadable files safely
+                        }
+                    }
+                    return chits;
+                });
+
+                if (loadedChits.Count == 0)
+                {
+                    StatusMessage = "No valid tile images could be loaded from the selected files.";
+                    return;
+                }
+
+                // Follow the exact same transition / activation flow as clicking Next from Tile Creator:
+                DeactivateCloneStamp();
+                _batchEditHistory.Clear();
+                _batchEditRedoHistory.Clear();
+
+                // Safe teardown: detach SelectedChit first, unhook handlers, and dispose existing native mats
+                SelectedChit = null;
+                foreach (var oldChit in LoadedChits)
+                {
+                    oldChit.PropertyChanged -= OnChitItemPropertyChanged;
+                    oldChit.Dispose();
+                }
+                LoadedChits.Clear();
+
+                foreach (var chit in loadedChits)
+                {
+                    chit.PropertyChanged += OnChitItemPropertyChanged;
+                    LoadedChits.Add(chit);
+                }
+
+                _isSyncingTileSelection = true;
+                try
+                {
+                    IsAllTilesSelected = true;
+                }
+                finally
+                {
+                    _isSyncingTileSelection = false;
+                }
+                NotifySelectionChanges();
+
+                SelectedChit = LoadedChits[0];
+                SelectedChit.IsSelected = true;
+
+                SelectedTabIndex = 2; // Switch directly to Tab 3: Tile Editor
+                StatusMessage = $"Loaded {LoadedChits.Count} tile files into Tile Editor.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Failed to load tile files: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         #endregion
@@ -2768,7 +2899,7 @@ namespace pdf_to_Tiles.ViewModels
                 }
 
                 ChitEditorWidth = value.PixelWidth;
-                ChitEditorHeight = value.PixelHeight;
+                ChitEditorHeight = IsResizeSquare ? value.PixelWidth : value.PixelHeight;
                 ClampCurrentEdgeCleanDepths();
 
                 // 4% Bevel and Corner-Clip default calculation (BaseDimension = min(width, height))
@@ -2849,15 +2980,65 @@ namespace pdf_to_Tiles.ViewModels
         private int _chitEditorHeight = 50;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsSquareChecked))]
+        [NotifyPropertyChangedFor(nameof(CanEditHeight))]
         private bool _isResizeSquare = false;
+
+        public bool IsSquareChecked
+        {
+            get => IsResizeSquare;
+            set => IsResizeSquare = value;
+        }
+
+        public bool CanEditHeight => !IsResizeSquare;
+
+        private bool _isSyncingDimensions = false;
+
+        partial void OnChitEditorWidthChanged(int value)
+        {
+            if (IsResizeSquare && !_isSyncingDimensions)
+            {
+                _isSyncingDimensions = true;
+                try
+                {
+                    ChitEditorHeight = value;
+                }
+                finally
+                {
+                    _isSyncingDimensions = false;
+                }
+            }
+        }
+
+        partial void OnChitEditorHeightChanged(int value)
+        {
+            if (IsResizeSquare && !_isSyncingDimensions)
+            {
+                _isSyncingDimensions = true;
+                try
+                {
+                    ChitEditorWidth = value;
+                }
+                finally
+                {
+                    _isSyncingDimensions = false;
+                }
+            }
+        }
 
         partial void OnIsResizeSquareChanged(bool value)
         {
-            if (value && ChitEditorWidth > 0 && ChitEditorHeight > 0)
+            if (value && !_isSyncingDimensions)
             {
-                int squareSize = ChitEditorService.CalculateSquareDimension(ChitEditorWidth, ChitEditorHeight);
-                ChitEditorWidth = squareSize;
-                ChitEditorHeight = squareSize;
+                _isSyncingDimensions = true;
+                try
+                {
+                    ChitEditorHeight = ChitEditorWidth;
+                }
+                finally
+                {
+                    _isSyncingDimensions = false;
+                }
             }
         }
 

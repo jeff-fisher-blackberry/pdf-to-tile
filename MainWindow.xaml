@@ -280,13 +280,12 @@
 
                     <!-- Tab 3: Tile Editor Section -->
                     <MenuItem Header="Open _Tile Files..."
-                              Command="{Binding OpenTileFilesCommand}"
-                              IsEnabled="{Binding IsTileEditorTabSelected}" />
-                    <MenuItem Header="Save _All Tiles"
+                              Command="{Binding OpenTileFilesCommand}" />
+                    <MenuItem Header="Export _All Tiles"
                               InputGestureText="Ctrl+Shift+S"
                               Command="{Binding SaveAllTilesCommand}"
                               IsEnabled="{Binding CanSaveAllTiles}" />
-                    <MenuItem Header="Save _Current Tile..."
+                    <MenuItem Header="Export _Current Tile..."
                               InputGestureText="Ctrl+S"
                               Command="{Binding SaveCurrentTileCommand}"
                               IsEnabled="{Binding CanSaveCurrentTile}" />
@@ -1650,9 +1649,12 @@
 
                                             <!-- Dimensions Left -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBox Text="{Binding ChitEditorWidth, UpdateSourceTrigger=PropertyChanged}" Width="48" TextAlignment="Center" Padding="2,3" />
+                                                <TextBox Text="{Binding ChitEditorWidth, UpdateSourceTrigger=PropertyChanged}" Width="48" TextAlignment="Center" Padding="2,3" ToolTip="Width in pixels (also sets height when Square is checked)" />
                                                 <TextBlock Text="×" Margin="4,0" VerticalAlignment="Center" FontWeight="Bold" />
-                                                <TextBox Text="{Binding ChitEditorHeight, UpdateSourceTrigger=PropertyChanged}" Width="48" TextAlignment="Center" Padding="2,3" />
+                                                <TextBox Text="{Binding ChitEditorHeight, UpdateSourceTrigger=PropertyChanged}"
+                                                         IsEnabled="{Binding IsResizeSquare, Converter={StaticResource BoolInvert}}"
+                                                         Width="48" TextAlignment="Center" Padding="2,3"
+                                                         ToolTip="Height in pixels (disabled when Square is checked)" />
                                             </StackPanel>
 
                                             <!-- Stretch, Shrink & Resize Right -->
