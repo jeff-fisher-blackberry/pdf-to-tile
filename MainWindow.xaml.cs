@@ -590,6 +590,16 @@ namespace pdf_to_Tiles
                         return;
                     }
                 }
+                else if (e.Key == Key.S && !isShift)
+                {
+                    // Tab 3 (Tile Editor / Chit Editor): Save / Export current active tile
+                    if (vm.SelectedTabIndex == 2 && vm.ExportSelectedChitCommand.CanExecute(null))
+                    {
+                        vm.ExportSelectedChitCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
             }
 
             // Tab 3 (Chit Editor): Clipboard & Undo/Redo operations for working chit

@@ -29,6 +29,115 @@ namespace pdf_to_Tiles.Services
             string.Equals(side, "Back", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Computes the list of output filenames that will be generated for a banded slice operation without writing to disk.
+        /// </summary>
+        public static List<string> GetBandedOutputFilenames(
+            SheetProfile profile,
+            string side,
+            int? singleBandIndex = null,
+            int? bandRows = null,
+            int? bandCols = null)
+        {
+            if (profile == null) return new List<string>();
+
+            var bands = side.Equals("Back", StringComparison.OrdinalIgnoreCase) && profile.BackBands != null && profile.BackBands.Count > 0
+                ? profile.BackBands
+                : profile.FrontBands;
+
+            if (bands == null || bands.Count == 0) return new List<string>();
+
+            int effectiveRows = Math.Max(1, bandRows ?? profile.Rows);
+            int effectiveCols = Math.Max(1, bandCols ?? profile.Columns);
+            int totalSheetBands = bands.Count;
+            int startBand = singleBandIndex.HasValue ? Math.Clamp(singleBandIndex.Value, 0, bands.Count - 1) : 0;
+            int endBand = singleBandIndex.HasValue ? startBand + 1 : bands.Count;
+            string prefix = string.IsNullOrWhiteSpace(profile.NamingPrefix) ? "Piece" : profile.NamingPrefix;
+
+            var filenames = new List<string>();
+            for (int b = startBand; b < endBand; b++)
+            {
+                for (int r = 0; r < effectiveRows; r++)
+                {
+                    for (int c = 0; c < effectiveCols; c++)
+                    {
+                        int globalRow = (b * effectiveRows) + r + 1;
+                        int mappedCol = c;
+                        int mappedRow = globalRow;
+
+                        if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                        {
+                            switch (profile.BackOrientation)
+                            {
+                                case BackOrientationMode.HorizontalFlip:
+                                    mappedCol = (effectiveCols - 1) - c;
+                                    break;
+                                case BackOrientationMode.VerticalFlip:
+                                    mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
+                                    break;
+                                case BackOrientationMode.Rotate180:
+                                    mappedCol = (effectiveCols - 1) - c;
+                                    mappedRow = (totalSheetBands * effectiveRows) - globalRow + 1;
+                                    break;
+                                case BackOrientationMode.Direct:
+                                default:
+                                    break;
+                            }
+                        }
+
+                        string filename = $"{prefix}_R{mappedRow:D2}_C{mappedCol + 1:D2}_{side}.png";
+                        filenames.Add(filename);
+                    }
+                }
+            }
+            return filenames;
+        }
+
+        /// <summary>
+        /// Computes the list of output filenames that will be generated for a standard grid slice operation without writing to disk.
+        /// </summary>
+        public static List<string> GetGridOutputFilenames(
+            SheetProfile profile,
+            string side)
+        {
+            if (profile == null) return new List<string>();
+
+            string prefix = string.IsNullOrWhiteSpace(profile.NamingPrefix) ? "Piece" : profile.NamingPrefix;
+            var filenames = new List<string>();
+            for (int r = 0; r < profile.Rows; r++)
+            {
+                for (int c = 0; c < profile.Columns; c++)
+                {
+                    int mappedCol = c;
+                    int mappedRow = r;
+
+                    if (side.Equals("Back", StringComparison.OrdinalIgnoreCase))
+                    {
+                        switch (profile.BackOrientation)
+                        {
+                            case BackOrientationMode.HorizontalFlip:
+                                mappedCol = (profile.Columns - 1) - c;
+                                break;
+                            case BackOrientationMode.VerticalFlip:
+                                mappedRow = (profile.Rows - 1) - r;
+                                break;
+                            case BackOrientationMode.Rotate180:
+                                mappedCol = (profile.Columns - 1) - c;
+                                mappedRow = (profile.Rows - 1) - r;
+                                break;
+                            case BackOrientationMode.Direct:
+                            default:
+                                break;
+                        }
+                    }
+
+                    string filename = $"{prefix}_R{mappedRow + 1:D2}_C{mappedCol + 1:D2}_{side}.png";
+                    filenames.Add(filename);
+                }
+            }
+            return filenames;
+        }
+
+        /// <summary>
         /// Slices a deskewed counter sheet Mat using discrete 2x10 bands asynchronously.
         /// If singleBandIndex is provided, slices only that specific band (20 pieces); otherwise slices all bands (e.g. 100 pieces).
         /// </summary>
@@ -41,7 +150,8 @@ namespace pdf_to_Tiles.Services
             CancellationToken cancellationToken,
             int? singleBandIndex = null,
             int bandRows = 2,
-            int bandCols = 10)
+            int bandCols = 10,
+            bool skipExisting = false)
         {
             return Task.Run(() =>
             {
@@ -167,13 +277,34 @@ namespace pdf_to_Tiles.Services
                             string filename = $"{prefix}_R{mappedRow:D2}_C{mappedCol + 1:D2}_{side}.png";
                             string outPath = Path.Combine(outputDirectory, filename);
 
+                            if (skipExisting && File.Exists(outPath))
+                            {
+                                currentPiece++;
+                                progress?.Report(new SliceProgressReport
+                                {
+                                    CurrentIndex = currentPiece,
+                                    TotalCount = totalPieces,
+                                    CurrentPieceName = filename,
+                                    StatusText = $"Skipping existing piece {currentPiece} of {totalPieces}: {filename}"
+                                });
+                                continue;
+                            }
+
                             // Zero-copy sub-Mat view for memory efficiency with dimension safety guard
                             if (pieceW > 0 && pieceH > 0)
                             {
                                 Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
                                 using (var pieceMat = new Mat(masterMat, roi))
                                 {
-                                    Cv2.ImWrite(outPath, pieceMat);
+                                    try
+                                    {
+                                        Cv2.ImWrite(outPath, pieceMat);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Failed to write piece {outPath}: {ex.Message}");
+                                        throw;
+                                    }
                                 }
                             }
 
@@ -362,7 +493,8 @@ namespace pdf_to_Tiles.Services
             string side,
             string outputDirectory,
             IProgress<SliceProgressReport>? progress,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool skipExisting = false)
         {
             return Task.Run(() =>
             {
@@ -463,11 +595,32 @@ namespace pdf_to_Tiles.Services
                         string filename = $"{prefix}_R{mappedRow + 1:D2}_C{mappedCol + 1:D2}_{side}.png";
                         string outPath = Path.Combine(outputDirectory, filename);
 
+                        if (skipExisting && File.Exists(outPath))
+                        {
+                            currentPiece++;
+                            progress?.Report(new SliceProgressReport
+                            {
+                                CurrentIndex = currentPiece,
+                                TotalCount = totalPieces,
+                                CurrentPieceName = filename,
+                                StatusText = $"Skipping existing piece {currentPiece} of {totalPieces}: {filename}"
+                            });
+                            continue;
+                        }
+
                         // Zero-copy sub-Mat view for memory efficiency
                         Rect roi = new Rect(cellX, cellY, pieceW, pieceH);
                         using (var pieceMat = new Mat(masterMat, roi))
                         {
-                            Cv2.ImWrite(outPath, pieceMat);
+                            try
+                            {
+                                Cv2.ImWrite(outPath, pieceMat);
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to write piece {outPath}: {ex.Message}");
+                                throw;
+                            }
                         }
 
                         currentPiece++;

@@ -1590,7 +1590,9 @@ namespace pdf_to_Tiles.ViewModels
                 Filter = "PNG Image (*.png)|*.png|All Files (*.*)|*.*",
                 FileName = defaultFileName,
                 InitialDirectory = initialDir,
-                DefaultExt = ".png"
+                DefaultExt = ".png",
+                AddExtension = true,
+                OverwritePrompt = true
             };
 
             if (saveFileDialog.ShowDialog() != true)
@@ -1673,14 +1675,27 @@ namespace pdf_to_Tiles.ViewModels
                     Filter = "PNG Image (*.png)|*.png",
                     DefaultExt = ".png",
                     AddExtension = true,
+                    OverwritePrompt = true,
                     FileName = defaultFileName,
                     InitialDirectory = initialDir
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
                 {
-                    Cv2.ImWrite(saveFileDialog.FileName, _deskewedMat);
-                    StatusMessage = $"Saved tile page image to {saveFileDialog.FileName}";
+                    try
+                    {
+                        Cv2.ImWrite(saveFileDialog.FileName, _deskewedMat);
+                        StatusMessage = $"Saved tile page image to {saveFileDialog.FileName}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusMessage = $"Failed to save tile page image: {ex.Message}";
+                        MessageBox.Show(
+                            $"Failed to save tile page image:\n{ex.Message}",
+                            "Save Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
                 }
             }
             else if (CanCapturePage())
@@ -2994,6 +3009,65 @@ namespace pdf_to_Tiles.ViewModels
 
             string targetDir = folderDialog.FolderName;
 
+            var profileCopy = SelectedProfile.Clone();
+            if (!string.IsNullOrWhiteSpace(LoadedFileName))
+            {
+                profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
+            }
+            else if (!string.IsNullOrWhiteSpace(SlicerSourceFileName))
+            {
+                profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(SlicerSourceFileName);
+            }
+            else if (!string.IsNullOrWhiteSpace(NamingPrefix))
+            {
+                profileCopy.NamingPrefix = NamingPrefix;
+            }
+            else
+            {
+                profileCopy.NamingPrefix = "Piece";
+            }
+            string currentSide = SelectedSide;
+
+            var expectedFilenames = IsBandedMode
+                ? GridSlicerService.GetBandedOutputFilenames(profileCopy, currentSide, singleBand ? ActiveBandIndex : null, EffectiveBandRows, EffectiveBandColumns)
+                : GridSlicerService.GetGridOutputFilenames(profileCopy, currentSide);
+
+            var conflictingFiles = expectedFilenames
+                .Where(fn => File.Exists(Path.Combine(targetDir, fn)))
+                .ToList();
+
+            bool skipExisting = false;
+            if (conflictingFiles.Count > 0)
+            {
+                string sampleNames = string.Join(", ", conflictingFiles.Take(3));
+                if (conflictingFiles.Count > 3)
+                {
+                    sampleNames += $", ... (+{conflictingFiles.Count - 3} more)";
+                }
+
+                string promptText = $"{conflictingFiles.Count} of {expectedFilenames.Count} sliced piece files already exist in:\n{targetDir}\n\nExisting files:\n{sampleNames}\n\n" +
+                                   "• Click 'Yes' to Overwrite existing files.\n" +
+                                   "• Click 'No' to Skip existing files (export only new pieces).\n" +
+                                   "• Click 'Cancel' to Abort slicing without saving any files.";
+
+                var dialogResult = MessageBox.Show(
+                    promptText,
+                    "Confirm Sliced Pieces Overwrite",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning);
+
+                if (dialogResult == MessageBoxResult.Cancel)
+                {
+                    StatusMessage = "Grid slicing cancelled by user. No files were written.";
+                    return;
+                }
+
+                if (dialogResult == MessageBoxResult.No)
+                {
+                    skipExisting = true;
+                }
+            }
+
             int pieceCount = IsBandedMode ? (singleBand ? TotalBandChits : ((SelectedProfile.FrontBands?.Count ?? 5) * TotalBandChits)) : (SelectedProfile.Rows * SelectedProfile.Columns);
 
             IsSlicing = true;
@@ -3012,25 +3086,6 @@ namespace pdf_to_Tiles.ViewModels
 
             try
             {
-                var profileCopy = SelectedProfile.Clone();
-                if (!string.IsNullOrWhiteSpace(LoadedFileName))
-                {
-                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(LoadedFileName);
-                }
-                else if (!string.IsNullOrWhiteSpace(SlicerSourceFileName))
-                {
-                    profileCopy.NamingPrefix = Path.GetFileNameWithoutExtension(SlicerSourceFileName);
-                }
-                else if (!string.IsNullOrWhiteSpace(NamingPrefix))
-                {
-                    profileCopy.NamingPrefix = NamingPrefix;
-                }
-                else
-                {
-                    profileCopy.NamingPrefix = "Piece";
-                }
-                string currentSide = SelectedSide;
-
                 if (IsBandedMode)
                 {
                     int? bandIndex = singleBand ? ActiveBandIndex : null;
@@ -3043,7 +3098,8 @@ namespace pdf_to_Tiles.ViewModels
                         _sliceCts.Token,
                         bandIndex,
                         EffectiveBandRows,
-                        EffectiveBandColumns
+                        EffectiveBandColumns,
+                        skipExisting
                     );
                 }
                 else
@@ -3054,12 +3110,27 @@ namespace pdf_to_Tiles.ViewModels
                         currentSide,
                         targetDir,
                         progress,
-                        _sliceCts.Token
+                        _sliceCts.Token,
+                        skipExisting
                     );
                 }
 
-                StatusMessage = $"Successfully exported all {pieceCount} pieces to: {targetDir}";
-                SliceProgressText = $"Completed! {pieceCount} pieces saved to {targetDir}";
+                if (skipExisting && conflictingFiles.Count > 0)
+                {
+                    int written = Math.Max(0, pieceCount - conflictingFiles.Count);
+                    StatusMessage = $"Successfully exported {written} pieces (skipped {conflictingFiles.Count} existing files) to: {targetDir}";
+                    SliceProgressText = $"Completed! {written} pieces saved (skipped {conflictingFiles.Count} existing) to {targetDir}";
+                }
+                else if (conflictingFiles.Count > 0)
+                {
+                    StatusMessage = $"Successfully exported all {pieceCount} pieces (overwrote {conflictingFiles.Count} existing files) to: {targetDir}";
+                    SliceProgressText = $"Completed! {pieceCount} pieces saved (overwrote {conflictingFiles.Count} existing) to {targetDir}";
+                }
+                else
+                {
+                    StatusMessage = $"Successfully exported all {pieceCount} pieces to: {targetDir}";
+                    SliceProgressText = $"Completed! {pieceCount} pieces saved to {targetDir}";
+                }
             }
             catch (OperationCanceledException)
             {
@@ -5837,15 +5908,29 @@ namespace pdf_to_Tiles.ViewModels
             {
                 Title = "Save Tile as PNG",
                 Filter = "PNG Image (*.png)|*.png",
-                DefaultExt = "png",
+                DefaultExt = ".png",
+                AddExtension = true,
+                OverwritePrompt = true,
                 InitialDirectory = initialDir,
                 FileName = SelectedChit.PieceName
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                Cv2.ImWrite(saveFileDialog.FileName, SelectedChit.WorkingMat);
-                StatusMessage = $"Saved tile #{SelectedChit.Index} ({SelectedChit.PieceName}) to {saveFileDialog.FileName}";
+                try
+                {
+                    Cv2.ImWrite(saveFileDialog.FileName, SelectedChit.WorkingMat);
+                    StatusMessage = $"Saved tile #{SelectedChit.Index} ({SelectedChit.PieceName}) to {saveFileDialog.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Failed to save tile: {ex.Message}";
+                    MessageBox.Show(
+                        $"Failed to save tile:\n{ex.Message}",
+                        "Save Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
             }
         }
 
@@ -5866,23 +5951,114 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             string targetDir = folderDialog.FolderName;
-            int total = LoadedChits.Count;
-            int count = 0;
+
+            var chitsToExport = LoadedChits
+                .Where(c => c.WorkingMat != null && !c.WorkingMat.IsDisposed)
+                .ToList();
+
+            if (chitsToExport.Count == 0)
+            {
+                StatusMessage = "No valid tiles available to export.";
+                return;
+            }
+
+            var conflictingFiles = chitsToExport
+                .Where(c => File.Exists(Path.Combine(targetDir, c.PieceName)))
+                .Select(c => c.PieceName)
+                .ToList();
+
+            bool skipExisting = false;
+            if (conflictingFiles.Count > 0)
+            {
+                string sampleNames = string.Join(", ", conflictingFiles.Take(3));
+                if (conflictingFiles.Count > 3)
+                {
+                    sampleNames += $", ... (+{conflictingFiles.Count - 3} more)";
+                }
+
+                string promptText = $"{conflictingFiles.Count} of {chitsToExport.Count} tile files already exist in:\n{targetDir}\n\nExisting files:\n{sampleNames}\n\n" +
+                                   "• Click 'Yes' to Overwrite existing files.\n" +
+                                   "• Click 'No' to Skip existing files (export only new tiles).\n" +
+                                   "• Click 'Cancel' to Abort export without saving any files.";
+
+                var dialogResult = MessageBox.Show(
+                    promptText,
+                    "Confirm Tile Export Overwrite",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning);
+
+                if (dialogResult == MessageBoxResult.Cancel)
+                {
+                    StatusMessage = "Tile export cancelled by user. No files were written.";
+                    return;
+                }
+
+                if (dialogResult == MessageBoxResult.No)
+                {
+                    skipExisting = true;
+                }
+            }
+
+            int exportedCount = 0;
+            int skippedCount = 0;
+            int overwrittenCount = 0;
+            var writeErrors = new List<string>();
 
             await Task.Run(() =>
             {
-                foreach (var chit in LoadedChits)
+                foreach (var chit in chitsToExport)
                 {
-                    if (chit.WorkingMat != null && !chit.WorkingMat.IsDisposed)
+                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed)
                     {
-                        string outPath = Path.Combine(targetDir, chit.PieceName);
+                        continue;
+                    }
+
+                    string outPath = Path.Combine(targetDir, chit.PieceName);
+                    bool fileExisted = File.Exists(outPath);
+
+                    if (fileExisted && skipExisting)
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    try
+                    {
                         Cv2.ImWrite(outPath, chit.WorkingMat);
-                        count++;
+                        exportedCount++;
+                        if (fileExisted)
+                        {
+                            overwrittenCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        writeErrors.Add($"{chit.PieceName}: {ex.Message}");
                     }
                 }
             });
 
-            StatusMessage = $"Successfully exported all {count} edited tiles to: {targetDir}";
+            if (writeErrors.Count > 0)
+            {
+                StatusMessage = $"Export finished with errors: {exportedCount} exported, {skippedCount} skipped, {writeErrors.Count} failed.";
+                MessageBox.Show(
+                    $"Completed tile export with {writeErrors.Count} error(s):\n\n" + string.Join("\n", writeErrors.Take(5)),
+                    "Export Errors",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            else if (skipExisting)
+            {
+                StatusMessage = $"Successfully exported {exportedCount} new tiles (skipped {skippedCount} existing files) to: {targetDir}";
+            }
+            else if (overwrittenCount > 0)
+            {
+                StatusMessage = $"Successfully exported {exportedCount} tiles (overwrote {overwrittenCount} existing files) to: {targetDir}";
+            }
+            else
+            {
+                StatusMessage = $"Successfully exported all {exportedCount} tiles to: {targetDir}";
+            }
         }
 
         [RelayCommand]
