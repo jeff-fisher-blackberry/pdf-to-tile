@@ -1662,21 +1662,18 @@
                                                     <CheckBox Grid.Column="2" Content="Square"
                                                               IsChecked="{Binding IsResizeSquare}"
                                                               FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                              ToolTip="Constrain target dimensions to min(Width, Height) square for Stretch, Shrink, and Resize" />
+                                                              ToolTip="Constrain target dimensions to min(Width, Height) square for Scale Image and Resize Image" />
                                                 </Grid>
 
-                                                <!-- Row 2: Equal-Width Stretch, Shrink, and Resize Buttons -->
+                                                <!-- Row 2: Equal-Width Scale Image and Resize Image Buttons -->
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="6" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="8" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <Button Grid.Column="0" Content="Stretch" Command="{Binding ApplyStretchCommand}" Height="28" ToolTip="Resample image to exact Width × Height (distorts aspect if changed)" />
-                                                    <Button Grid.Column="2" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Height="28" ToolTip="Scale image down to fit target dimensions edge-to-edge" />
-                                                    <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
+                                                    <Button Grid.Column="0" Content="Scale Image" Command="{Binding ApplyScaleImageCommand}" Height="28" ToolTip="Resample image to exact Width × Height (shrinks if smaller, stretches if larger)" />
+                                                    <Button Grid.Column="2" Content="Resize Image" Command="{Binding ApplyResizeImageCommand}" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>

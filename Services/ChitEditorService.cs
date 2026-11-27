@@ -313,32 +313,15 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Stretches/resamples the chit to the exact target width and height using Lanczos4 interpolation.
+        /// Resamples/scales the chit image directly to fit targetW × targetH edge-to-edge.
+        /// Uses Area interpolation when downsampling on both dimensions to prevent aliasing,
+        /// or Lanczos4 interpolation whenever either dimension expands to prevent nearest-neighbor artifacts.
         /// </summary>
-        public static Mat ApplyStretch(Mat src, int targetW, int targetH)
+        public static Mat ApplyScale(Mat src, int targetW, int targetH)
         {
             if (src == null || src.IsDisposed)
             {
-                throw new ArgumentException("Invalid source matrix for stretch.", nameof(src));
-            }
-
-            int w = Math.Max(MinDimension, targetW);
-            int h = Math.Max(MinDimension, targetH);
-
-            Mat dst = new Mat();
-            Cv2.Resize(src, dst, new OpenCvSharp.Size(w, h), 0, 0, InterpolationFlags.Lanczos4);
-            return dst;
-        }
-
-        /// <summary>
-        /// Downsamples/resamples the chit image directly to fit targetW × targetH edge-to-edge without cyan padding borders or letterbox bars.
-        /// Uses Area interpolation for downsampling to prevent aliasing, or Lanczos4 if upsampling.
-        /// </summary>
-        public static Mat ApplyShrink(Mat src, int targetW, int targetH, Vec4b? padColor = null)
-        {
-            if (src == null || src.IsDisposed)
-            {
-                throw new ArgumentException("Invalid source matrix for shrink.", nameof(src));
+                throw new ArgumentException("Invalid source matrix for scale.", nameof(src));
             }
 
             int tw = Math.Max(MinDimension, targetW);
@@ -349,12 +332,13 @@ namespace pdf_to_Tiles.Services
                 return src.Clone();
             }
 
-            // Downsample directly to target dimensions using Area interpolation for sharp, alias-free reduction
-            Mat dst = new Mat();
+            // Downsampling on both axes uses Area interpolation for alias-free reduction.
+            // If either dimension expands (upsampling or mixed axes), use Lanczos4 for smooth bicubic interpolation.
             InterpolationFlags interp = (tw <= src.Width && th <= src.Height)
                 ? InterpolationFlags.Area
                 : InterpolationFlags.Lanczos4;
 
+            Mat dst = new Mat();
             Cv2.Resize(src, dst, new OpenCvSharp.Size(tw, th), 0, 0, interp);
             return dst;
         }

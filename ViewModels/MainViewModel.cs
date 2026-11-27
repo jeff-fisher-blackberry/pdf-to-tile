@@ -2824,9 +2824,8 @@ namespace pdf_to_Tiles.ViewModels
         [NotifyCanExecuteChangedFor(nameof(ApplySharedToolAllCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyBevelCommand))]
         [NotifyCanExecuteChangedFor(nameof(ApplyClipCommand))]
-        [NotifyCanExecuteChangedFor(nameof(ApplyStretchCommand))]
-        [NotifyCanExecuteChangedFor(nameof(ApplyShrinkCommand))]
-        [NotifyCanExecuteChangedFor(nameof(ApplyResizeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyScaleImageCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ApplyResizeImageCommand))]
         [NotifyCanExecuteChangedFor(nameof(BumpChitLeftCommand))]
         [NotifyCanExecuteChangedFor(nameof(BumpChitRightCommand))]
         [NotifyCanExecuteChangedFor(nameof(BumpChitUpCommand))]
@@ -3436,9 +3435,8 @@ namespace pdf_to_Tiles.ViewModels
             RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
             BevelAllCommand.NotifyCanExecuteChanged();
             ClipAllCommand.NotifyCanExecuteChanged();
-            ApplyStretchCommand.NotifyCanExecuteChanged();
-            ApplyShrinkCommand.NotifyCanExecuteChanged();
-            ApplyResizeCommand.NotifyCanExecuteChanged();
+            ApplyScaleImageCommand.NotifyCanExecuteChanged();
+            ApplyResizeImageCommand.NotifyCanExecuteChanged();
             BumpChitLeftCommand.NotifyCanExecuteChanged();
             BumpChitRightCommand.NotifyCanExecuteChanged();
             BumpChitUpCommand.NotifyCanExecuteChanged();
@@ -4480,7 +4478,7 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanResizeChits))]
-        private void ApplyStretch()
+        private void ApplyScaleImage()
         {
             DeactivateCloneStamp();
             if (_isApplyingBatchEdit) return;
@@ -4496,7 +4494,7 @@ namespace pdf_to_Tiles.ViewModels
                     }
                     else
                     {
-                        StatusMessage = "No tiles selected for Stretch operation.";
+                        StatusMessage = "No tiles selected for Scale Image operation.";
                         return;
                     }
                 }
@@ -4512,20 +4510,39 @@ namespace pdf_to_Tiles.ViewModels
                     ChitEditorHeight = squareSize;
                 }
 
+                // Check if any target tile will actually change dimensions
+                bool anyChanged = targets.Any(c => c.WorkingMat != null && !c.WorkingMat.IsDisposed && (c.WorkingMat.Width != targetW || c.WorkingMat.Height != targetH));
+                if (!anyChanged)
+                {
+                    StatusMessage = targets.Count > 1
+                        ? (targets.Count == LoadedChits.Count
+                            ? $"All {targets.Count} tiles are already {targetW}×{targetH} px."
+                            : $"{targets.Count} selected tiles are already {targetW}×{targetH} px.")
+                        : $"Tile #{targets[0].Index} is already {targetW}×{targetH} px.";
+                    return;
+                }
+
+                var modifiedTargets = new List<ChitItem>();
                 foreach (var chit in targets)
                 {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                    var stretched = ChitEditorService.ApplyStretch(chit.WorkingMat, targetW, targetH);
-                    chit.UpdateWorkingMat(stretched, recordHistory: true, TransparentColor);
+                    if (chit.WorkingMat.Width == targetW && chit.WorkingMat.Height == targetH) continue;
+
+                    var scaled = ChitEditorService.ApplyScale(chit.WorkingMat, targetW, targetH);
+                    chit.UpdateWorkingMat(scaled, recordHistory: true, TransparentColor);
+                    modifiedTargets.Add(chit);
                 }
 
-                RecordEditHistory(targets);
-                _lastCommittedSignature = null;
-                _lastCommittedBevelSignature = null;
-                _lastCommittedClipSignature = null;
-                SelectedChit?.SetPreviewMat(null);
-                ClampCurrentEdgeCleanDepths();
-                UpdateLiveChitPreview();
+                if (modifiedTargets.Count > 0)
+                {
+                    RecordEditHistory(modifiedTargets);
+                    _lastCommittedSignature = null;
+                    _lastCommittedBevelSignature = null;
+                    _lastCommittedClipSignature = null;
+                    SelectedChit?.SetPreviewMat(null);
+                    ClampCurrentEdgeCleanDepths();
+                    UpdateLiveChitPreview();
+                }
 
                 string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
                     ? $" (active tile #{SelectedChit.Index} was excluded)"
@@ -4533,9 +4550,9 @@ namespace pdf_to_Tiles.ViewModels
 
                 StatusMessage = targets.Count > 1
                     ? (targets.Count == LoadedChits.Count
-                        ? $"Stretched all {targets.Count} tiles to {targetW}×{targetH} px."
-                        : $"Stretched {targets.Count} selected tiles to {targetW}×{targetH} px{excludedNote}.")
-                    : $"Stretched tile #{targets[0].Index} to {targetW}×{targetH} px.";
+                        ? $"Scaled all {targets.Count} tiles to {targetW}×{targetH} px."
+                        : $"Scaled {targets.Count} selected tiles to {targetW}×{targetH} px{excludedNote}.")
+                    : $"Scaled tile #{targets[0].Index} to {targetW}×{targetH} px.";
             }
             finally
             {
@@ -4544,7 +4561,7 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(CanResizeChits))]
-        private void ApplyShrink()
+        private void ApplyResizeImage()
         {
             DeactivateCloneStamp();
             if (_isApplyingBatchEdit) return;
@@ -4560,7 +4577,7 @@ namespace pdf_to_Tiles.ViewModels
                     }
                     else
                     {
-                        StatusMessage = "No tiles selected for Shrink operation.";
+                        StatusMessage = "No tiles selected for Resize Image operation.";
                         return;
                     }
                 }
@@ -4577,85 +4594,39 @@ namespace pdf_to_Tiles.ViewModels
                     ChitEditorHeight = squareSize;
                 }
 
+                // Check if any target tile will actually change dimensions
+                bool anyChanged = targets.Any(c => c.WorkingMat != null && !c.WorkingMat.IsDisposed && (c.WorkingMat.Width != targetW || c.WorkingMat.Height != targetH));
+                if (!anyChanged)
+                {
+                    StatusMessage = targets.Count > 1
+                        ? (targets.Count == LoadedChits.Count
+                            ? $"All {targets.Count} tiles are already {targetW}×{targetH} px."
+                            : $"{targets.Count} selected tiles are already {targetW}×{targetH} px.")
+                        : $"Tile #{targets[0].Index} is already {targetW}×{targetH} px.";
+                    return;
+                }
+
+                var modifiedTargets = new List<ChitItem>();
                 foreach (var chit in targets)
                 {
                     if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-                    var shrunk = ChitEditorService.ApplyShrink(chit.WorkingMat, targetW, targetH, key);
-                    chit.UpdateWorkingMat(shrunk, recordHistory: true, TransparentColor);
-                }
+                    if (chit.WorkingMat.Width == targetW && chit.WorkingMat.Height == targetH) continue;
 
-                RecordEditHistory(targets);
-                _lastCommittedSignature = null;
-                _lastCommittedBevelSignature = null;
-                _lastCommittedClipSignature = null;
-                SelectedChit?.SetPreviewMat(null);
-                ClampCurrentEdgeCleanDepths();
-                UpdateLiveChitPreview();
-
-                string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
-                    ? $" (active tile #{SelectedChit.Index} was excluded)"
-                    : string.Empty;
-
-                StatusMessage = targets.Count > 1
-                    ? (targets.Count == LoadedChits.Count
-                        ? $"Shrunk all {targets.Count} tiles to fit {targetW}×{targetH} px."
-                        : $"Shrunk {targets.Count} selected tiles to fit {targetW}×{targetH} px{excludedNote}.")
-                    : $"Shrunk tile #{targets[0].Index} to fit {targetW}×{targetH} px.";
-            }
-            finally
-            {
-                _isApplyingBatchEdit = false;
-            }
-        }
-
-        [RelayCommand(CanExecute = nameof(CanResizeChits))]
-        private void ApplyResize()
-        {
-            DeactivateCloneStamp();
-            if (_isApplyingBatchEdit) return;
-            _isApplyingBatchEdit = true;
-            try
-            {
-                var targets = LoadedChits.Where(c => c.IsChecked).ToList();
-                if (targets.Count == 0)
-                {
-                    if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
-                    {
-                        targets = new List<ChitItem> { SelectedChit };
-                    }
-                    else
-                    {
-                        StatusMessage = "No tiles selected for Resize operation.";
-                        return;
-                    }
-                }
-
-                Vec4b key = ColorToVec4b(TransparentColor);
-                int targetW = ChitEditorWidth;
-                int targetH = ChitEditorHeight;
-                if (IsResizeSquare)
-                {
-                    int squareSize = ChitEditorService.CalculateSquareDimension(targetW, targetH);
-                    targetW = squareSize;
-                    targetH = squareSize;
-                    ChitEditorWidth = squareSize;
-                    ChitEditorHeight = squareSize;
-                }
-
-                foreach (var chit in targets)
-                {
-                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
                     var resized = ChitEditorService.ApplyResize(chit.WorkingMat, targetW, targetH, key);
                     chit.UpdateWorkingMat(resized, recordHistory: true, TransparentColor);
+                    modifiedTargets.Add(chit);
                 }
 
-                RecordEditHistory(targets);
-                _lastCommittedSignature = null;
-                _lastCommittedBevelSignature = null;
-                _lastCommittedClipSignature = null;
-                SelectedChit?.SetPreviewMat(null);
-                ClampCurrentEdgeCleanDepths();
-                UpdateLiveChitPreview();
+                if (modifiedTargets.Count > 0)
+                {
+                    RecordEditHistory(modifiedTargets);
+                    _lastCommittedSignature = null;
+                    _lastCommittedBevelSignature = null;
+                    _lastCommittedClipSignature = null;
+                    SelectedChit?.SetPreviewMat(null);
+                    ClampCurrentEdgeCleanDepths();
+                    UpdateLiveChitPreview();
+                }
 
                 string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
                     ? $" (active tile #{SelectedChit.Index} was excluded)"
