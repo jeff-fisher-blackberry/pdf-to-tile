@@ -3518,9 +3518,20 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (e.PropertyName == nameof(ChitItem.IsChecked))
             {
-                if (sender is ChitItem chit && !chit.IsChecked && ReferenceEquals(SelectedChit, chit))
+                if (sender is ChitItem chit)
                 {
-                    SelectedChit = null;
+                    if (!chit.IsChecked)
+                    {
+                        if (ReferenceEquals(SelectedChit, chit))
+                        {
+                            SelectedChit = null;
+                        }
+                    }
+                    else if (!_isSyncingTileSelection && !ReferenceEquals(SelectedChit, chit))
+                    {
+                        // Checking a tile in TILE STRIP immediately selects it for WORKING TILE display
+                        SelectedChit = chit;
+                    }
                 }
 
                 if (_isSyncingTileSelection) return;
