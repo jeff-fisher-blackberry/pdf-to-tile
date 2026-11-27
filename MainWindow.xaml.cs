@@ -1072,9 +1072,9 @@ namespace pdf_to_Tiles
                         vm.SelectedChit.CommitInPlaceEdit(vm.TransparentColor);
 
                         var affected = new List<pdf_to_Tiles.Models.ChitItem> { vm.SelectedChit };
-                        if (vm.SelectedChit.IsChecked)
+                        if (vm.SelectedChit.IsSelected)
                         {
-                            var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit && c.IsChecked).ToList();
+                            var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit && c.IsSelected).ToList();
                             bool isBatch = otherChits.Count > 0 && _currentStrokePoints.Count > 0;
                             if (isBatch)
                             {
@@ -1105,7 +1105,7 @@ namespace pdf_to_Tiles
 
                         vm.RecordEditHistory(affected);
                         string shapeName = vm.CloneStampShape == "Square" ? "Square" : "Circle";
-                        if (!vm.SelectedChit.IsChecked)
+                        if (!vm.SelectedChit.IsSelected)
                         {
                             vm.StatusMessage = $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px) to active tile #{vm.SelectedChit.Index} (excluded from batch replay).";
                         }
@@ -1340,6 +1340,27 @@ namespace pdf_to_Tiles
                 vm.SelectOverlayColorCommand.Execute(option);
             }
             OverlayColorPopup.IsOpen = false;
+        }
+
+        private void TileStripItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListBoxItem item && DataContext is MainViewModel vm)
+            {
+                if (item.DataContext is ChitItem chit)
+                {
+                    // If the right-clicked item is already selected, preserve multi-selection
+                    if (!chit.IsSelected)
+                    {
+                        // Deselect other items and select only this right-clicked item
+                        foreach (var other in vm.LoadedChits)
+                        {
+                            other.IsSelected = ReferenceEquals(other, chit);
+                        }
+                    }
+                    vm.SelectedChit = chit;
+                    item.Focus();
+                }
+            }
         }
     }
 }

@@ -1497,6 +1497,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 foreach (var chit in loadedChits)
                 {
+                    chit.IsSelected = true;
                     chit.PropertyChanged += OnChitItemPropertyChanged;
                     LoadedChits.Add(chit);
                 }
@@ -2825,6 +2826,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 foreach (var chit in chits)
                 {
+                    chit.IsSelected = true;
                     chit.PropertyChanged += OnChitItemPropertyChanged;
                     LoadedChits.Add(chit);
                 }
@@ -2941,21 +2943,10 @@ namespace pdf_to_Tiles.ViewModels
 
         partial void OnSelectedChitChanged(ChitItem? value)
         {
-            if (value != null && !value.IsChecked)
-            {
-                // An unchecked tile cannot be the active working tile
-                value.IsSelected = false;
-                SelectedChit = null;
-                return;
-            }
-
             if (value != null)
             {
                 value.PropertyChanged += SelectedChit_PropertyChanged;
-                foreach (var chit in LoadedChits)
-                {
-                    chit.IsSelected = ReferenceEquals(chit, value);
-                }
+                value.IsSelected = true;
 
                 ChitEditorWidth = value.PixelWidth;
                 ChitEditorHeight = IsResizeSquare ? value.PixelWidth : value.PixelHeight;
@@ -2985,15 +2976,13 @@ namespace pdf_to_Tiles.ViewModels
             }
             else
             {
-                foreach (var chit in LoadedChits)
-                {
-                    chit.IsSelected = false;
-                }
                 DeactivateCloneStamp();
                 _lastCommittedSignature = null;
                 _lastCommittedBevelSignature = null;
                 _lastCommittedClipSignature = null;
             }
+
+            NotifySelectionChanges();
 
             OnPropertyChanged(nameof(CanUndoChit));
             OnPropertyChanged(nameof(CanRedoChit));
@@ -3189,33 +3178,33 @@ namespace pdf_to_Tiles.ViewModels
             : $"Apply {SharedToolValue}px 3D raised bevel around perimeter";
 
         public string SharedToolBatchActionName =>
-            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsChecked)) ? "All" : "Selected";
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "All" : "Selected";
 
         public string SharedToolBatchActionToolTip
         {
             get
             {
-                int checkedCount = LoadedChits.Count(c => c.IsChecked);
-                if (checkedCount == 0) return "No tiles selected in Tile Strip";
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0) return "No tiles selected in Tile Strip";
                 string tool = SelectedSharedToolMode.ToLowerInvariant();
-                if (checkedCount == LoadedChits.Count)
+                if (selectedCount == LoadedChits.Count)
                     return $"Apply {SharedToolValue}px {tool} to all {LoadedChits.Count} tiles";
-                return $"Apply {SharedToolValue}px {tool} to {checkedCount} selected tiles";
+                return $"Apply {SharedToolValue}px {tool} to {selectedCount} selected tiles";
             }
         }
 
         public string RotateBatchActionName =>
-            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsChecked)) ? "↻ All" : "↻ Selected";
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "↻ All" : "↻ Selected";
 
         public string RotateBatchActionToolTip
         {
             get
             {
-                int checkedCount = LoadedChits.Count(c => c.IsChecked);
-                if (checkedCount == 0) return "No tiles selected in Tile Strip";
-                if (checkedCount == LoadedChits.Count)
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0) return "No tiles selected in Tile Strip";
+                if (selectedCount == LoadedChits.Count)
                     return $"Rotate all {LoadedChits.Count} loaded tiles 90° clockwise";
-                return $"Rotate {checkedCount} selected tiles 90° clockwise";
+                return $"Rotate {selectedCount} selected tiles 90° clockwise";
             }
         }
 
@@ -3427,11 +3416,14 @@ namespace pdf_to_Tiles.ViewModels
             {
                 foreach (var c in LoadedChits)
                 {
-                    c.IsChecked = value;
+                    c.IsSelected = value;
                 }
                 if (value)
                 {
-                    SelectedChit = LoadedChits.FirstOrDefault();
+                    if (SelectedChit == null)
+                    {
+                        SelectedChit = LoadedChits.FirstOrDefault();
+                    }
                 }
                 else
                 {
@@ -3454,10 +3446,13 @@ namespace pdf_to_Tiles.ViewModels
             {
                 foreach (var c in LoadedChits)
                 {
-                    c.IsChecked = true;
+                    c.IsSelected = true;
                 }
                 IsAllTilesSelected = true;
-                SelectedChit = LoadedChits.FirstOrDefault();
+                if (SelectedChit == null)
+                {
+                    SelectedChit = LoadedChits.FirstOrDefault();
+                }
                 NotifySelectionChanges();
             }
             finally
@@ -3477,7 +3472,7 @@ namespace pdf_to_Tiles.ViewModels
             {
                 foreach (var c in LoadedChits)
                 {
-                    c.IsChecked = false;
+                    c.IsSelected = false;
                 }
                 IsAllTilesSelected = false;
                 SelectedChit = null;
@@ -3489,10 +3484,40 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        public bool CanDeselectAllTiles => HasCheckedChits;
+        public bool CanDeselectAllTiles => HasSelectedChits;
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void InvertTileSelection()
+        {
+            if (_isSyncingTileSelection) return;
+            _isSyncingTileSelection = true;
+            try
+            {
+                foreach (var c in LoadedChits)
+                {
+                    c.IsSelected = !c.IsSelected;
+                }
+                bool allSelected = LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected);
+                IsAllTilesSelected = allSelected;
+                if (SelectedChit != null && !SelectedChit.IsSelected)
+                {
+                    SelectedChit = LoadedChits.FirstOrDefault(c => c.IsSelected);
+                }
+                else if (SelectedChit == null)
+                {
+                    SelectedChit = LoadedChits.FirstOrDefault(c => c.IsSelected);
+                }
+                NotifySelectionChanges();
+            }
+            finally
+            {
+                _isSyncingTileSelection = false;
+            }
+        }
 
         private void NotifySelectionChanges()
         {
+            OnPropertyChanged(nameof(HasSelectedChits));
             OnPropertyChanged(nameof(HasCheckedChits));
             OnPropertyChanged(nameof(SharedToolBatchActionName));
             OnPropertyChanged(nameof(SharedToolBatchActionToolTip));
@@ -3512,24 +3537,24 @@ namespace pdf_to_Tiles.ViewModels
             ChitEditorZoomResetCommand.NotifyCanExecuteChanged();
             SelectAllTilesCommand.NotifyCanExecuteChanged();
             DeselectAllTilesCommand.NotifyCanExecuteChanged();
+            InvertTileSelectionCommand.NotifyCanExecuteChanged();
         }
 
         private void OnChitItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ChitItem.IsChecked))
+            if (e.PropertyName == nameof(ChitItem.IsSelected))
             {
                 if (sender is ChitItem chit)
                 {
-                    if (!chit.IsChecked)
+                    if (!chit.IsSelected)
                     {
                         if (ReferenceEquals(SelectedChit, chit))
                         {
-                            SelectedChit = null;
+                            SelectedChit = LoadedChits.FirstOrDefault(c => c.IsSelected);
                         }
                     }
-                    else if (!_isSyncingTileSelection && !ReferenceEquals(SelectedChit, chit))
+                    else if (!_isSyncingTileSelection && SelectedChit == null)
                     {
-                        // Checking a tile in TILE STRIP immediately selects it for WORKING TILE display
                         SelectedChit = chit;
                     }
                 }
@@ -3538,12 +3563,8 @@ namespace pdf_to_Tiles.ViewModels
                 _isSyncingTileSelection = true;
                 try
                 {
-                    bool allChecked = LoadedChits.Count > 0 && LoadedChits.All(c => c.IsChecked);
-                    IsAllTilesSelected = allChecked;
-                    if (allChecked && SelectedChit == null)
-                    {
-                        SelectedChit = LoadedChits.FirstOrDefault();
-                    }
+                    bool allSelected = LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected);
+                    IsAllTilesSelected = allSelected;
                     NotifySelectionChanges();
                 }
                 finally
@@ -3553,7 +3574,8 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        public bool HasCheckedChits => LoadedChits.Any(c => c.IsChecked);
+        public bool HasSelectedChits => LoadedChits.Any(c => c.IsSelected);
+        public bool HasCheckedChits => HasSelectedChits;
 
         private readonly Stack<List<ChitItem>> _batchEditHistory = new();
         private readonly Stack<List<ChitItem>> _batchEditRedoHistory = new();
@@ -4006,9 +4028,9 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed && (SelectedChit?.IsChecked ?? false);
-        private bool CanPasteChit() => SelectedChit != null && SelectedChit.IsChecked;
-        private bool CanResizeChits() => HasCheckedChits || CanEditChit();
+        private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed && (SelectedChit?.IsSelected ?? false);
+        private bool CanPasteChit() => SelectedChit != null && SelectedChit.IsSelected;
+        private bool CanResizeChits() => HasSelectedChits || CanEditChit();
         private bool CanBumpChits() => CanEditChit();
 
         [RelayCommand(CanExecute = nameof(CanEditChit))]
@@ -4410,7 +4432,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsChecked).ToList() : new List<ChitItem> { SelectedChit };
+            var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsSelected).ToList() : new List<ChitItem> { SelectedChit };
             Vec4b transColor = ColorToVec4b(TransparentColor);
 
             foreach (var chit in targets)
@@ -4433,7 +4455,7 @@ namespace pdf_to_Tiles.ViewModels
         {
             DeactivateCloneStamp();
             if (SelectedChit?.WorkingMat == null) return;
-            var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsChecked).ToList() : new List<ChitItem> { SelectedChit };
+            var targets = ApplyToAllChits ? LoadedChits.Where(c => c.IsSelected).ToList() : new List<ChitItem> { SelectedChit };
             Vec4b key = ColorToVec4b(TransparentColor);
 
             foreach (var chit in targets)
@@ -4453,11 +4475,11 @@ namespace pdf_to_Tiles.ViewModels
                 : $"Applied {ChitEditorClipSize}px corner clip to tile #{SelectedChit.Index}.";
         }
 
-        [RelayCommand(CanExecute = nameof(HasCheckedChits))]
+        [RelayCommand(CanExecute = nameof(HasSelectedChits))]
         private void BevelAll()
         {
             DeactivateCloneStamp();
-            var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
             if (targets.Count == 0)
             {
                 if (SelectedChit != null)
@@ -4499,7 +4521,7 @@ namespace pdf_to_Tiles.ViewModels
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
 
-            string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                 ? $" (active tile #{SelectedChit.Index} was excluded)"
                 : string.Empty;
 
@@ -4508,11 +4530,11 @@ namespace pdf_to_Tiles.ViewModels
                 : $"Applied {bevelSize}px bevel to {count} selected tiles{excludedNote}.";
         }
 
-        [RelayCommand(CanExecute = nameof(HasCheckedChits))]
+        [RelayCommand(CanExecute = nameof(HasSelectedChits))]
         private void ClipAll()
         {
             DeactivateCloneStamp();
-            var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
             if (targets.Count == 0)
             {
                 if (SelectedChit != null)
@@ -4554,7 +4576,7 @@ namespace pdf_to_Tiles.ViewModels
             UndoChitCommand.NotifyCanExecuteChanged();
             RedoChitCommand.NotifyCanExecuteChanged();
 
-            string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                 ? $" (active tile #{SelectedChit.Index} was excluded)"
                 : string.Empty;
 
@@ -4571,7 +4593,7 @@ namespace pdf_to_Tiles.ViewModels
             _isApplyingBatchEdit = true;
             try
             {
-                var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+                var targets = LoadedChits.Where(c => c.IsSelected).ToList();
                 if (targets.Count == 0)
                 {
                     if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
@@ -4630,7 +4652,7 @@ namespace pdf_to_Tiles.ViewModels
                     UpdateLiveChitPreview();
                 }
 
-                string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+                string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                     ? $" (active tile #{SelectedChit.Index} was excluded)"
                     : string.Empty;
 
@@ -4654,7 +4676,7 @@ namespace pdf_to_Tiles.ViewModels
             _isApplyingBatchEdit = true;
             try
             {
-                var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+                var targets = LoadedChits.Where(c => c.IsSelected).ToList();
                 if (targets.Count == 0)
                 {
                     if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
@@ -4714,7 +4736,7 @@ namespace pdf_to_Tiles.ViewModels
                     UpdateLiveChitPreview();
                 }
 
-                string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+                string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                     ? $" (active tile #{SelectedChit.Index} was excluded)"
                     : string.Empty;
 
@@ -4766,7 +4788,7 @@ namespace pdf_to_Tiles.ViewModels
             _isApplyingBatchEdit = true;
             try
             {
-                var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+                var targets = LoadedChits.Where(c => c.IsSelected).ToList();
                 if (targets.Count == 0)
                 {
                     if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
@@ -4801,7 +4823,7 @@ namespace pdf_to_Tiles.ViewModels
                            : (dy < 0) ? $"{Math.Abs(dy)}px Up"
                            : $"{dy}px Down";
 
-                string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+                string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                     ? $" (active tile #{SelectedChit.Index} was excluded)"
                     : string.Empty;
 
@@ -4980,13 +5002,13 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = $"Rotated tile #{SelectedChit.Index} {dir}.";
         }
 
-        [RelayCommand(CanExecute = nameof(HasCheckedChits))]
+        [RelayCommand(CanExecute = nameof(HasSelectedChits))]
         private void RotateAllTilesLeft()
         {
             RotateAllTilesInternal(clockwise: false);
         }
 
-        [RelayCommand(CanExecute = nameof(HasCheckedChits))]
+        [RelayCommand(CanExecute = nameof(HasSelectedChits))]
         private void RotateAllTilesRight()
         {
             RotateAllTilesInternal(clockwise: true);
@@ -4995,7 +5017,7 @@ namespace pdf_to_Tiles.ViewModels
         private void RotateAllTilesInternal(bool clockwise)
         {
             DeactivateCloneStamp();
-            var targets = LoadedChits.Where(c => c.IsChecked).ToList();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
             if (targets.Count == 0)
             {
                 if (SelectedChit != null)
@@ -5033,7 +5055,7 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             string dir = clockwise ? "90° right (clockwise)" : "90° left (counter-clockwise)";
-            string excludedNote = (SelectedChit != null && !SelectedChit.IsChecked && targets.Count > 1)
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
                 ? $" (active tile #{SelectedChit.Index} was excluded)"
                 : string.Empty;
 
@@ -5109,30 +5131,30 @@ namespace pdf_to_Tiles.ViewModels
         private void SelectNextChit()
         {
             DeactivateCloneStamp();
-            var checkedChits = LoadedChits.Where(c => c.IsChecked).ToList();
-            if (checkedChits.Count == 0)
+            if (LoadedChits.Count == 0)
             {
                 SelectedChit = null;
                 return;
             }
-            int idx = SelectedChit != null ? checkedChits.IndexOf(SelectedChit) : -1;
-            int nextIdx = (idx + 1) % checkedChits.Count;
-            SelectedChit = checkedChits[nextIdx];
+            int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : -1;
+            int nextIdx = (idx + 1) % LoadedChits.Count;
+            SelectedChit = LoadedChits[nextIdx];
+            SelectedChit.IsSelected = true;
         }
 
         [RelayCommand]
         private void SelectPrevChit()
         {
             DeactivateCloneStamp();
-            var checkedChits = LoadedChits.Where(c => c.IsChecked).ToList();
-            if (checkedChits.Count == 0)
+            if (LoadedChits.Count == 0)
             {
                 SelectedChit = null;
                 return;
             }
-            int idx = SelectedChit != null ? checkedChits.IndexOf(SelectedChit) : 0;
-            int prevIdx = (idx - 1 + checkedChits.Count) % checkedChits.Count;
-            SelectedChit = checkedChits[prevIdx];
+            int idx = SelectedChit != null ? LoadedChits.IndexOf(SelectedChit) : 0;
+            int prevIdx = (idx - 1 + LoadedChits.Count) % LoadedChits.Count;
+            SelectedChit = LoadedChits[prevIdx];
+            SelectedChit.IsSelected = true;
         }
 
         [RelayCommand]

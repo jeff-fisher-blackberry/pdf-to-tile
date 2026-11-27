@@ -71,8 +71,19 @@ namespace pdf_to_Tiles.Models
         [ObservableProperty]
         private bool _isSelected;
 
-        [ObservableProperty]
-        private bool _isChecked = true;
+        /// <summary>
+        /// Backward compatibility wrapper delegating to IsSelected with unified row selection.
+        /// </summary>
+        public bool IsChecked
+        {
+            get => IsSelected;
+            set => IsSelected = value;
+        }
+
+        partial void OnIsSelectedChanged(bool value)
+        {
+            OnPropertyChanged(nameof(IsChecked));
+        }
 
         [ObservableProperty]
         private string _dimensionsText = string.Empty;
