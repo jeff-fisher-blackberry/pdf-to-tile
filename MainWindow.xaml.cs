@@ -761,14 +761,6 @@ namespace pdf_to_Tiles
             }
         }
 
-        private void TileStripContextMenu_Opened(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is MainViewModel vm)
-            {
-                vm.UpdateClipboardState();
-            }
-        }
-
         protected override void OnActivated(EventArgs e)
         {
             base.OnActivated(e);
@@ -1410,6 +1402,8 @@ namespace pdf_to_Tiles
         {
             if (sender is ListBoxItem item && DataContext is MainViewModel vm)
             {
+                vm.UpdateClipboardState();
+
                 if (item.DataContext is ChitItem chit)
                 {
                     // If the right-clicked item is already selected, preserve multi-selection
@@ -1424,6 +1418,14 @@ namespace pdf_to_Tiles
                     vm.SelectedChit = chit;
                     item.Focus();
                 }
+            }
+        }
+
+        private void TileStripItem_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.UpdateClipboardState();
             }
         }
     }

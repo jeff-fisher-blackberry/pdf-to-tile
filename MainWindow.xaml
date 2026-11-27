@@ -2344,9 +2344,10 @@
                                         <Setter Property="BorderThickness" Value="0" />
                                         <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListBox}}" />
                                         <EventSetter Event="PreviewMouseRightButtonDown" Handler="TileStripItem_PreviewMouseRightButtonDown" />
+                                        <EventSetter Event="ContextMenuOpening" Handler="TileStripItem_ContextMenuOpening" />
                                         <Setter Property="ContextMenu">
                                             <Setter.Value>
-                                                <ContextMenu Opened="TileStripContextMenu_Opened">
+                                                <ContextMenu>
                                                     <MenuItem Header="Select _All"
                                                               InputGestureText="Ctrl+A"
                                                               Command="{Binding PlacementTarget.Tag.SelectAllTilesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
