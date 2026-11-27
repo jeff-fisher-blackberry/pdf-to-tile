@@ -3352,6 +3352,8 @@ namespace pdf_to_Tiles.ViewModels
         private bool _applyToAllChits = false;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SelectAllTilesCommand))]
+        [NotifyCanExecuteChangedFor(nameof(DeselectAllTilesCommand))]
         private bool _isAllTilesSelected = true;
 
         private bool _isApplyingBatchEdit = false;
@@ -3383,7 +3385,7 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanSelectAllTiles))]
         private void SelectAllTiles()
         {
             if (_isSyncingTileSelection) return;
@@ -3404,7 +3406,9 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        [RelayCommand]
+        public bool CanSelectAllTiles => HasChitsLoaded && !IsAllTilesSelected;
+
+        [RelayCommand(CanExecute = nameof(CanDeselectAllTiles))]
         private void DeselectAllTiles()
         {
             if (_isSyncingTileSelection) return;
@@ -3425,6 +3429,8 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
+        public bool CanDeselectAllTiles => HasCheckedChits;
+
         private void NotifySelectionChanges()
         {
             OnPropertyChanged(nameof(HasCheckedChits));
@@ -3444,6 +3450,8 @@ namespace pdf_to_Tiles.ViewModels
             BumpChitUpCommand.NotifyCanExecuteChanged();
             BumpChitDownCommand.NotifyCanExecuteChanged();
             ChitEditorZoomResetCommand.NotifyCanExecuteChanged();
+            SelectAllTilesCommand.NotifyCanExecuteChanged();
+            DeselectAllTilesCommand.NotifyCanExecuteChanged();
         }
 
         private void OnChitItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
