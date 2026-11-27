@@ -514,17 +514,19 @@ namespace pdf_to_Tiles.Services
 
         /// <summary>
         /// Removes isolated high-frequency dust specks and scanner artifacts (salt-and-pepper noise)
-        /// using a 3x3 median outlier filter with an edge-preserving difference threshold.
+        /// using a median outlier filter with an edge-preserving difference threshold.
         /// Thin typography, punctuation dots, and division lines are strictly protected.
+        /// Returns the resulting BGRA matrix and the count of modified pixels.
         /// </summary>
-        public static Mat ApplyDespeckle(Mat src, int threshold = 25, Vec4b? transparentColor = null)
+        public static (Mat Result, int ModifiedPixels) ApplyDespeckle(Mat src, int threshold = 18, int ksize = 3, Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
                 throw new ArgumentException("Invalid source image matrix for despeckle operation.", nameof(src));
             }
 
-            int clampedThreshold = Math.Clamp(threshold, 5, 150);
+            int clampedThreshold = Math.Clamp(threshold, 2, 150);
+            int clampedK = (ksize >= 5) ? 5 : 3;
 
             using Mat bgr = new Mat();
             using Mat alpha = new Mat();
@@ -532,7 +534,7 @@ namespace pdf_to_Tiles.Services
             Cv2.ExtractChannel(src, alpha, 3);
 
             using Mat median = new Mat();
-            Cv2.MedianBlur(bgr, median, 3);
+            Cv2.MedianBlur(bgr, median, clampedK);
 
             using Mat diff = new Mat();
             Cv2.Absdiff(bgr, median, diff);
@@ -540,14 +542,25 @@ namespace pdf_to_Tiles.Services
             using Mat diffGray = new Mat();
             Cv2.CvtColor(diff, diffGray, ColorConversionCodes.BGR2GRAY);
 
+            // For ksize=5 (Strong), generate an edge mask to protect sharp text strokes from rounding
+            using Mat edgeMask = new Mat();
+            if (clampedK >= 5)
+            {
+                using Mat gray = new Mat();
+                Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
+                Cv2.Canny(gray, edgeMask, 50, 150);
+            }
+
             Mat result = src.Clone();
             var resIdx = result.GetGenericIndexer<Vec4b>();
             var medIdx = median.GetGenericIndexer<Vec3b>();
             var diffIdx = diffGray.GetGenericIndexer<byte>();
+            var edgeIdx = (clampedK >= 5) ? edgeMask.GetGenericIndexer<byte>() : null;
             var srcIdx = src.GetGenericIndexer<Vec4b>();
 
             int width = src.Width;
             int height = src.Height;
+            int modifiedCount = 0;
 
             for (int y = 0; y < height; y++)
             {
@@ -564,29 +577,36 @@ namespace pdf_to_Tiles.Services
                         continue;
                     }
 
+                    // Protect detected stroke edges in Strong mode
+                    if (edgeIdx != null && edgeIdx[y, x] > 0)
+                    {
+                        continue;
+                    }
+
                     if (diffIdx[y, x] >= clampedThreshold)
                     {
                         Vec3b med = medIdx[y, x];
                         resIdx[y, x] = new Vec4b(med.Item0, med.Item1, med.Item2, orig.Item3);
+                        modifiedCount++;
                     }
                 }
             }
 
-            return result;
+            return (result, modifiedCount);
         }
 
         /// <summary>
         /// Applies gentle unsharp masking to restore crispness on soft scans without harsh halos
         /// or noise amplification, with low-contrast noise floor protection.
         /// </summary>
-        public static Mat ApplySharpen(Mat src, double amount = 0.35, double sigma = 1.0, Vec4b? transparentColor = null)
+        public static Mat ApplySharpen(Mat src, double amount = 0.45, double sigma = 1.0, Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
                 throw new ArgumentException("Invalid source image matrix for sharpen operation.", nameof(src));
             }
 
-            double clampedAmount = Math.Clamp(amount, 0.1, 1.5);
+            double clampedAmount = Math.Clamp(amount, 0.1, 2.5);
             double clampedSigma = Math.Clamp(sigma, 0.5, 3.0);
 
             using Mat bgr = new Mat();
@@ -638,11 +658,11 @@ namespace pdf_to_Tiles.Services
                         continue;
                     }
 
-                    // Low-contrast guard: if difference from blur is minimal (paper texture), leave untouched
+                    // Low-contrast guard: if difference from blur is minimal (flat paper texture), leave untouched
                     Vec3b b = bgrIdx[y, x];
                     Vec3b bl = blurIdx[y, x];
                     int maxDiff = Math.Max(Math.Abs(b.Item0 - bl.Item0), Math.Max(Math.Abs(b.Item1 - bl.Item1), Math.Abs(b.Item2 - bl.Item2)));
-                    if (maxDiff <= 2)
+                    if (maxDiff <= 1)
                     {
                         resIdx[y, x] = orig;
                     }
@@ -653,10 +673,11 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Detects outer transparent or uniform border margins and crops cleanly to the foreground bounding box.
-        /// Returns a safe clone of src if no trimmable border is found or bounds are degenerate.
+        /// Scans each of the 4 outer edges independently to detect transparent margins or uniform gutters,
+        /// cropping cleanly to the foreground bounding box with safety guards and optional square clamping.
+        /// Returns the cropped BGRA matrix and the computed crop rectangle.
         /// </summary>
-        public static Mat ApplyAutoTrim(Mat src, int tolerance = 15, int padding = 1, bool forceSquare = false, Vec4b? transparentColor = null)
+        public static (Mat Result, Rect CropRect) ApplyAutoTrim(Mat src, int tolerance = 18, int padding = 1, bool forceSquare = false, Vec4b? transparentColor = null)
         {
             if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
             {
@@ -665,62 +686,160 @@ namespace pdf_to_Tiles.Services
 
             int width = src.Width;
             int height = src.Height;
-
-            using Mat mask = new Mat(height, width, MatType.CV_8UC1, new Scalar(0));
             var srcIdx = src.GetGenericIndexer<Vec4b>();
-            var maskIdx = mask.GetGenericIndexer<byte>();
 
-            Vec4b c0 = srcIdx[0, 0];
-            Vec4b c1 = srcIdx[0, width - 1];
-            Vec4b c2 = srcIdx[height - 1, 0];
-            Vec4b c3 = srcIdx[height - 1, width - 1];
-
-            for (int y = 0; y < height; y++)
+            bool IsBorderPixel(Vec4b p, Vec4b? edgeColor)
             {
+                if (p.Item3 == 0) return true;
+                if (transparentColor.HasValue &&
+                    p.Item0 == transparentColor.Value.Item0 &&
+                    p.Item1 == transparentColor.Value.Item1 &&
+                    p.Item2 == transparentColor.Value.Item2 &&
+                    p.Item3 == transparentColor.Value.Item3)
+                {
+                    return true;
+                }
+                if (edgeColor.HasValue && tolerance > 0)
+                {
+                    int diff = Math.Abs(p.Item0 - edgeColor.Value.Item0) +
+                               Math.Abs(p.Item1 - edgeColor.Value.Item1) +
+                               Math.Abs(p.Item2 - edgeColor.Value.Item2);
+                    return diff <= tolerance * 3;
+                }
+                return false;
+            }
+
+            // Find top border
+            int top = 0;
+            for (int y = 0; y < height / 2; y++)
+            {
+                Vec4b? sample = null;
                 for (int x = 0; x < width; x++)
                 {
                     Vec4b p = srcIdx[y, x];
-                    if (p.Item3 == 0) continue;
-                    if (transparentColor.HasValue &&
-                        p.Item0 == transparentColor.Value.Item0 &&
-                        p.Item1 == transparentColor.Value.Item1 &&
-                        p.Item2 == transparentColor.Value.Item2 &&
-                        p.Item3 == transparentColor.Value.Item3)
+                    if (p.Item3 != 0 && (!transparentColor.HasValue || p != transparentColor.Value))
                     {
-                        continue;
+                        sample = p;
+                        break;
                     }
+                }
 
-                    bool matchesBorder = false;
-                    if (tolerance > 0)
-                    {
-                        int d0 = Math.Abs(p.Item0 - c0.Item0) + Math.Abs(p.Item1 - c0.Item1) + Math.Abs(p.Item2 - c0.Item2);
-                        int d1 = Math.Abs(p.Item0 - c1.Item0) + Math.Abs(p.Item1 - c1.Item1) + Math.Abs(p.Item2 - c1.Item2);
-                        int d2 = Math.Abs(p.Item0 - c2.Item0) + Math.Abs(p.Item1 - c2.Item1) + Math.Abs(p.Item2 - c2.Item2);
-                        int d3 = Math.Abs(p.Item0 - c3.Item0) + Math.Abs(p.Item1 - c3.Item1) + Math.Abs(p.Item2 - c3.Item2);
-                        if (d0 <= tolerance * 3 && d1 <= tolerance * 3 && d2 <= tolerance * 3 && d3 <= tolerance * 3)
-                        {
-                            matchesBorder = true;
-                        }
-                    }
+                int borderCount = 0;
+                for (int x = 0; x < width; x++)
+                {
+                    if (IsBorderPixel(srcIdx[y, x], sample)) borderCount++;
+                }
 
-                    if (!matchesBorder)
-                    {
-                        maskIdx[y, x] = 255;
-                    }
+                if (borderCount >= (int)(width * 0.95))
+                {
+                    top = y + 1;
+                }
+                else
+                {
+                    break;
                 }
             }
 
-            Rect bounds = Cv2.BoundingRect(mask);
-            if (bounds.Width < 16 || bounds.Height < 16 || (bounds.Width == width && bounds.Height == height))
+            // Find bottom border
+            int bottom = height - 1;
+            for (int y = height - 1; y > height / 2; y--)
             {
-                return src.Clone();
+                Vec4b? sample = null;
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b p = srcIdx[y, x];
+                    if (p.Item3 != 0 && (!transparentColor.HasValue || p != transparentColor.Value))
+                    {
+                        sample = p;
+                        break;
+                    }
+                }
+
+                int borderCount = 0;
+                for (int x = 0; x < width; x++)
+                {
+                    if (IsBorderPixel(srcIdx[y, x], sample)) borderCount++;
+                }
+
+                if (borderCount >= (int)(width * 0.95))
+                {
+                    bottom = y - 1;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Find left border
+            int left = 0;
+            for (int x = 0; x < width / 2; x++)
+            {
+                Vec4b? sample = null;
+                for (int y = top; y <= bottom; y++)
+                {
+                    Vec4b p = srcIdx[y, x];
+                    if (p.Item3 != 0 && (!transparentColor.HasValue || p != transparentColor.Value))
+                    {
+                        sample = p;
+                        break;
+                    }
+                }
+
+                int borderCount = 0;
+                for (int y = top; y <= bottom; y++)
+                {
+                    if (IsBorderPixel(srcIdx[y, x], sample)) borderCount++;
+                }
+
+                int colHeight = Math.Max(1, bottom - top + 1);
+                if (borderCount >= (int)(colHeight * 0.95))
+                {
+                    left = x + 1;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Find right border
+            int right = width - 1;
+            for (int x = width - 1; x > width / 2; x--)
+            {
+                Vec4b? sample = null;
+                for (int y = top; y <= bottom; y++)
+                {
+                    Vec4b p = srcIdx[y, x];
+                    if (p.Item3 != 0 && (!transparentColor.HasValue || p != transparentColor.Value))
+                    {
+                        sample = p;
+                        break;
+                    }
+                }
+
+                int borderCount = 0;
+                for (int y = top; y <= bottom; y++)
+                {
+                    if (IsBorderPixel(srcIdx[y, x], sample)) borderCount++;
+                }
+
+                int colHeight = Math.Max(1, bottom - top + 1);
+                if (borderCount >= (int)(colHeight * 0.95))
+                {
+                    right = x - 1;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             int clampedPad = Math.Max(0, padding);
-            int x0 = Math.Max(0, bounds.X - clampedPad);
-            int y0 = Math.Max(0, bounds.Y - clampedPad);
-            int x1 = Math.Min(width, bounds.X + bounds.Width + clampedPad);
-            int y1 = Math.Min(height, bounds.Y + bounds.Height + clampedPad);
+            int x0 = Math.Max(0, left - clampedPad);
+            int y0 = Math.Max(0, top - clampedPad);
+            int x1 = Math.Min(width, right + 1 + clampedPad);
+            int y1 = Math.Min(height, bottom + 1 + clampedPad);
             int bw = x1 - x0;
             int bh = y1 - y0;
 
@@ -738,13 +857,163 @@ namespace pdf_to_Tiles.Services
                 bh = squareSide;
             }
 
+            // Guard: if trimmed region is degenerate or equals original image, return original
             if (bw < 16 || bh < 16 || (bw == width && bh == height))
+            {
+                return (src.Clone(), new Rect(0, 0, width, height));
+            }
+
+            using Mat subView = new Mat(src, new Rect(x0, y0, bw, bh));
+            return (subView.Clone(), new Rect(x0, y0, bw, bh));
+        }
+
+        /// <summary>
+        /// Performs gentle auto-levels contrast stretch on the luminance channel (0.5% tail clip)
+        /// with 70/30 blended preservation to separate dark counter ink from background cardboard.
+        /// Preserves colors, alpha, and transparent key-color pixels cleanly.
+        /// </summary>
+        public static Mat ApplyAutoLevels(Mat src, double clipPercent = 0.5, Vec4b? transparentColor = null)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for auto-levels operation.", nameof(src));
+            }
+
+            using Mat bgr = new Mat();
+            using Mat alpha = new Mat();
+            Cv2.CvtColor(src, bgr, ColorConversionCodes.BGRA2BGR);
+            Cv2.ExtractChannel(src, alpha, 3);
+
+            using Mat ycrcb = new Mat();
+            Cv2.CvtColor(bgr, ycrcb, ColorConversionCodes.BGR2YCrCb);
+
+            using Mat chY = new Mat();
+            using Mat chCr = new Mat();
+            using Mat chCb = new Mat();
+            Cv2.ExtractChannel(ycrcb, chY, 0);
+            Cv2.ExtractChannel(ycrcb, chCr, 1);
+            Cv2.ExtractChannel(ycrcb, chCb, 2);
+
+            // Compute luminance histogram for opaque, non-key pixels
+            int[] hist = new int[256];
+            int totalOpaque = 0;
+            var srcIdx = src.GetGenericIndexer<Vec4b>();
+            var yIdx = chY.GetGenericIndexer<byte>();
+
+            int width = src.Width;
+            int height = src.Height;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b orig = srcIdx[y, x];
+                    if (orig.Item3 == 0) continue;
+                    if (transparentColor.HasValue &&
+                        orig.Item0 == transparentColor.Value.Item0 &&
+                        orig.Item1 == transparentColor.Value.Item1 &&
+                        orig.Item2 == transparentColor.Value.Item2 &&
+                        orig.Item3 == transparentColor.Value.Item3)
+                    {
+                        continue;
+                    }
+                    hist[yIdx[y, x]]++;
+                    totalOpaque++;
+                }
+            }
+
+            if (totalOpaque < 16)
             {
                 return src.Clone();
             }
 
-            using Mat subView = new Mat(src, new Rect(x0, y0, bw, bh));
-            return subView.Clone();
+            int clipCount = (int)(totalOpaque * Math.Clamp(clipPercent, 0.1, 5.0) / 100.0);
+            int minVal = 0;
+            int sum = 0;
+            for (int i = 0; i < 256; i++)
+            {
+                sum += hist[i];
+                if (sum > clipCount)
+                {
+                    minVal = i;
+                    break;
+                }
+            }
+
+            int maxVal = 255;
+            sum = 0;
+            for (int i = 255; i >= 0; i--)
+            {
+                sum += hist[i];
+                if (sum > clipCount)
+                {
+                    maxVal = i;
+                    break;
+                }
+            }
+
+            if (maxVal - minVal < 10)
+            {
+                return src.Clone();
+            }
+
+            // Build LUT for Y channel
+            byte[] lut = new byte[256];
+            double range = maxVal - minVal;
+            for (int i = 0; i < 256; i++)
+            {
+                lut[i] = (byte)Math.Clamp((i - minVal) * 255.0 / range, 0.0, 255.0);
+            }
+
+            using Mat lutMat = new Mat(1, 256, MatType.CV_8UC1);
+            lutMat.SetArray(lut);
+
+            using Mat stretchedY = new Mat();
+            Cv2.LUT(chY, lutMat, stretchedY);
+
+            using Mat stretchedYCrCb = new Mat();
+            Cv2.Merge(new[] { stretchedY, chCr, chCb }, stretchedYCrCb);
+
+            using Mat leveledBgr = new Mat();
+            Cv2.CvtColor(stretchedYCrCb, leveledBgr, ColorConversionCodes.YCrCb2BGR);
+
+            // Blend 70% leveled with 30% original to retain natural paper feel
+            using Mat blendedBgr = new Mat();
+            Cv2.AddWeighted(leveledBgr, 0.70, bgr, 0.30, 0, blendedBgr);
+
+            using Mat chB = new Mat();
+            using Mat chG = new Mat();
+            using Mat chR = new Mat();
+            Cv2.ExtractChannel(blendedBgr, chB, 0);
+            Cv2.ExtractChannel(blendedBgr, chG, 1);
+            Cv2.ExtractChannel(blendedBgr, chR, 2);
+
+            Mat result = new Mat();
+            Cv2.Merge(new[] { chB, chG, chR, alpha }, result);
+
+            // Restore transparent / key-color pixels
+            var resIdx = result.GetGenericIndexer<Vec4b>();
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b orig = srcIdx[y, x];
+                    if (orig.Item3 == 0)
+                    {
+                        resIdx[y, x] = orig;
+                    }
+                    else if (transparentColor.HasValue &&
+                             orig.Item0 == transparentColor.Value.Item0 &&
+                             orig.Item1 == transparentColor.Value.Item1 &&
+                             orig.Item2 == transparentColor.Value.Item2 &&
+                             orig.Item3 == transparentColor.Value.Item3)
+                    {
+                        resIdx[y, x] = orig;
+                    }
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

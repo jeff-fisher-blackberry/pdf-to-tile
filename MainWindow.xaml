@@ -1988,7 +1988,7 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- Subpanel 6: Tile Cleanup Tools (Despeckle, Sharpen, Auto-Trim) -->
+                                        <!-- Subpanel 6: Tile Cleanup Tools (Despeckle, Sharpen, Auto-Trim, Auto-Contrast) -->
                                         <Border Background="{DynamicResource ViewportBackgroundBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
@@ -1996,10 +1996,37 @@
                                                 Padding="8,6"
                                                 Margin="0,0,0,4">
                                             <StackPanel>
-                                                <TextBlock Text="TILE CLEANUP"
-                                                           FontSize="11" FontWeight="Bold"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           Margin="0,0,0,6" />
+                                                <!-- Header: Title + Shared Strength Radios (Light, Med, Strong) -->
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="TILE CLEANUP"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <RadioButton Content="Light"
+                                                                     GroupName="CleanupPreset"
+                                                                     IsChecked="{Binding IsCleanupLight}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     Margin="0,0,4,0"
+                                                                     ToolTip="Subtle cleanup: 3×3 despeckle (T=18) and gentle sharpen (45%)" />
+                                                        <RadioButton Content="Med"
+                                                                     GroupName="CleanupPreset"
+                                                                     IsChecked="{Binding IsCleanupMedium}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     Margin="0,0,4,0"
+                                                                     ToolTip="Moderate cleanup: 3×3 despeckle (T=12) and crisp sharpen (80%)" />
+                                                        <RadioButton Content="Strong"
+                                                                     GroupName="CleanupPreset"
+                                                                     IsChecked="{Binding IsCleanupStrong}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     ToolTip="Strong cleanup: 5×5 edge-protected despeckle (T=8) and punchy sharpen (120%)" />
+                                                    </StackPanel>
+                                                </Grid>
 
                                                 <!-- Row 1: Despeckle -->
                                                 <Grid Margin="0,0,0,4">
@@ -2048,7 +2075,7 @@
                                                 </Grid>
 
                                                 <!-- Row 3: Auto-Trim -->
-                                                <Grid Margin="0,0,0,2">
+                                                <Grid Margin="0,0,0,4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="6" />
@@ -2068,6 +2095,29 @@
                                                             Padding="4,2"
                                                             FontSize="11"
                                                             ToolTip="Auto-trim uniform or transparent outer border on current tile" />
+                                                </Grid>
+
+                                                <!-- Row 4: Auto-Contrast -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding AutoContrastBatchActionName, FallbackValue='Contrast All'}"
+                                                            Command="{Binding AutoContrastAllTilesCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="{Binding AutoContrastBatchActionToolTip, FallbackValue='Auto-contrast and levels polish across tiles'}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="Contrast Current"
+                                                            Command="{Binding AutoContrastCurrentTileCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="Auto-contrast stretch to separate dark ink from background on current tile" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
