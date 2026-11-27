@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>2026-11-26.28</Version>
-    <InformationalVersion>2026-11-26.28</InformationalVersion>
-    <AssemblyVersion>2026.11.26.28</AssemblyVersion>
-    <FileVersion>2026.11.26.28</FileVersion>
+    <Version>2026-11-26.29</Version>
+    <InformationalVersion>2026-11-26.29</InformationalVersion>
+    <AssemblyVersion>2026.11.26.29</AssemblyVersion>
+    <FileVersion>2026.11.26.29</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
