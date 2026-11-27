@@ -1521,11 +1521,6 @@
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
-                            <TextBlock Text="Active:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" />
-                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='(No Tile Selected)'}" FontWeight="SemiBold" VerticalAlignment="Center" />
-
-                            <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
-
                             <Button Content="↩" Command="{Binding UndoChitCommand}" ToolTip="Undo last action for selected tile (Ctrl+Z)" Width="30" Height="26" Padding="0" />
                             <Button Content="↪" Command="{Binding RedoChitCommand}" ToolTip="Redo last undone action (Ctrl+Y)" Width="30" Height="26" Padding="0" Margin="4,0,0,0" />
 
