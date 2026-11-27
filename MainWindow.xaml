@@ -1523,7 +1523,7 @@
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
                             <TextBlock Text="Active:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,4,0" />
-                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='No Tile Loaded'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelectedChit.PieceName, TargetNullValue='(No Tile Selected)'}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
                             <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" Margin="8,0" />
 
@@ -1623,7 +1623,20 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="Tile tools" Style="{StaticResource SectionHeaderStyle}" />
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Tile tools" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" Margin="0" />
+                                            <CheckBox Grid.Column="2" Content="All Tiles"
+                                                      IsChecked="{Binding IsAllTilesSelected, Mode=TwoWay}"
+                                                      VerticalAlignment="Center"
+                                                      FontWeight="SemiBold"
+                                                      FontSize="11"
+                                                      ToolTip="Select or deselect all tiles for batch operations" />
+                                        </Grid>
 
                                         <!-- Row 1: Dimensions (Width x Height) + Stretch + Shrink + Resize -->
                                         <Grid Margin="0,0,0,8">
@@ -1644,11 +1657,11 @@
 
                                             <!-- Stretch, Shrink & Resize Right -->
                                             <Button Grid.Column="2" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="64" Height="28" Margin="0,0,3,0" ToolTip="Resample image to exact Width × Height (distorts aspect if changed)" />
-                                            <Button Grid.Column="3" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Width="60" Height="28" Margin="0,0,3,0" ToolTip="Scale image down proportionally to fit target dimensions (preserves aspect, pads letterbox)" />
+                                            <Button Grid.Column="3" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Width="60" Height="28" Margin="0,0,3,0" ToolTip="Scale image down to fit target dimensions edge-to-edge" />
                                             <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 2: Alternating Tool Toggles (Bevel and Clip) + All Tiles & Square Checkboxes -->
+                                        <!-- Row 2: Alternating Tool Toggles (Bevel and Clip) + Square Checkbox -->
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
@@ -1666,15 +1679,6 @@
                                                           Style="{StaticResource AlternatingToolToggleButtonStyle}"
                                                           IsChecked="{Binding IsClipModeSelected}"
                                                           ToolTip="Clip/round corners to transparent by specified pixels" />
-
-                                            <CheckBox Grid.Column="2" Content="All Tiles"
-                                                      IsChecked="{Binding IsResizeAllChits}"
-                                                      Margin="0,0,12,0"
-                                                      HorizontalAlignment="Right"
-                                                      VerticalAlignment="Center"
-                                                      FontWeight="SemiBold"
-                                                      FontSize="11"
-                                                      ToolTip="Apply Stretch, Shrink, and Resize operations to all loaded tiles" />
 
                                             <CheckBox Grid.Column="3" Content="Square"
                                                       IsChecked="{Binding IsResizeSquare}"
@@ -1739,20 +1743,11 @@
                                             <StackPanel>
                                                 <!-- 5a: Mode Toggle Button (Anchor & Clear removed; Shift+Click used for anchor) -->
                                                 <Grid Margin="0,0,0,6">
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <ToggleButton IsChecked="{Binding IsCloneStampActive}"
-                                                                      Style="{StaticResource CloneStampToggleButtonStyle}"
-                                                                      Content="Clone Stamp"
-                                                                      HorizontalAlignment="Left"
-                                                                      ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
-                                                        <CheckBox Content="All Tiles"
-                                                                  IsChecked="{Binding IsCloneStampAllChits}"
-                                                                  Margin="12,0,0,0"
-                                                                  VerticalAlignment="Center"
-                                                                  FontWeight="SemiBold"
-                                                                  FontSize="11"
-                                                                  ToolTip="Replay clone stamp strokes across all loaded tiles on release" />
-                                                    </StackPanel>
+                                                    <ToggleButton IsChecked="{Binding IsCloneStampActive}"
+                                                                  Style="{StaticResource CloneStampToggleButtonStyle}"
+                                                                  Content="Clone Stamp"
+                                                                  HorizontalAlignment="Left"
+                                                                  ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
                                                 </Grid>
 
                                                 <!-- 5b: Shape Selection (Circle / Square) + Size Stepper -->
@@ -2014,7 +2009,7 @@
                                   VerticalContentAlignment="Center">
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
                             <!-- Populated Chit State -->
-                            <StackPanel Visibility="{Binding HasSelectedChit, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Center">
+                            <StackPanel Visibility="{Binding HasChitsLoaded, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Center">
                                 <!-- Working Chit Area with 1% Step Zoom -->
                                 <Border Background="{DynamicResource CardBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
@@ -2032,18 +2027,9 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="WORKING TILE"
-                                                           FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           VerticalAlignment="Center" />
-                                                <CheckBox Content="All Tiles"
-                                                          IsChecked="{Binding IsWorkingTileAllChits}"
-                                                          Margin="12,0,0,0"
-                                                          VerticalAlignment="Center"
-                                                          FontWeight="SemiBold"
-                                                          FontSize="11"
-                                                          ToolTip="Propagate directional bump shifts to all loaded tiles" />
-                                            </StackPanel>
+                                            <TextBlock Grid.Column="0" Text="WORKING TILE"
+                                                       FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center" />
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border Background="{DynamicResource ViewportBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
@@ -2080,6 +2066,7 @@
                                             <!-- TOP: Bump Up ▲ -->
                                             <RepeatButton Grid.Row="0" Grid.Column="1"
                                                           Content="▲" Command="{Binding BumpChitUpCommand}"
+                                                          IsEnabled="{Binding HasSelectedChit}"
                                                           Width="36" Height="22" Padding="0" Margin="0,0,0,6"
                                                           HorizontalAlignment="Center"
                                                           Delay="250" Interval="50"
@@ -2088,6 +2075,7 @@
                                             <!-- LEFT: Bump Left ◀ -->
                                             <RepeatButton Grid.Row="1" Grid.Column="0"
                                                           Content="◀" Command="{Binding BumpChitLeftCommand}"
+                                                          IsEnabled="{Binding HasSelectedChit}"
                                                           Width="22" Height="36" Padding="0" Margin="0,0,6,0"
                                                           VerticalAlignment="Center"
                                                           Delay="250" Interval="50"
@@ -2101,8 +2089,17 @@
                                                     SnapsToDevicePixels="True"
                                                     HorizontalAlignment="Center">
                                                 <Grid>
+                                                    <TextBlock Text="(No Tile Selected)"
+                                                               MinWidth="280" MinHeight="280"
+                                                               TextAlignment="Center"
+                                                               Padding="0,132,0,0"
+                                                               Visibility="{Binding SelectedChit, Converter={StaticResource NullToVis}}"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontSize="12" />
                                                     <Image x:Name="WorkingChitImage"
                                                            Source="{Binding SelectedChit.PreviewSource}"
+                                                           Visibility="{Binding SelectedChit, Converter={StaticResource NotNullToVis}}"
                                                            Stretch="None"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
@@ -2131,6 +2128,7 @@
                                             <!-- RIGHT: Bump Right ▶ -->
                                             <RepeatButton Grid.Row="1" Grid.Column="2"
                                                           Content="▶" Command="{Binding BumpChitRightCommand}"
+                                                          IsEnabled="{Binding HasSelectedChit}"
                                                           Width="22" Height="36" Padding="0" Margin="6,0,0,0"
                                                           VerticalAlignment="Center"
                                                           Delay="250" Interval="50"
@@ -2139,6 +2137,7 @@
                                             <!-- BOTTOM: Bump Down ▼ -->
                                             <RepeatButton Grid.Row="2" Grid.Column="1"
                                                           Content="▼" Command="{Binding BumpChitDownCommand}"
+                                                          IsEnabled="{Binding HasSelectedChit}"
                                                           Width="36" Height="22" Padding="0" Margin="0,6,0,0"
                                                           HorizontalAlignment="Center"
                                                           Delay="250" Interval="50"
@@ -2242,10 +2241,20 @@
                                     Background="{DynamicResource ToolbarBackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="0,0,0,1"
-                                    Padding="10,8">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="TILE STRIP" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{} ({0} pieces)'}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                    Padding="10,6">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="TILE STRIP" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding LoadedChits.Count, StringFormat='{} ({0} pieces)'}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                        <Button Content="Select All" Command="{Binding SelectAllTilesCommand}"
+                                                Height="22" Padding="8,1" FontSize="11" Margin="0,0,4,0"
+                                                ToolTip="Check all tiles in strip for batch operations" />
+                                        <Button Content="Deselect All" Command="{Binding DeselectAllTilesCommand}"
+                                                Height="22" Padding="8,1" FontSize="11" Margin="4,0,0,0"
+                                                ToolTip="Uncheck all tiles in strip" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 

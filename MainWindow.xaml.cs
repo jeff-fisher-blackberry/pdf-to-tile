@@ -1042,41 +1042,53 @@ namespace pdf_to_Tiles
                         vm.SelectedChit.CommitInPlaceEdit(vm.TransparentColor);
 
                         var affected = new List<pdf_to_Tiles.Models.ChitItem> { vm.SelectedChit };
-                        bool isBatch = vm.IsCloneStampAllChits && vm.LoadedChits.Count > 1 && _currentStrokePoints.Count > 0;
-                        if (isBatch)
+                        if (vm.SelectedChit.IsChecked)
                         {
                             var otherChits = vm.LoadedChits.Where(c => c != vm.SelectedChit && c.IsChecked).ToList();
-                            foreach (var chit in otherChits)
+                            bool isBatch = otherChits.Count > 0 && _currentStrokePoints.Count > 0;
+                            if (isBatch)
                             {
-                                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
-
-                                bool anyMod = false;
-                                foreach (var pt in _currentStrokePoints)
+                                foreach (var chit in otherChits)
                                 {
-                                    bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
-                                        chit.WorkingMat,
-                                        (int)pt.X, (int)pt.Y,
-                                        _cloneDeltaX, _cloneDeltaY,
-                                        vm.CloneStampRadius,
-                                        vm.ActiveCloneStampShape);
-                                    if (mod) anyMod = true;
-                                }
+                                    if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
 
-                                if (anyMod)
-                                {
-                                    chit.CommitInPlaceEdit(vm.TransparentColor);
-                                    affected.Add(chit);
+                                    bool anyMod = false;
+                                    foreach (var pt in _currentStrokePoints)
+                                    {
+                                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                                            chit.WorkingMat,
+                                            (int)pt.X, (int)pt.Y,
+                                            _cloneDeltaX, _cloneDeltaY,
+                                            vm.CloneStampRadius,
+                                            vm.ActiveCloneStampShape);
+                                        if (mod) anyMod = true;
+                                    }
+
+                                    if (anyMod)
+                                    {
+                                        chit.CommitInPlaceEdit(vm.TransparentColor);
+                                        affected.Add(chit);
+                                    }
                                 }
                             }
                         }
 
                         vm.RecordEditHistory(affected);
                         string shapeName = vm.CloneStampShape == "Square" ? "Square" : "Circle";
-                        vm.StatusMessage = affected.Count > 1
-                            ? (affected.Count == vm.LoadedChits.Count
+                        if (!vm.SelectedChit.IsChecked)
+                        {
+                            vm.StatusMessage = $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px) to active tile #{vm.SelectedChit.Index} (excluded from batch replay).";
+                        }
+                        else if (affected.Count > 1)
+                        {
+                            vm.StatusMessage = affected.Count == vm.LoadedChits.Count
                                 ? $"Applied {shapeName} clone stamp across all {vm.LoadedChits.Count} tiles."
-                                : $"Applied {shapeName} clone stamp across {affected.Count} selected tiles.")
-                            : $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px).";
+                                : $"Applied {shapeName} clone stamp across {affected.Count} selected tiles.";
+                        }
+                        else
+                        {
+                            vm.StatusMessage = $"Applied {shapeName} clone stamp ({vm.CloneStampRadius * 2}px).";
+                        }
                         _hasModifiedInStroke = false;
                         _currentStrokePoints.Clear();
                     }

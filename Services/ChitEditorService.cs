@@ -331,8 +331,8 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Proportionally scales down the chit image to fit within targetW × targetH without distortion,
-        /// centering the scaled result on a targetW × targetH canvas and padding letterboxed margins with the transparent key color.
+        /// Downsamples/resamples the chit image directly to fit targetW × targetH edge-to-edge without cyan padding borders or letterbox bars.
+        /// Uses Area interpolation for downsampling to prevent aliasing, or Lanczos4 if upsampling.
         /// </summary>
         public static Mat ApplyShrink(Mat src, int targetW, int targetH, Vec4b? padColor = null)
         {
@@ -349,29 +349,13 @@ namespace pdf_to_Tiles.Services
                 return src.Clone();
             }
 
-            // Determine uniform scale factor to fit inside target box
-            double scale = Math.Min((double)tw / src.Width, (double)th / src.Height);
-            int scaledW = Math.Clamp((int)Math.Round(src.Width * scale), 1, tw);
-            int scaledH = Math.Clamp((int)Math.Round(src.Height * scale), 1, th);
+            // Downsample directly to target dimensions using Area interpolation for sharp, alias-free reduction
+            Mat dst = new Mat();
+            InterpolationFlags interp = (tw <= src.Width && th <= src.Height)
+                ? InterpolationFlags.Area
+                : InterpolationFlags.Lanczos4;
 
-            // Scale using Area for downsampling (prevents aliasing) or Lanczos4 for upsampling
-            using Mat scaled = new Mat();
-            InterpolationFlags interp = scale < 1.0 ? InterpolationFlags.Area : InterpolationFlags.Lanczos4;
-            Cv2.Resize(src, scaled, new OpenCvSharp.Size(scaledW, scaledH), 0, 0, interp);
-
-            // Allocate target canvas filled with transparent key color
-            Vec4b fill = padColor ?? new Vec4b(0, 0, 0, 0);
-            Scalar fillScalar = new Scalar(fill.Item0, fill.Item1, fill.Item2, fill.Item3);
-            Mat dst = new Mat(new OpenCvSharp.Size(tw, th), MatType.CV_8UC4, fillScalar);
-
-            // Center scaled image onto destination canvas
-            int dstX = Math.Max(0, (tw - scaledW) / 2);
-            int dstY = Math.Max(0, (th - scaledH) / 2);
-
-            Rect dstRoi = new Rect(dstX, dstY, scaledW, scaledH);
-            using var dstSub = new Mat(dst, dstRoi);
-            scaled.CopyTo(dstSub);
-
+            Cv2.Resize(src, dst, new OpenCvSharp.Size(tw, th), 0, 0, interp);
             return dst;
         }
 
