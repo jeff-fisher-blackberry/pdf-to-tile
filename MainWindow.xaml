@@ -1637,13 +1637,11 @@
                                                       ToolTip="Select or deselect all tiles for batch operations" />
                                         </Grid>
 
-                                        <!-- Row 1: Dimensions (Width x Height) + Stretch + Shrink + Resize -->
+                                        <!-- Row 1: Dimensions (Width x Height) + Square Checkbox -->
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
@@ -1657,93 +1655,36 @@
                                                          ToolTip="Height in pixels (disabled when Square is checked)" />
                                             </StackPanel>
 
-                                            <!-- Stretch, Shrink & Resize Right -->
-                                            <Button Grid.Column="2" Content="Stretch" Command="{Binding ApplyStretchCommand}" Width="64" Height="28" Margin="0,0,3,0" ToolTip="Resample image to exact Width × Height (distorts aspect if changed)" />
-                                            <Button Grid.Column="3" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Width="60" Height="28" Margin="0,0,3,0" ToolTip="Scale image down to fit target dimensions edge-to-edge" />
-                                            <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Width="60" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
-                                        </Grid>
-
-                                        <!-- Row 2: Alternating Tool Toggles (Bevel and Clip) + Square Checkbox -->
-                                        <Grid Margin="0,0,0,6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <ToggleButton Grid.Column="0" Content="Bevel"
-                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
-                                                          IsChecked="{Binding IsBevelModeSelected}"
-                                                          Margin="0,0,6,0"
-                                                          ToolTip="Apply 3D raised gradient bevel around perimeter" />
-                                            <ToggleButton Grid.Column="1" Content="Clip"
-                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
-                                                          IsChecked="{Binding IsClipModeSelected}"
-                                                          ToolTip="Clip/round corners to transparent by specified pixels" />
-
-                                            <CheckBox Grid.Column="3" Content="Square"
+                                            <!-- Square Checkbox Right -->
+                                            <CheckBox Grid.Column="2" Content="Square"
                                                       IsChecked="{Binding IsResizeSquare}"
                                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
                                                       ToolTip="Constrain target dimensions to min(Width, Height) square for Stretch, Shrink, and Resize" />
                                         </Grid>
 
-                                        <!-- Row 3: Action Buttons (Batch + Single) & Size Stepper -->
+                                        <!-- Row 2: Equal-Width Stretch, Shrink, and Resize Buttons -->
                                         <Grid Margin="0,0,0,8">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <!-- Dynamic Batch Action Button (All Tiles: Clip All or Bevel All) -->
-                                                <Button Content="{Binding SharedToolBatchActionName}"
-                                                        Command="{Binding ApplySharedToolAllCommand}"
-                                                        IsEnabled="{Binding HasChitsLoaded}"
-                                                        Width="86" Height="28"
-                                                        Margin="0,0,6,0"
-                                                        Style="{StaticResource AccentButtonStyle}"
-                                                        ToolTip="{Binding SharedToolBatchActionToolTip}" />
-
-                                                <!-- Dynamic Action Button (Single Tile: Clip Current or Bevel Current) -->
-                                                <Button Content="{Binding SharedToolActionName}"
-                                                        Command="{Binding ApplySharedToolCommand}"
-                                                        Width="102" Height="28"
-                                                        Margin="0,0,8,0"
-                                                        Style="{StaticResource AccentButtonStyle}"
-                                                        ToolTip="{Binding SharedToolActionToolTip}" />
-
-                                                <!-- Shared Value Display & Stepper Buttons -->
-                                                <Border Background="{DynamicResource ViewportBackgroundBrush}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="4"
-                                                        Padding="6,2">
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="Size:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                        <TextBlock Text="{Binding SharedToolValue, StringFormat={}{0}px}" Width="36" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
-                                                        <Button Content="-" Command="{Binding SharedToolValueStepDownCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Decrease size (1px)" />
-                                                        <Button Content="+" Command="{Binding SharedToolValueStepUpCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Increase size (1px)" />
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Content="Stretch" Command="{Binding ApplyStretchCommand}" Height="28" ToolTip="Resample image to exact Width × Height (distorts aspect if changed)" />
+                                            <Button Grid.Column="2" Content="Shrink" Command="{Binding ApplyShrinkCommand}" Height="28" ToolTip="Scale image down to fit target dimensions edge-to-edge" />
+                                            <Button Grid.Column="4" Content="Resize" Command="{Binding ApplyResizeCommand}" Height="28" ToolTip="Crop inwards or pad canvas to target Width × Height (preserves 1:1 pixel scale)" />
                                         </Grid>
 
-                                        <!-- Row 4: Transparent Key Color -->
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                            <Button Width="26" Height="26"
-                                                    Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
-                                                    BorderBrush="{DynamicResource BorderBrush}"
-                                                    BorderThickness="1"
-                                                    Command="{Binding CycleTransparentColorCommand}"
-                                                    ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
-                                            <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        </StackPanel>
-
-                                        <!-- Row 5: Clone Stamp Tool (Paint.NET Style) -->
+                                        <!-- Row 3: Clone Stamp Tool (Paint.NET Style) -->
                                         <Border Background="{DynamicResource ViewportBackgroundBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="4"
                                                 Padding="8,6"
-                                                Margin="0,0,0,4">
+                                                Margin="0,0,0,8">
                                             <StackPanel>
-                                                <!-- 5a: Mode Toggle Button (Anchor & Clear removed; Shift+Click used for anchor) -->
+                                                <!-- Mode Toggle Button (Shift+Click used for anchor) -->
                                                 <Grid Margin="0,0,0,6">
                                                     <ToggleButton IsChecked="{Binding IsCloneStampActive}"
                                                                   Style="{StaticResource CloneStampToggleButtonStyle}"
@@ -1752,7 +1693,7 @@
                                                                   ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
                                                 </Grid>
 
-                                                <!-- 5b: Shape Selection (Circle / Square) + Size Stepper -->
+                                                <!-- Shape Selection (Circle / Square) + Size Stepper -->
                                                 <Grid Margin="0,2,0,2">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
@@ -1788,7 +1729,7 @@
                                                     </StackPanel>
                                                 </Grid>
 
-                                                <!-- 5c: Alignment Status Readout -->
+                                                <!-- Alignment Status Readout -->
                                                 <TextBlock Text="{Binding CloneStampStatusText}"
                                                            FontSize="10"
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
@@ -1796,6 +1737,73 @@
                                                            Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Border>
+
+                                        <!-- Row 4: Alternating Tool Toggles (Bevel and Clip) + Transparent Color Swatch -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <ToggleButton Grid.Column="0" Content="Bevel"
+                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
+                                                          IsChecked="{Binding IsBevelModeSelected}"
+                                                          Margin="0,0,6,0"
+                                                          ToolTip="Apply 3D raised gradient bevel around perimeter" />
+                                            <ToggleButton Grid.Column="1" Content="Clip"
+                                                          Style="{StaticResource AlternatingToolToggleButtonStyle}"
+                                                          IsChecked="{Binding IsClipModeSelected}"
+                                                          ToolTip="Clip/round corners to transparent by specified pixels" />
+
+                                            <!-- Transparent Key Color Swatch & Text -->
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Width="26" Height="26"
+                                                        Background="{Binding TransparentColor, Converter={StaticResource ColorToBrush}}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        Command="{Binding CycleTransparentColorCommand}"
+                                                        ToolTip="Click to cycle transparent key color (Cyan, Magenta, Lime, Black, White)" />
+                                                <TextBlock Text="Transparent Color" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Row 5: Action Buttons (Batch + Single) & Size Stepper -->
+                                        <Grid Margin="0,0,0,8">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Dynamic Batch Action Button (All Tiles: Clip All or Bevel All) -->
+                                                <Button Content="{Binding SharedToolBatchActionName}"
+                                                        Command="{Binding ApplySharedToolAllCommand}"
+                                                        IsEnabled="{Binding HasChitsLoaded}"
+                                                        Width="86" Height="28"
+                                                        Margin="0,0,6,0"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        ToolTip="{Binding SharedToolBatchActionToolTip}" />
+
+                                                <!-- Dynamic Action Button (Single Tile: Clip Current or Bevel Current) -->
+                                                <Button Content="{Binding SharedToolActionName}"
+                                                        Command="{Binding ApplySharedToolCommand}"
+                                                        Width="102" Height="28"
+                                                        Margin="0,0,8,0"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        ToolTip="{Binding SharedToolActionToolTip}" />
+
+                                                <!-- Shared Value Display & Stepper Buttons -->
+                                                <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Size:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        <TextBlock Text="{Binding SharedToolValue, StringFormat={}{0}px}" Width="36" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                                                        <Button Content="-" Command="{Binding SharedToolValueStepDownCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Decrease size (1px)" />
+                                                        <Button Content="+" Command="{Binding SharedToolValueStepUpCommand}" Width="20" Height="22" Padding="0" Margin="2,0,0,0" ToolTip="Increase size (1px)" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
 
                                         <!-- Row 6: Rotate Subpanel -->
                                         <Border Background="{DynamicResource ViewportBackgroundBrush}"
