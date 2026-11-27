@@ -834,6 +834,7 @@ namespace pdf_to_Tiles.ViewModels
                 BevelAllCommand.NotifyCanExecuteChanged();
                 ClipAllCommand.NotifyCanExecuteChanged();
                 ApplySharedToolAllCommand.NotifyCanExecuteChanged();
+                SmoothAllTilesCommand.NotifyCanExecuteChanged();
             };
 
             LoadRecentPdfs();
@@ -1301,14 +1302,7 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = 0;
                 ChitEditorZoomScale = 1.0;
                 IsCloneStampActive = false;
-                HasCloneAnchor = false;
-                HasDestinationAnchor = false;
-                IsPickingCloneAnchor = false;
-                CloneOffsetDeltaX = 0;
-                CloneOffsetDeltaY = 0;
-                CloneHoverDstX = -1;
-                CloneHoverDstY = -1;
-                IsCloneHovering = false;
+                ResetCloneStampAnchor();
 
                 // 4. Reset Window Title and Status
                 WindowTitle = AppBaseTitle;
@@ -1498,14 +1492,7 @@ namespace pdf_to_Tiles.ViewModels
                 ChitEditorHeight = 0;
                 ChitEditorZoomScale = 1.0;
                 IsCloneStampActive = false;
-                HasCloneAnchor = false;
-                HasDestinationAnchor = false;
-                IsPickingCloneAnchor = false;
-                CloneOffsetDeltaX = 0;
-                CloneOffsetDeltaY = 0;
-                CloneHoverDstX = -1;
-                CloneHoverDstY = -1;
-                IsCloneHovering = false;
+                ResetCloneStampAnchor();
 
                 StatusMessage = "Tiles closed. Ready to slice or open tile files.";
             }
@@ -3305,6 +3292,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 // 5% Clone Stamp default calculation (BaseDimension = min(width, height))
                 CloneStampRadius = ChitEditorService.CalculateDefaultCloneStampSize(value.PixelWidth, value.PixelHeight);
+                ResetCloneStampAnchor();
 
                 if (!LockEdgeCleanColor && value.WorkingMat != null && !value.WorkingMat.IsDisposed)
                 {
@@ -3551,6 +3539,43 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [ObservableProperty]
+        private bool _isSmoothLight = true;
+
+        [ObservableProperty]
+        private bool _isSmoothMedium = false;
+
+        [ObservableProperty]
+        private bool _isSmoothStrong = false;
+
+        public string SmoothBatchActionName =>
+            (LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected)) ? "Smooth All" : (HasSelectedChits ? "Smooth Selected" : "Smooth All");
+
+        public string SmoothBatchActionToolTip
+        {
+            get
+            {
+                int selectedCount = LoadedChits.Count(c => c.IsSelected);
+                if (selectedCount == 0 || selectedCount == LoadedChits.Count)
+                    return $"Smooth background for all {LoadedChits.Count} loaded tiles";
+                return $"Smooth background for {selectedCount} selected tiles";
+            }
+        }
+
+        private (int d, double sigmaColor, double sigmaSpace) GetCurrentSmoothParameters()
+        {
+            if (IsSmoothStrong)
+            {
+                return (9, 100.0, 100.0);
+            }
+            if (IsSmoothMedium)
+            {
+                return (7, 75.0, 75.0);
+            }
+            // Default: Light (preserves realistic subtle counter grain)
+            return (5, 50.0, 50.0);
+        }
+
+        [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SharedToolActionToolTip))]
         [NotifyPropertyChangedFor(nameof(SharedToolBatchActionToolTip))]
         private int _sharedToolValue = 2;
@@ -3598,6 +3623,64 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
         private int _cloneStampRadius = 4; // default radius 4px
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsCloneModeFloating))]
+        [NotifyPropertyChangedFor(nameof(IsCloneModeAnchored))]
+        [NotifyPropertyChangedFor(nameof(CloneStampStatusText))]
+        private string _cloneMode = "Floating"; // "Floating" (default) or "Anchored"
+
+        public bool IsCloneModeFloating
+        {
+            get => CloneMode == "Floating";
+            set { if (value) CloneMode = "Floating"; }
+        }
+
+        public bool IsCloneModeAnchored
+        {
+            get => CloneMode == "Anchored";
+            set { if (value) CloneMode = "Anchored"; }
+        }
+
+        private Mat? _cloneAnchorSourceMat;
+
+        public void CaptureCloneAnchorSourceMat()
+        {
+            DisposeAnchoredSourceMat();
+            if (SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed)
+            {
+                _cloneAnchorSourceMat = SelectedChit.WorkingMat.Clone();
+            }
+        }
+
+        public Mat? GetCloneAnchorSourceMat() => _cloneAnchorSourceMat;
+
+        public void DisposeAnchoredSourceMat()
+        {
+            if (_cloneAnchorSourceMat != null && !_cloneAnchorSourceMat.IsDisposed)
+            {
+                _cloneAnchorSourceMat.Dispose();
+                _cloneAnchorSourceMat = null;
+            }
+        }
+
+        public void ResetCloneStampAnchor()
+        {
+            HasCloneAnchor = false;
+            HasDestinationAnchor = false;
+            CloneAnchorX = 0;
+            CloneAnchorY = 0;
+            CloneDstAnchorX = 0;
+            CloneDstAnchorY = 0;
+            CloneOffsetDeltaX = 0;
+            CloneOffsetDeltaY = 0;
+            IsPickingCloneAnchor = false;
+            IsCloneHovering = false;
+            CloneHoverDstX = -1;
+            CloneHoverDstY = -1;
+            DisposeAnchoredSourceMat();
+            OnPropertyChanged(nameof(CloneStampStatusText));
+        }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsCloneCircleShape))]
@@ -3657,6 +3740,10 @@ namespace pdf_to_Tiles.ViewModels
                 if (!IsCloneStampActive) return string.Empty;
                 if (!HasCloneAnchor) return "Shift+Click on canvas to set Source Anchor";
                 string shapeName = CloneStampShape == "Square" ? "Square" : "Circle";
+                if (IsCloneModeAnchored)
+                {
+                    return $"Anchor: ({CloneAnchorX}, {CloneAnchorY}) | {shapeName} {CloneStampRadius * 2}px Anchored (Fixed)";
+                }
                 if (HasDestinationAnchor)
                     return $"Anchor: ({CloneAnchorX}, {CloneAnchorY}) | Offset: ({CloneOffsetDeltaX:+0;-0;0}, {CloneOffsetDeltaY:+0;-0;0}) | {shapeName} {CloneStampRadius * 2}px Lockstep";
                 return $"Anchor set at ({CloneAnchorX}, {CloneAnchorY}) | {shapeName} {CloneStampRadius * 2}px Ready";
@@ -3681,16 +3768,10 @@ namespace pdf_to_Tiles.ViewModels
 
         partial void OnIsCloneStampActiveChanged(bool value)
         {
+            ResetCloneStampAnchor();
             if (value)
             {
-                StatusMessage = HasCloneAnchor
-                    ? $"Clone Stamp active ({CloneStampShape}, radius {CloneStampRadius}px). Drag to stamp in lockstep; Shift+Click to set new anchor."
-                    : "Clone Stamp active. Shift+Click on canvas to set source anchor point.";
-            }
-            else
-            {
-                IsPickingCloneAnchor = false;
-                IsCloneHovering = false;
+                StatusMessage = "Clone Stamp active. Shift+Click on canvas to set source anchor point.";
             }
         }
 
@@ -3699,7 +3780,7 @@ namespace pdf_to_Tiles.ViewModels
             if (IsCloneStampActive)
             {
                 IsCloneStampActive = false;
-                IsCloneHovering = false;
+                ResetCloneStampAnchor();
                 StatusMessage = "Clone Stamp deactivated.";
             }
         }
@@ -3865,11 +3946,14 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(SharedToolBatchActionToolTip));
             OnPropertyChanged(nameof(RotateBatchActionName));
             OnPropertyChanged(nameof(RotateBatchActionToolTip));
+            OnPropertyChanged(nameof(SmoothBatchActionName));
+            OnPropertyChanged(nameof(SmoothBatchActionToolTip));
             ApplySharedToolAllCommand.NotifyCanExecuteChanged();
             RotateAllTilesRightCommand.NotifyCanExecuteChanged();
             RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
             BevelAllCommand.NotifyCanExecuteChanged();
             ClipAllCommand.NotifyCanExecuteChanged();
+            SmoothAllTilesCommand.NotifyCanExecuteChanged();
             ApplyScaleImageCommand.NotifyCanExecuteChanged();
             ApplyResizeImageCommand.NotifyCanExecuteChanged();
             BumpChitLeftCommand.NotifyCanExecuteChanged();
@@ -5655,6 +5739,87 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = targets.Count == LoadedChits.Count
                 ? $"Rotated all {count} tiles {dir}."
                 : $"Rotated {count} selected tiles {dir}{excludedNote}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        private void SmoothCurrentTile()
+        {
+            DeactivateCloneStamp();
+            if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
+            if (SelectedChit.WorkingMat.Width < 8 || SelectedChit.WorkingMat.Height < 8) return;
+
+            var (d, sigmaColor, sigmaSpace) = GetCurrentSmoothParameters();
+            Vec4b key = ColorToVec4b(TransparentColor);
+
+            var smoothed = ChitEditorService.ApplySmoothBackground(SelectedChit.WorkingMat, d, sigmaColor, sigmaSpace, key);
+            SelectedChit.UpdateWorkingMat(smoothed, recordHistory: true, TransparentColor);
+
+            RecordEditHistory(new List<ChitItem> { SelectedChit });
+            _lastCommittedSignature = null;
+            _lastCommittedBevelSignature = null;
+            _lastCommittedClipSignature = null;
+            SelectedChit.SetPreviewMat(null);
+            UpdateLiveChitPreview();
+
+            string presetName = IsSmoothStrong ? "Strong" : (IsSmoothMedium ? "Medium" : "Light");
+            StatusMessage = $"Applied {presetName} smooth background to tile #{SelectedChit.Index}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(HasChitsLoaded))]
+        private void SmoothAllTiles()
+        {
+            DeactivateCloneStamp();
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
+            if (targets.Count == 0)
+            {
+                if (SelectedChit != null)
+                {
+                    targets = new List<ChitItem> { SelectedChit };
+                }
+                else
+                {
+                    StatusMessage = "No tiles selected for Smooth operation.";
+                    return;
+                }
+            }
+
+            var (d, sigmaColor, sigmaSpace) = GetCurrentSmoothParameters();
+            Vec4b key = ColorToVec4b(TransparentColor);
+            int count = 0;
+
+            foreach (var chit in targets)
+            {
+                if (chit.WorkingMat == null || chit.WorkingMat.IsDisposed) continue;
+                if (chit.WorkingMat.Width < 8 || chit.WorkingMat.Height < 8) continue;
+
+                var smoothed = ChitEditorService.ApplySmoothBackground(chit.WorkingMat, d, sigmaColor, sigmaSpace, key);
+                chit.UpdateWorkingMat(smoothed, recordHistory: true, TransparentColor);
+                count++;
+            }
+
+            RecordEditHistory(targets);
+            if (SelectedChit != null)
+            {
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                SelectedChit.SetPreviewMat(null);
+                UpdateLiveChitPreview();
+            }
+
+            OnPropertyChanged(nameof(CanUndoChit));
+            OnPropertyChanged(nameof(CanRedoChit));
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+
+            string presetName = IsSmoothStrong ? "Strong" : (IsSmoothMedium ? "Medium" : "Light");
+            string excludedNote = (SelectedChit != null && !SelectedChit.IsSelected && targets.Count > 1)
+                ? $" (active tile #{SelectedChit.Index} was excluded)"
+                : string.Empty;
+
+            StatusMessage = targets.Count == LoadedChits.Count
+                ? $"Applied {presetName} smooth background to all {count} loaded tiles."
+                : $"Applied {presetName} smooth background to {count} selected tiles{excludedNote}.";
         }
 
         #endregion

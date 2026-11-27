@@ -450,6 +450,69 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
+        /// Applies an edge-preserving bilateral filter to smooth background paper grain and compression artifacts
+        /// while keeping fine text and unit line work crisp. Operates on 4-channel BGRA matrices (CV_8UC4)
+        /// while preserving transparent pixels and transparent key color pixels without halo or edge bleed.
+        /// </summary>
+        public static Mat ApplySmoothBackground(Mat src, int d, double sigmaColor, double sigmaSpace, Vec4b? transparentColor = null)
+        {
+            if (src == null || src.IsDisposed || src.Width < MinDimension || src.Height < MinDimension)
+            {
+                throw new ArgumentException("Invalid source image matrix for smooth background operation.", nameof(src));
+            }
+
+            int clampedD = Math.Clamp(d, 1, Math.Min(src.Width / 2, src.Height / 2));
+            if (clampedD <= 0) clampedD = 5;
+
+            using Mat bgr = new Mat();
+            using Mat alpha = new Mat();
+            Cv2.CvtColor(src, bgr, ColorConversionCodes.BGRA2BGR);
+            Cv2.ExtractChannel(src, alpha, 3);
+
+            using Mat filteredBgr = new Mat();
+            Cv2.BilateralFilter(bgr, filteredBgr, clampedD, sigmaColor, sigmaSpace);
+
+            using Mat chB = new Mat();
+            using Mat chG = new Mat();
+            using Mat chR = new Mat();
+            Cv2.ExtractChannel(filteredBgr, chB, 0);
+            Cv2.ExtractChannel(filteredBgr, chG, 1);
+            Cv2.ExtractChannel(filteredBgr, chR, 2);
+
+            Mat result = new Mat();
+            Cv2.Merge(new[] { chB, chG, chR, alpha }, result);
+
+            // Restore any transparent pixels (A == 0) or transparent key color pixels
+            // so clipped/beveled corners do not bleed or soften
+            var srcIdx = src.GetGenericIndexer<Vec4b>();
+            var resIdx = result.GetGenericIndexer<Vec4b>();
+            int width = src.Width;
+            int height = src.Height;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vec4b orig = srcIdx[y, x];
+                    if (orig.Item3 == 0)
+                    {
+                        resIdx[y, x] = orig;
+                    }
+                    else if (transparentColor.HasValue &&
+                             orig.Item0 == transparentColor.Value.Item0 &&
+                             orig.Item1 == transparentColor.Value.Item1 &&
+                             orig.Item2 == transparentColor.Value.Item2 &&
+                             orig.Item3 == transparentColor.Value.Item3)
+                    {
+                        resIdx[y, x] = orig;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Samples an inner perimeter band (depth+1 to depth+4 px) to statistically determine the modal
         /// (dominant) counter background color, ignoring text, numbers, and transparency.
         /// </summary>
@@ -794,6 +857,70 @@ namespace pdf_to_Tiles.Services
                     if (srcX < 0 || srcX >= width) continue;
 
                     indexer[dstY, dstX] = indexer[srcY, srcX];
+                    modified = true;
+                }
+            }
+
+            return modified;
+        }
+
+        /// <summary>
+        /// Applies an anchored (fixed source) clone stamp, copying the captured square or circular patch centered
+        /// at (anchorCenterX, anchorCenterY) in sourceMat directly onto (targetCenterX, targetCenterY) in targetMat.
+        /// </summary>
+        public static bool ApplyCloneStampAnchored(
+            Mat targetMat,
+            int targetCenterX,
+            int targetCenterY,
+            int anchorCenterX,
+            int anchorCenterY,
+            Mat sourceMat,
+            int radius,
+            CloneStampShape shape = CloneStampShape.Circle)
+        {
+            if (targetMat == null || targetMat.IsDisposed || targetMat.Width < MinDimension || targetMat.Height < MinDimension)
+            {
+                return false;
+            }
+            if (sourceMat == null || sourceMat.IsDisposed || sourceMat.Width < MinDimension || sourceMat.Height < MinDimension)
+            {
+                return false;
+            }
+
+            int targetW = targetMat.Width;
+            int targetH = targetMat.Height;
+            int sourceW = sourceMat.Width;
+            int sourceH = sourceMat.Height;
+
+            int r = Math.Clamp(radius, 1, Math.Min(targetW, targetH));
+            int rSq = r * r;
+
+            var targetIndexer = targetMat.GetGenericIndexer<Vec4b>();
+            var sourceIndexer = sourceMat.GetGenericIndexer<Vec4b>();
+            bool modified = false;
+
+            for (int dy = -r; dy <= r; dy++)
+            {
+                int dstY = targetCenterY + dy;
+                if (dstY < 0 || dstY >= targetH) continue;
+
+                int srcY = anchorCenterY + dy;
+                if (srcY < 0 || srcY >= sourceH) continue;
+
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (shape == CloneStampShape.Circle && (dx * dx + dy * dy > rSq))
+                    {
+                        continue;
+                    }
+
+                    int dstX = targetCenterX + dx;
+                    if (dstX < 0 || dstX >= targetW) continue;
+
+                    int srcX = anchorCenterX + dx;
+                    if (srcX < 0 || srcX >= sourceW) continue;
+
+                    targetIndexer[dstY, dstX] = sourceIndexer[srcY, srcX];
                     modified = true;
                 }
             }

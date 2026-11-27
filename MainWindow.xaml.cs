@@ -107,6 +107,7 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.HasDestinationAnchor):
                 case nameof(MainViewModel.CloneStampRadius):
                 case nameof(MainViewModel.CloneStampShape):
+                case nameof(MainViewModel.CloneMode):
                 case nameof(MainViewModel.SelectedChit):
                     UpdateWorkingChitOverlay();
                     break;
@@ -969,7 +970,12 @@ namespace pdf_to_Tiles
                     vm.CloneOffsetDeltaX = 0;
                     vm.CloneOffsetDeltaY = 0;
                     vm.IsPickingCloneAnchor = false;
-                    vm.StatusMessage = $"Clone source anchor set at ({px}, {py}). Click or drag on target to stamp; Shift+Click to move anchor.";
+                    if (vm.IsCloneModeAnchored)
+                    {
+                        vm.CaptureCloneAnchorSourceMat();
+                    }
+                    string modeDesc = vm.IsCloneModeAnchored ? "Anchored (fixed source)" : "Floating (lockstep)";
+                    vm.StatusMessage = $"Clone source anchor set at ({px}, {py}) [{modeDesc}]. Click or drag on target to stamp; Shift+Click to move anchor.";
                     UpdateWorkingChitOverlay();
                     e.Handled = true;
                     return;
@@ -983,7 +989,40 @@ namespace pdf_to_Tiles
                     return;
                 }
 
-                // If this is the first target click since setting source anchor, record destination anchor and compute lockstep offset!
+                // If in Anchored mode, stamp the fixed source patch onto target directly
+                if (vm.IsCloneModeAnchored)
+                {
+                    _isCloning = true;
+                    _hasModifiedInStroke = false;
+                    _currentStrokePoints.Clear();
+                    img.CaptureMouse();
+
+                    vm.CloneHoverDstX = px;
+                    vm.CloneHoverDstY = py;
+                    vm.IsCloneHovering = true;
+
+                    var srcMat = vm.GetCloneAnchorSourceMat() ?? vm.SelectedChit.WorkingMat;
+                    bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStampAnchored(
+                        vm.SelectedChit.WorkingMat,
+                        px, py,
+                        vm.CloneAnchorX, vm.CloneAnchorY,
+                        srcMat,
+                        vm.CloneStampRadius,
+                        vm.ActiveCloneStampShape);
+
+                    if (mod)
+                    {
+                        _hasModifiedInStroke = true;
+                        _currentStrokePoints.Add(new Point(px, py));
+                        vm.SelectedChit.UpdateDisplayBitmaps();
+                    }
+
+                    UpdateWorkingChitOverlay();
+                    e.Handled = true;
+                    return;
+                }
+
+                // If this is the first target click since setting source anchor in Floating mode, record destination anchor and compute lockstep offset!
                 if (!vm.HasDestinationAnchor)
                 {
                     vm.CloneDstAnchorX = px;
@@ -1004,14 +1043,14 @@ namespace pdf_to_Tiles
                 vm.CloneHoverDstY = py;
                 vm.IsCloneHovering = true;
 
-                bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                bool modFloating = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
                     vm.SelectedChit.WorkingMat,
                     px, py,
                     _cloneDeltaX, _cloneDeltaY,
                     vm.CloneStampRadius,
                     vm.ActiveCloneStampShape);
 
-                if (mod)
+                if (modFloating)
                 {
                     _hasModifiedInStroke = true;
                     _currentStrokePoints.Add(new Point(px, py));
@@ -1082,12 +1121,27 @@ namespace pdf_to_Tiles
                     Point pt = new Point(px, py);
                     if (_currentStrokePoints.Count == 0 || _currentStrokePoints[^1] != pt)
                     {
-                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
-                            vm.SelectedChit.WorkingMat,
-                            px, py,
-                            _cloneDeltaX, _cloneDeltaY,
-                            vm.CloneStampRadius,
-                            vm.ActiveCloneStampShape);
+                        bool mod;
+                        if (vm.IsCloneModeAnchored)
+                        {
+                            var srcMat = vm.GetCloneAnchorSourceMat() ?? vm.SelectedChit.WorkingMat;
+                            mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStampAnchored(
+                                vm.SelectedChit.WorkingMat,
+                                px, py,
+                                vm.CloneAnchorX, vm.CloneAnchorY,
+                                srcMat,
+                                vm.CloneStampRadius,
+                                vm.ActiveCloneStampShape);
+                        }
+                        else
+                        {
+                            mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                                vm.SelectedChit.WorkingMat,
+                                px, py,
+                                _cloneDeltaX, _cloneDeltaY,
+                                vm.CloneStampRadius,
+                                vm.ActiveCloneStampShape);
+                        }
 
                         if (mod)
                         {
@@ -1141,12 +1195,27 @@ namespace pdf_to_Tiles
                                     bool anyMod = false;
                                     foreach (var pt in _currentStrokePoints)
                                     {
-                                        bool mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
-                                            chit.WorkingMat,
-                                            (int)pt.X, (int)pt.Y,
-                                            _cloneDeltaX, _cloneDeltaY,
-                                            vm.CloneStampRadius,
-                                            vm.ActiveCloneStampShape);
+                                        bool mod;
+                                        if (vm.IsCloneModeAnchored)
+                                        {
+                                            var srcMat = vm.GetCloneAnchorSourceMat() ?? chit.WorkingMat;
+                                            mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStampAnchored(
+                                                chit.WorkingMat,
+                                                (int)pt.X, (int)pt.Y,
+                                                vm.CloneAnchorX, vm.CloneAnchorY,
+                                                srcMat,
+                                                vm.CloneStampRadius,
+                                                vm.ActiveCloneStampShape);
+                                        }
+                                        else
+                                        {
+                                            mod = pdf_to_Tiles.Services.ChitEditorService.ApplyCloneStamp(
+                                                chit.WorkingMat,
+                                                (int)pt.X, (int)pt.Y,
+                                                _cloneDeltaX, _cloneDeltaY,
+                                                vm.CloneStampRadius,
+                                                vm.ActiveCloneStampShape);
+                                        }
                                         if (mod) anyMod = true;
                                     }
 
@@ -1241,8 +1310,8 @@ namespace pdf_to_Tiles
                 WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx - (r + 2), Y1 = hy, X2 = hx + (r + 2), Y2 = hy, Stroke = blueBrush, StrokeThickness = 1 });
                 WorkingChitOverlayCanvas.Children.Add(new Line { X1 = hx, Y1 = hy - (r + 2), X2 = hx, Y2 = hy + (r + 2), Stroke = blueBrush, StrokeThickness = 1 });
 
-                // If lockstep alignment is established, also render shifting source indicator
-                if (vm.HasDestinationAnchor)
+                // If Floating mode and lockstep alignment is established, also render shifting source indicator
+                if (!vm.IsCloneModeAnchored && vm.HasDestinationAnchor)
                 {
                     double shiftSrcX = hx + vm.CloneOffsetDeltaX;
                     double shiftSrcY = hy + vm.CloneOffsetDeltaY;

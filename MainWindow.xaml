@@ -1721,13 +1721,34 @@
                                                 Padding="8,6"
                                                 Margin="0,0,0,6">
                                             <StackPanel>
-                                                <!-- Mode Toggle Button (Shift+Click used for anchor) -->
+                                                <!-- Mode Toggle Button (Shift+Click used for anchor) + Floating / Anchored Radios -->
                                                 <Grid Margin="0,0,0,6">
-                                                    <ToggleButton IsChecked="{Binding IsCloneStampActive}"
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ToggleButton Grid.Column="0"
+                                                                  IsChecked="{Binding IsCloneStampActive}"
                                                                   Style="{StaticResource CloneStampToggleButtonStyle}"
                                                                   Content="Clone Stamp"
                                                                   HorizontalAlignment="Left"
                                                                   ToolTip="Toggle Paint.NET-style Clone Stamp tool (Shift+Click canvas to set source anchor)" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <RadioButton Content="Floating"
+                                                                     GroupName="CloneStampMode"
+                                                                     IsChecked="{Binding IsCloneModeFloating}"
+                                                                     FontSize="11"
+                                                                     FontWeight="SemiBold"
+                                                                     Margin="0,0,6,0"
+                                                                     ToolTip="Floating mode (default): source sampling moves relative to cursor as you drag" />
+                                                        <RadioButton Content="Anchored"
+                                                                     GroupName="CloneStampMode"
+                                                                     IsChecked="{Binding IsCloneModeAnchored}"
+                                                                     FontSize="11"
+                                                                     FontWeight="SemiBold"
+                                                                     ToolTip="Anchored mode: source area stays fixed at the chosen anchor point and stamps that exact patch" />
+                                                    </StackPanel>
                                                 </Grid>
 
                                                 <!-- Shape Selection (Circle / Square) + Size Stepper -->
@@ -1899,6 +1920,70 @@
                                                             Padding="4,2"
                                                             FontSize="11"
                                                             ToolTip="Rotate currently selected working tile 90° clockwise" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Subpanel 5: Smooth Background (Edge-Preserving Denoise) -->
+                                        <Border Background="{DynamicResource ViewportBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="8,6"
+                                                Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="SMOOTH BACKGROUND"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <RadioButton Content="Light"
+                                                                     GroupName="SmoothPreset"
+                                                                     IsChecked="{Binding IsSmoothLight}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     Margin="0,0,4,0"
+                                                                     ToolTip="Subtle smoothing: preserves natural grain and fine print (d=5)" />
+                                                        <RadioButton Content="Med"
+                                                                     GroupName="SmoothPreset"
+                                                                     IsChecked="{Binding IsSmoothMedium}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     Margin="0,0,4,0"
+                                                                     ToolTip="Moderate smoothing: evens out paper texture while keeping text crisp (d=7)" />
+                                                        <RadioButton Content="Strong"
+                                                                     GroupName="SmoothPreset"
+                                                                     IsChecked="{Binding IsSmoothStrong}"
+                                                                     FontSize="10" FontWeight="SemiBold"
+                                                                     ToolTip="Heavy smoothing: aggressive texture removal for rough cardboard (d=9)" />
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Single Horizontal Row: [Smooth All / Smooth Selected] [Smooth Current] -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding SmoothBatchActionName, FallbackValue='Smooth All'}"
+                                                            Command="{Binding SmoothAllTilesCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="{Binding SmoothBatchActionToolTip, FallbackValue='Smooth background for all loaded tiles'}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="Smooth Current"
+                                                            Command="{Binding SmoothCurrentTileCommand}"
+                                                            Height="26"
+                                                            Padding="4,2"
+                                                            FontSize="11"
+                                                            ToolTip="Smooth background on currently selected working tile" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
