@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -142,6 +143,60 @@ namespace pdf_to_Tiles.ViewModels
         public bool CanClosePdf => IsPdfViewerTabSelected && HasLoadedPdf;
         public bool CanCloseTilePageImage => IsTileCreatorTabSelected && HasSlicerImage;
         public bool CanCloseTiles => IsTileEditorTabSelected && HasChitsLoaded;
+
+        public bool CanUndoTileAction => IsTileEditorTabSelected && CanUndoChit;
+        public bool CanRedoTileAction => IsTileEditorTabSelected && CanRedoChit;
+        public bool CanCutTile => IsTileEditorTabSelected && HasSelectedChit;
+        public bool CanCopyTile => IsTileEditorTabSelected && HasSelectedChit;
+        public bool CanPasteImageToTile => IsTileEditorTabSelected && HasSelectedChit && HasClipboardImage;
+        public bool CanPasteImageToNewTile => IsTileEditorTabSelected && HasClipboardImage;
+        public bool CanDeleteCurrentTile => IsTileEditorTabSelected && HasSelectedChit;
+        public bool CanDeleteSelectedTiles => IsTileEditorTabSelected && HasSelectedChits;
+        public bool CanResetCurrentTile => IsTileEditorTabSelected && HasSelectedChit;
+        public bool CanResetAllTiles => IsTileEditorTabSelected && HasChitsLoaded;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(PasteImageToTileCommand))]
+        [NotifyCanExecuteChangedFor(nameof(PasteImageToNewTileCommand))]
+        private bool _hasClipboardImage = false;
+
+        public void UpdateClipboardState()
+        {
+            try
+            {
+                var dataObj = System.Windows.Clipboard.GetDataObject();
+                if (dataObj == null)
+                {
+                    HasClipboardImage = false;
+                    return;
+                }
+
+                if (dataObj.GetDataPresent("PNG") ||
+                    dataObj.GetDataPresent(System.Windows.DataFormats.Bitmap) ||
+                    System.Windows.Clipboard.ContainsImage())
+                {
+                    HasClipboardImage = true;
+                    return;
+                }
+
+                if (dataObj.GetDataPresent(System.Windows.DataFormats.FileDrop) &&
+                    dataObj.GetData(System.Windows.DataFormats.FileDrop) is string[] files &&
+                    files.Length > 0)
+                {
+                    HasClipboardImage = files.Any(f => {
+                        string ext = Path.GetExtension(f).ToLowerInvariant();
+                        return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tif" or ".tiff";
+                    });
+                    return;
+                }
+
+                HasClipboardImage = false;
+            }
+            catch
+            {
+                HasClipboardImage = false;
+            }
+        }
 
         public IRelayCommand ExportPageToPngCommand => CapturePageCommand;
         public IRelayCommand SaveTilePageImageCommand => SaveTilePageImageInternalCommand;
@@ -2104,6 +2159,7 @@ namespace pdf_to_Tiles.ViewModels
 
             if (value == 2)
             {
+                UpdateClipboardState();
                 UpdateLiveChitPreview();
             }
             else
@@ -2122,6 +2178,16 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanClosePdf));
             OnPropertyChanged(nameof(CanCloseTilePageImage));
             OnPropertyChanged(nameof(CanCloseTiles));
+            OnPropertyChanged(nameof(CanUndoTileAction));
+            OnPropertyChanged(nameof(CanRedoTileAction));
+            OnPropertyChanged(nameof(CanCutTile));
+            OnPropertyChanged(nameof(CanCopyTile));
+            OnPropertyChanged(nameof(CanPasteImageToTile));
+            OnPropertyChanged(nameof(CanPasteImageToNewTile));
+            OnPropertyChanged(nameof(CanDeleteCurrentTile));
+            OnPropertyChanged(nameof(CanDeleteSelectedTiles));
+            OnPropertyChanged(nameof(CanResetCurrentTile));
+            OnPropertyChanged(nameof(CanResetAllTiles));
             ClosePdfCommand.NotifyCanExecuteChanged();
             CloseTilePageImageCommand.NotifyCanExecuteChanged();
             CloseTilesCommand.NotifyCanExecuteChanged();
@@ -2131,6 +2197,16 @@ namespace pdf_to_Tiles.ViewModels
             SaveTilePageImageCommand.NotifyCanExecuteChanged();
             SaveCurrentTileCommand.NotifyCanExecuteChanged();
             SaveAllTilesCommand.NotifyCanExecuteChanged();
+            UndoChitCommand.NotifyCanExecuteChanged();
+            RedoChitCommand.NotifyCanExecuteChanged();
+            CutChitCommand.NotifyCanExecuteChanged();
+            CopyChitCommand.NotifyCanExecuteChanged();
+            PasteImageToTileCommand.NotifyCanExecuteChanged();
+            PasteImageToNewTileCommand.NotifyCanExecuteChanged();
+            DeleteCurrentTileCommand.NotifyCanExecuteChanged();
+            DeleteSelectedTilesCommand.NotifyCanExecuteChanged();
+            ResetSelectedChitCommand.NotifyCanExecuteChanged();
+            ResetAllChitsCommand.NotifyCanExecuteChanged();
         }
 
         partial void OnIsSettingUpperLeftCornerChanged(bool value)
@@ -3746,9 +3822,25 @@ namespace pdf_to_Tiles.ViewModels
             BumpChitUpCommand.NotifyCanExecuteChanged();
             BumpChitDownCommand.NotifyCanExecuteChanged();
             ChitEditorZoomResetCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(CanCutTile));
+            OnPropertyChanged(nameof(CanCopyTile));
+            OnPropertyChanged(nameof(CanPasteImageToTile));
+            OnPropertyChanged(nameof(CanPasteImageToNewTile));
+            OnPropertyChanged(nameof(CanDeleteCurrentTile));
+            OnPropertyChanged(nameof(CanDeleteSelectedTiles));
+            OnPropertyChanged(nameof(CanResetCurrentTile));
+            OnPropertyChanged(nameof(CanResetAllTiles));
             SelectAllTilesCommand.NotifyCanExecuteChanged();
             DeselectAllTilesCommand.NotifyCanExecuteChanged();
             InvertTileSelectionCommand.NotifyCanExecuteChanged();
+            CutChitCommand.NotifyCanExecuteChanged();
+            CopyChitCommand.NotifyCanExecuteChanged();
+            PasteImageToTileCommand.NotifyCanExecuteChanged();
+            PasteImageToNewTileCommand.NotifyCanExecuteChanged();
+            DeleteCurrentTileCommand.NotifyCanExecuteChanged();
+            DeleteSelectedTilesCommand.NotifyCanExecuteChanged();
+            ResetSelectedChitCommand.NotifyCanExecuteChanged();
+            ResetAllChitsCommand.NotifyCanExecuteChanged();
         }
 
         private void OnChitItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -4240,11 +4332,12 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         private bool CanEditChit() => SelectedChit?.WorkingMat != null && !SelectedChit.WorkingMat.IsDisposed && (SelectedChit?.IsSelected ?? false);
-        private bool CanPasteChit() => SelectedChit != null && SelectedChit.IsSelected;
         private bool CanResizeChits() => HasSelectedChits || CanEditChit();
         private bool CanBumpChits() => CanEditChit();
 
-        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        public IRelayCommand PasteChitCommand => PasteImageToTileCommand;
+
+        [RelayCommand(CanExecute = nameof(CanCutTile))]
         private void CutChit()
         {
             if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
@@ -4255,6 +4348,7 @@ namespace pdf_to_Tiles.ViewModels
                 StatusMessage = "Cut failed: Unable to access Windows clipboard.";
                 return;
             }
+            UpdateClipboardState();
 
             int w = Math.Max(8, SelectedChit.WorkingMat.Width);
             int h = Math.Max(8, SelectedChit.WorkingMat.Height);
@@ -4268,13 +4362,14 @@ namespace pdf_to_Tiles.ViewModels
             StatusMessage = $"Cut tile #{SelectedChit.Index} to clipboard ({w} × {h} px).";
         }
 
-        [RelayCommand(CanExecute = nameof(CanEditChit))]
+        [RelayCommand(CanExecute = nameof(CanCopyTile))]
         private void CopyChit()
         {
             if (SelectedChit?.WorkingMat == null || SelectedChit.WorkingMat.IsDisposed) return;
 
             if (CopyChitToClipboardInternal(SelectedChit.WorkingMat))
             {
+                UpdateClipboardState();
                 StatusMessage = $"Copied tile #{SelectedChit.Index} to clipboard ({SelectedChit.WorkingMat.Width} × {SelectedChit.WorkingMat.Height} px).";
             }
             else
@@ -4283,51 +4378,279 @@ namespace pdf_to_Tiles.ViewModels
             }
         }
 
-        [RelayCommand(CanExecute = nameof(CanPasteChit))]
-        private void PasteChit()
+        [RelayCommand(CanExecute = nameof(CanPasteImageToTile))]
+        private void PasteImageToTile()
         {
             if (SelectedChit == null) return;
 
-            Mat? pastedMat = null;
+            Mat? rawMat = null;
             try
             {
-                pastedMat = GetMatFromClipboard();
-                if (pastedMat == null)
+                rawMat = GetMatFromClipboard();
+                if (rawMat == null)
                 {
                     StatusMessage = "Clipboard does not contain a supported image format.";
                     return;
                 }
 
-                if (pastedMat.Width < 8 || pastedMat.Height < 8)
+                if (rawMat.Width < 8 || rawMat.Height < 8)
                 {
-                    pastedMat.Dispose();
-                    StatusMessage = "Pasted image is too small (minimum 8×8 px).";
+                    rawMat.Dispose();
+                    StatusMessage = "Clipboard image is too small (minimum 8×8 px).";
                     return;
                 }
 
-                var targets = ApplyToAllChits ? LoadedChits.ToList() : new List<ChitItem> { SelectedChit };
-                for (int i = 0; i < targets.Count; i++)
+                int targetW = SelectedChit.PixelWidth;
+                int targetH = SelectedChit.PixelHeight;
+
+                var result = MessageBox.Show(
+                    $"Overwrite tile #{SelectedChit.Index} ({targetW}×{targetH} px) with the clipboard image ({rawMat.Width}×{rawMat.Height} px scaled to fit)?\n\nThis will replace the current tile artwork.",
+                    "Confirm Paste Image",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
                 {
-                    var chit = targets[i];
-                    var matToApply = (i == targets.Count - 1) ? pastedMat : pastedMat.Clone();
-                    chit.UpdateWorkingMat(matToApply, recordHistory: true, Colors.Transparent);
+                    rawMat.Dispose();
+                    return;
                 }
 
-                ChitEditorWidth = pastedMat.Width;
-                ChitEditorHeight = pastedMat.Height;
-                ClampCurrentEdgeCleanDepths();
+                Mat scaledMat;
+                if (rawMat.Width == targetW && rawMat.Height == targetH)
+                {
+                    scaledMat = rawMat;
+                }
+                else
+                {
+                    scaledMat = new Mat();
+                    var flags = (rawMat.Width > targetW && rawMat.Height > targetH)
+                        ? InterpolationFlags.Area
+                        : InterpolationFlags.Lanczos4;
+                    Cv2.Resize(rawMat, scaledMat, new OpenCvSharp.Size(targetW, targetH), 0, 0, flags);
+                    rawMat.Dispose();
+                }
 
+                SelectedChit.UpdateWorkingMat(scaledMat, recordHistory: true, TransparentColor);
                 _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
                 UpdateLiveEdgeCleanPreview();
 
-                StatusMessage = ApplyToAllChits
-                    ? $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) to all {targets.Count} tiles."
-                    : $"Pasted clipboard image ({pastedMat.Width} × {pastedMat.Height} px) into tile #{SelectedChit.Index}.";
+                StatusMessage = $"Pasted clipboard image into tile #{SelectedChit.Index} ({targetW} × {targetH} px).";
             }
             catch (Exception ex)
             {
-                pastedMat?.Dispose();
+                rawMat?.Dispose();
                 StatusMessage = $"Paste failed: {ex.Message}";
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanPasteImageToNewTile))]
+        private void PasteImageToNewTile()
+        {
+            Mat? rawMat = null;
+            try
+            {
+                rawMat = GetMatFromClipboard();
+                if (rawMat == null)
+                {
+                    StatusMessage = "Clipboard does not contain a supported image format.";
+                    return;
+                }
+
+                if (rawMat.Width < 8 || rawMat.Height < 8)
+                {
+                    rawMat.Dispose();
+                    StatusMessage = "Clipboard image is too small (minimum 8×8 px).";
+                    return;
+                }
+
+                int newIndex = LoadedChits.Count > 0 ? LoadedChits.Max(c => c.Index) + 1 : 1;
+                string side = IsRearSide(SelectedSideTag) ? "Rear" : "Front";
+                string prefix = !string.IsNullOrWhiteSpace(NamingPrefix) ? NamingPrefix : "Tile";
+                string pieceName = $"{prefix}_Custom_{newIndex:D2}_{side}.png";
+
+                var newChit = new ChitItem(
+                    index: newIndex,
+                    row: 0,
+                    col: 0,
+                    side: side,
+                    pieceName: pieceName,
+                    bgraMat: rawMat
+                );
+
+                _isSyncingTileSelection = true;
+                try
+                {
+                    foreach (var c in LoadedChits)
+                    {
+                        c.IsSelected = false;
+                    }
+                    newChit.IsSelected = true;
+                }
+                finally
+                {
+                    _isSyncingTileSelection = false;
+                }
+
+                newChit.PropertyChanged += OnChitItemPropertyChanged;
+                LoadedChits.Add(newChit);
+
+                SelectedChit = newChit;
+                ChitEditorWidth = newChit.PixelWidth;
+                ChitEditorHeight = newChit.PixelHeight;
+
+                NotifySelectionChanges();
+                StatusMessage = $"Created new tile #{newIndex} ({newChit.PixelWidth} × {newChit.PixelHeight} px) from clipboard image.";
+            }
+            catch (Exception ex)
+            {
+                rawMat?.Dispose();
+                StatusMessage = $"Failed to paste new tile: {ex.Message}";
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanDeleteCurrentTile))]
+        private void DeleteCurrentTile()
+        {
+            if (SelectedChit == null) return;
+
+            DeactivateCloneStamp();
+
+            var target = SelectedChit;
+            var result = MessageBox.Show(
+                $"Are you sure you want to delete tile #{target.Index} ({target.PieceName})?\n\nThis cannot be undone.",
+                "Confirm Delete Current Tile",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            int idx = LoadedChits.IndexOf(target);
+
+            target.PropertyChanged -= SelectedChit_PropertyChanged;
+            target.PropertyChanged -= OnChitItemPropertyChanged;
+
+            ScrubChitsFromHistory(new[] { target });
+
+            LoadedChits.Remove(target);
+            target.Dispose();
+
+            if (LoadedChits.Count > 0)
+            {
+                int nextIdx = Math.Clamp(idx, 0, LoadedChits.Count - 1);
+                SelectedChit = LoadedChits[nextIdx];
+                SelectedChit.IsSelected = true;
+                ChitEditorWidth = SelectedChit.PixelWidth;
+                ChitEditorHeight = SelectedChit.PixelHeight;
+            }
+            else
+            {
+                SelectedChit = null;
+                ChitEditorWidth = 0;
+                ChitEditorHeight = 0;
+            }
+
+            NotifySelectionChanges();
+            StatusMessage = LoadedChits.Count > 0
+                ? $"Deleted tile #{target.Index}. {LoadedChits.Count} tile(s) remaining."
+                : $"Deleted tile #{target.Index}. No tiles remaining in Tile Editor.";
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        [RelayCommand(CanExecute = nameof(CanDeleteSelectedTiles))]
+        private void DeleteSelectedTiles()
+        {
+            var targets = LoadedChits.Where(c => c.IsSelected).ToList();
+            if (targets.Count == 0) return;
+
+            DeactivateCloneStamp();
+
+            string promptText = targets.Count == 1
+                ? $"Are you sure you want to delete selected tile #{targets[0].Index} ({targets[0].PieceName})?\n\nThis cannot be undone."
+                : $"Are you sure you want to delete {targets.Count} selected tiles?\n\nThis cannot be undone.";
+
+            var result = MessageBox.Show(
+                promptText,
+                "Confirm Delete Selected Tiles",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            if (SelectedChit != null && targets.Contains(SelectedChit))
+            {
+                SelectedChit.PropertyChanged -= SelectedChit_PropertyChanged;
+                SelectedChit = null;
+            }
+
+            foreach (var chit in targets)
+            {
+                chit.PropertyChanged -= SelectedChit_PropertyChanged;
+                chit.PropertyChanged -= OnChitItemPropertyChanged;
+                LoadedChits.Remove(chit);
+            }
+
+            ScrubChitsFromHistory(targets);
+
+            foreach (var chit in targets)
+            {
+                chit.Dispose();
+            }
+
+            if (LoadedChits.Count > 0)
+            {
+                SelectedChit = LoadedChits[0];
+                SelectedChit.IsSelected = true;
+                ChitEditorWidth = SelectedChit.PixelWidth;
+                ChitEditorHeight = SelectedChit.PixelHeight;
+            }
+            else
+            {
+                SelectedChit = null;
+                ChitEditorWidth = 0;
+                ChitEditorHeight = 0;
+            }
+
+            NotifySelectionChanges();
+            StatusMessage = LoadedChits.Count > 0
+                ? $"Deleted {targets.Count} selected tile(s). {LoadedChits.Count} tile(s) remaining."
+                : $"Deleted {targets.Count} selected tile(s). No tiles remaining in Tile Editor.";
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        private void ScrubChitsFromHistory(IEnumerable<ChitItem> deletedChits)
+        {
+            var toRemoveSet = new HashSet<ChitItem>(deletedChits);
+
+            // 1. Scrub undo history
+            var undoList = _batchEditHistory.ToList();
+            _batchEditHistory.Clear();
+            for (int i = undoList.Count - 1; i >= 0; i--)
+            {
+                var list = undoList[i];
+                list.RemoveAll(c => toRemoveSet.Contains(c));
+                if (list.Count > 0)
+                {
+                    _batchEditHistory.Push(list);
+                }
+            }
+
+            // 2. Scrub redo history
+            var redoList = _batchEditRedoHistory.ToList();
+            _batchEditRedoHistory.Clear();
+            for (int i = redoList.Count - 1; i >= 0; i--)
+            {
+                var list = redoList[i];
+                list.RemoveAll(c => toRemoveSet.Contains(c));
+                if (list.Count > 0)
+                {
+                    _batchEditRedoHistory.Push(list);
+                }
             }
         }
 

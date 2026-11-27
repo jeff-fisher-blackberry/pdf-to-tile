@@ -311,38 +311,46 @@
                 </MenuItem>
 
                 <!-- EDIT MENU -->
-                <MenuItem Header="_Edit" Visibility="Collapsed">
+                <MenuItem Header="_Edit" SubmenuOpened="EditMenu_SubmenuOpened">
                     <MenuItem Header="_Undo Tile Action"
                               InputGestureText="Ctrl+Z"
                               Command="{Binding UndoChitCommand}"
-                              IsEnabled="{Binding CanUndoChit}" />
+                              IsEnabled="{Binding CanUndoTileAction}" />
                     <MenuItem Header="_Redo Tile Action"
                               InputGestureText="Ctrl+Y"
                               Command="{Binding RedoChitCommand}"
-                              IsEnabled="{Binding CanRedoChit}" />
+                              IsEnabled="{Binding CanRedoTileAction}" />
                     <Separator />
                     <MenuItem Header="Cu_t Active Tile"
                               InputGestureText="Ctrl+X"
                               Command="{Binding CutChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
+                              IsEnabled="{Binding CanCutTile}" />
                     <MenuItem Header="_Copy Active Tile"
                               InputGestureText="Ctrl+C"
                               Command="{Binding CopyChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="_Paste Image to Tile"
+                              IsEnabled="{Binding CanCopyTile}" />
+                    <MenuItem Header="_Paste Image..."
                               InputGestureText="Ctrl+V"
-                              Command="{Binding PasteChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
+                              Command="{Binding PasteImageToTileCommand}"
+                              IsEnabled="{Binding CanPasteImageToTile}" />
+                    <MenuItem Header="Paste Image into _New Tile..."
+                              Command="{Binding PasteImageToNewTileCommand}"
+                              IsEnabled="{Binding CanPasteImageToNewTile}" />
+                    <Separator />
+                    <MenuItem Header="_Delete Current Tile..."
+                              InputGestureText="Del"
+                              Command="{Binding DeleteCurrentTileCommand}"
+                              IsEnabled="{Binding CanDeleteCurrentTile}" />
+                    <MenuItem Header="Delete _Selected Tiles..."
+                              Command="{Binding DeleteSelectedTilesCommand}"
+                              IsEnabled="{Binding CanDeleteSelectedTiles}" />
                     <Separator />
                     <MenuItem Header="Reset _Current Tile to Original"
                               Command="{Binding ResetSelectedChitCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
-                    <MenuItem Header="Reset All _20 Tiles to Original"
+                              IsEnabled="{Binding CanResetCurrentTile}" />
+                    <MenuItem Header="Reset _All Tiles to Original"
                               Command="{Binding ResetAllChitsCommand}"
-                              IsEnabled="{Binding HasChitsLoaded}" />
-                    <MenuItem Header="Reset _Edge Cleanup Depths"
-                              Command="{Binding ResetEdgeCleanCommand}"
-                              IsEnabled="{Binding HasSelectedChit}" />
+                              IsEnabled="{Binding CanResetAllTiles}" />
                 </MenuItem>
 
                 <!-- VIEW MENU -->
@@ -2369,11 +2377,22 @@
                                                     <MenuItem Header="_Copy Tile Image"
                                                               InputGestureText="Ctrl+C"
                                                               Command="{Binding PlacementTarget.Tag.CopyChitCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              IsEnabled="{Binding PlacementTarget.Tag.HasSelectedChit, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                                    <MenuItem Header="_Paste Image to Tile"
+                                                              IsEnabled="{Binding PlacementTarget.Tag.CanCopyTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <MenuItem Header="_Paste Image..."
                                                               InputGestureText="Ctrl+V"
-                                                              Command="{Binding PlacementTarget.Tag.PasteChitCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              IsEnabled="{Binding PlacementTarget.Tag.HasSelectedChit, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                              Command="{Binding PlacementTarget.Tag.PasteImageToTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              IsEnabled="{Binding PlacementTarget.Tag.CanPasteImageToTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <MenuItem Header="Paste Image into _New Tile..."
+                                                              Command="{Binding PlacementTarget.Tag.PasteImageToNewTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              IsEnabled="{Binding PlacementTarget.Tag.CanPasteImageToNewTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <Separator />
+                                                    <MenuItem Header="_Delete Current Tile..."
+                                                              InputGestureText="Del"
+                                                              Command="{Binding PlacementTarget.Tag.DeleteCurrentTileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              IsEnabled="{Binding PlacementTarget.Tag.CanDeleteCurrentTile, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <MenuItem Header="Delete _Selected Tiles..."
+                                                              Command="{Binding PlacementTarget.Tag.DeleteSelectedTilesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              IsEnabled="{Binding PlacementTarget.Tag.CanDeleteSelectedTiles, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                 </ContextMenu>
                                             </Setter.Value>
                                         </Setter>

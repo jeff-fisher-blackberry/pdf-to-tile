@@ -631,11 +631,27 @@ namespace pdf_to_Tiles
                     }
                     else if (e.Key == Key.V)
                     {
-                        if (vm.PasteChitCommand.CanExecute(null))
+                        if (vm.PasteImageToTileCommand.CanExecute(null))
                         {
-                            vm.PasteChitCommand.Execute(null);
+                            vm.PasteImageToTileCommand.Execute(null);
                             e.Handled = true;
                         }
+                    }
+                }
+
+                if (e.Key == Key.Delete)
+                {
+                    if (vm.DeleteSelectedTilesCommand.CanExecute(null))
+                    {
+                        vm.DeleteSelectedTilesCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    else if (vm.DeleteCurrentTileCommand.CanExecute(null))
+                    {
+                        vm.DeleteCurrentTileCommand.Execute(null);
+                        e.Handled = true;
+                        return;
                     }
                 }
             }
@@ -723,6 +739,23 @@ namespace pdf_to_Tiles
                     slider.Value = Math.Min(slider.Maximum, Math.Round(slider.Value + slider.SmallChange, 1));
                     e.Handled = true;
                 }
+            }
+        }
+
+        private void EditMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.UpdateClipboardState();
+            }
+        }
+
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            if (DataContext is MainViewModel vm && vm.SelectedTabIndex == 2)
+            {
+                vm.UpdateClipboardState();
             }
         }
 
