@@ -49,6 +49,27 @@
             </DrawingBrush.Drawing>
         </DrawingBrush>
 
+        <!-- Diagonal Hatch Brush for Inset/Buffer Preview -->
+        <DrawingBrush x:Key="DiagonalHatchBrush" Viewport="0,0,8,8" ViewportUnits="Absolute" TileMode="Tile">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#40EF4444">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,8,8" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing>
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#CCEF4444" Thickness="1.5" />
+                        </GeometryDrawing.Pen>
+                        <GeometryDrawing.Geometry>
+                            <LineGeometry StartPoint="0,8" EndPoint="8,0" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
         <!-- Tab RadioButton Style -->
         <Style x:Key="ModeTabRadioButton" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent" />
@@ -1209,6 +1230,26 @@
                                                           Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge row split line down (+1 px)" />
                                             <TextBlock Grid.Column="4" Text="{Binding ActiveBandRowSplitPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
+
+                                        <!-- Buffer (Inward Inset) -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="65" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="66" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Buffer:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip="Crop uniform pixel margin from all 4 sides of each tile" />
+                                            <RepeatButton Grid.Column="1" Content="◄" Command="{Binding NudgeActiveBandBufferDownCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Decrease tile edge buffer (-1 px)" />
+                                            <TextBox Grid.Column="2" x:Name="BandBufferTextBox" Text="{Binding ActiveBandBufferText, UpdateSourceTrigger=LostFocus}"
+                                                     KeyDown="BandBufferTextBox_KeyDown" LostFocus="BandBufferTextBox_LostFocus"
+                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
+                                            <RepeatButton Grid.Column="3" Content="►" Command="{Binding NudgeActiveBandBufferUpCommand}"
+                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Increase tile edge buffer (+1 px)" />
+                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandBufferPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 
@@ -1246,10 +1287,22 @@
                                         <Border BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
                                                 Width="140" Height="140"
-                                                Background="#F9FAFB">
-                                            <Image Source="{Binding ChitPreviewImage}"
-                                                   Stretch="Uniform"
-                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                                Background="#F9FAFB"
+                                                ClipToBounds="True">
+                                            <Viewbox Stretch="Uniform">
+                                                <Grid Width="{Binding PreviewCellWidth}" Height="{Binding PreviewCellHeight}">
+                                                    <Image Source="{Binding ChitPreviewImage}"
+                                                           RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                                    <Path Fill="{StaticResource DiagonalHatchBrush}"
+                                                          Data="{Binding PreviewHatchGeometry}"
+                                                          IsHitTestVisible="False" />
+                                                    <Path Stroke="#EF4444"
+                                                          StrokeThickness="1"
+                                                          StrokeDashArray="2 2"
+                                                          Data="{Binding PreviewCutLineGeometry}"
+                                                          IsHitTestVisible="False" />
+                                                </Grid>
+                                            </Viewbox>
                                         </Border>
                                     </StackPanel>
                                 </Border>

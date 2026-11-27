@@ -1463,6 +1463,26 @@ namespace pdf_to_Tiles
             }
         }
 
+        private void BandBufferTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandBufferInput(tb.Text);
+                tb.Text = vm.ActiveBandBufferText;
+                tb.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void BandBufferTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && DataContext is MainViewModel vm)
+            {
+                vm.ApplyActiveBandBufferInput(tb.Text);
+                tb.Text = vm.ActiveBandBufferText;
+            }
+        }
+
         private void OverlayColorPickerButton_Click(object sender, RoutedEventArgs e)
         {
             OverlayColorPopup.IsOpen = !OverlayColorPopup.IsOpen;

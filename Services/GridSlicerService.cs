@@ -426,11 +426,12 @@ namespace pdf_to_Tiles.Services
                             int colRight = bandX + (int)Math.Round(rightRatio * bandW);
                             int colWidth = colRight - colLeft;
 
-                            // Slicing uses grid boundaries directly without bleed inset
-                            int cellX = colLeft;
-                            int cellY = rowTop;
-                            int pieceW = colWidth;
-                            int pieceH = rowHeight;
+                            // Slicing applies profile inward inset / buffer
+                            int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
+                            int cellX = colLeft + inset;
+                            int cellY = rowTop + inset;
+                            int pieceW = colWidth - (2 * inset);
+                            int pieceH = rowHeight - (2 * inset);
 
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
                             cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));

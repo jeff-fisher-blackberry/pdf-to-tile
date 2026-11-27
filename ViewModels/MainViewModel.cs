@@ -404,6 +404,27 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         private string _activeBandRowSplitText = "50 px";
 
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferText))]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferPercentText))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _activeBandBufferPx = 4;
+
+        [ObservableProperty]
+        private string _activeBandBufferText = "4 px";
+
+        [ObservableProperty]
+        private int _previewCellWidth = 300;
+
+        [ObservableProperty]
+        private int _previewCellHeight = 300;
+
+        [ObservableProperty]
+        private Geometry? _previewHatchGeometry;
+
+        [ObservableProperty]
+        private Geometry? _previewCutLineGeometry;
+
         // Readouts
         public int ActiveBandRightPx => ActiveBandLeftPx + ActiveBandWidthPx;
         public int ActiveBandBottomPx => ActiveBandTopPx + ActiveBandHeightPx;
@@ -415,6 +436,17 @@ namespace pdf_to_Tiles.ViewModels
         public string ActiveBandWidthPercentText => $"({ActiveBandWidthPercent:F1}%)";
         public string ActiveBandHeightPercentText => $"({ActiveBandHeightPercent:F1}%)";
         public string ActiveBandRowSplitPercentText => $"({ActiveBandRowSplitPercent:F1}%)";
+
+        public string ActiveBandBufferPercentText
+        {
+            get
+            {
+                int minDim = Math.Min(PreviewCellWidth, PreviewCellHeight);
+                if (minDim <= 0) minDim = 300;
+                double pct = (ActiveBandBufferPx / (double)minDim) * 100.0;
+                return $"({pct:F1}%)";
+            }
+        }
 
         // Columns and Row configuration for active band
         [ObservableProperty]
@@ -753,7 +785,9 @@ namespace pdf_to_Tiles.ViewModels
                     int total = TotalBandChits;
                     int row = PreviewRowIndex + 1;
                     int col = PreviewColIndex + 1;
-                    return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col}";
+                    int tw = Math.Max(1, PreviewCellWidth - (2 * ActiveBandBufferPx));
+                    int th = Math.Max(1, PreviewCellHeight - (2 * ActiveBandBufferPx));
+                    return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col} ({tw}×{th} px)";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
             }
@@ -2052,12 +2086,14 @@ namespace pdf_to_Tiles.ViewModels
                 ActiveBandWidthPx = Math.Max(20, (int)Math.Round(band.Bounds.Width * w));
                 ActiveBandHeightPx = Math.Max(4, (int)Math.Round(band.Bounds.Height * h));
                 ActiveBandRowSplitPx = Math.Max(2, (int)Math.Round(band.RowSplitRatio * ActiveBandHeightPx));
+                ActiveBandBufferPx = Math.Max(0, (int)Math.Round(SelectedProfile?.InwardInsetPx ?? InwardInsetPx));
 
                 ActiveBandLeftText = $"{ActiveBandLeftPx} px";
                 ActiveBandTopText = $"{ActiveBandTopPx} px";
                 ActiveBandWidthText = $"{ActiveBandWidthPx} px";
                 ActiveBandHeightText = $"{ActiveBandHeightPx} px";
                 ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+                ActiveBandBufferText = $"{ActiveBandBufferPx} px";
 
                 OnPropertyChanged(nameof(ActiveBandRightPx));
                 OnPropertyChanged(nameof(ActiveBandBottomPx));
@@ -2069,6 +2105,7 @@ namespace pdf_to_Tiles.ViewModels
                 OnPropertyChanged(nameof(ActiveBandWidthPercentText));
                 OnPropertyChanged(nameof(ActiveBandHeightPercentText));
                 OnPropertyChanged(nameof(ActiveBandRowSplitPercentText));
+                OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 OnPropertyChanged(nameof(SelectedDividerPositionText));
                 OnPropertyChanged(nameof(PreviewCellText));
             }
@@ -2103,6 +2140,12 @@ namespace pdf_to_Tiles.ViewModels
             band.Bounds.Height = Math.Clamp((double)targetHeightPx / h, 4.0 / h, 1.0 - band.Bounds.Top);
             band.RowSplitRatio = Math.Clamp((double)targetRowSplitPx / targetHeightPx, 0.05, 0.95);
 
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.InwardInsetPx = ActiveBandBufferPx;
+                InwardInsetPx = ActiveBandBufferPx;
+            }
+
             _isSyncingBand = true;
             try
             {
@@ -2123,6 +2166,7 @@ namespace pdf_to_Tiles.ViewModels
                 ActiveBandWidthText = $"{ActiveBandWidthPx} px";
                 ActiveBandHeightText = $"{ActiveBandHeightPx} px";
                 ActiveBandRowSplitText = $"{ActiveBandRowSplitPx} px";
+                ActiveBandBufferText = $"{ActiveBandBufferPx} px";
 
                 OnPropertyChanged(nameof(ActiveBandRightPx));
                 OnPropertyChanged(nameof(ActiveBandBottomPx));
@@ -2134,6 +2178,7 @@ namespace pdf_to_Tiles.ViewModels
                 OnPropertyChanged(nameof(ActiveBandWidthPercentText));
                 OnPropertyChanged(nameof(ActiveBandHeightPercentText));
                 OnPropertyChanged(nameof(ActiveBandRowSplitPercentText));
+                OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 OnPropertyChanged(nameof(SelectedDividerPositionText));
                 OnPropertyChanged(nameof(PreviewCellText));
             }
@@ -2152,6 +2197,9 @@ namespace pdf_to_Tiles.ViewModels
                 ProfileRows = value.Rows;
                 ProfileColumns = value.Columns;
                 InwardInsetPx = value.InwardInsetPx;
+                ActiveBandBufferPx = Math.Max(0, (int)Math.Round(value.InwardInsetPx));
+                ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+                OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 SelectedOrientation = value.BackOrientation;
 
                 if (!string.IsNullOrWhiteSpace(LoadedFileName))
@@ -2575,6 +2623,71 @@ namespace pdf_to_Tiles.ViewModels
             ActiveBandRowSplitPx = ParsePixelInput(raw, ActiveBandRowSplitPx, 2, max);
         }
 
+        [RelayCommand]
+        private void NudgeActiveBandBufferDown()
+        {
+            ActiveBandBufferPx = Math.Max(0, ActiveBandBufferPx - 1);
+            ApplyBufferToProfile();
+        }
+
+        [RelayCommand]
+        private void NudgeActiveBandBufferUp()
+        {
+            int maxBuf = GetMaxAllowedBuffer();
+            ActiveBandBufferPx = Math.Min(maxBuf, ActiveBandBufferPx + 1);
+            ApplyBufferToProfile();
+        }
+
+        public void ApplyActiveBandBufferInput(string? raw)
+        {
+            int maxBuf = GetMaxAllowedBuffer();
+            ActiveBandBufferPx = ParsePixelInput(raw, ActiveBandBufferPx, 0, maxBuf);
+            ApplyBufferToProfile();
+        }
+
+        private void ApplyBufferToProfile()
+        {
+            ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.InwardInsetPx = ActiveBandBufferPx;
+                InwardInsetPx = ActiveBandBufferPx;
+            }
+            OnPropertyChanged(nameof(ActiveBandBufferPercentText));
+            OnPropertyChanged(nameof(PreviewCellText));
+            UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, ActiveBandBufferPx);
+        }
+
+        public int GetMaxAllowedBuffer()
+        {
+            int minDim = Math.Min(PreviewCellWidth, PreviewCellHeight);
+            if (minDim <= 8) return 0;
+            return Math.Max(0, (minDim - 8) / 2);
+        }
+
+        public void UpdatePreviewGeometry(int w, int h, int buffer)
+        {
+            PreviewCellWidth = w;
+            PreviewCellHeight = h;
+
+            if (buffer <= 0 || w <= 2 * buffer || h <= 2 * buffer)
+            {
+                PreviewHatchGeometry = null;
+                PreviewCutLineGeometry = null;
+                return;
+            }
+
+            var outerRect = new RectangleGeometry(new System.Windows.Rect(0, 0, w, h));
+            var innerRect = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
+            var combined = new CombinedGeometry(GeometryCombineMode.Exclude, outerRect, innerRect);
+            combined.Freeze();
+            PreviewHatchGeometry = combined;
+
+            var cutLine = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
+            cutLine.Freeze();
+            PreviewCutLineGeometry = cutLine;
+        }
+
         public void RecalculateRowSplitToFiftyPercent()
         {
             int safeRows = Math.Max(1, EffectiveBandRows);
@@ -2862,6 +2975,7 @@ namespace pdf_to_Tiles.ViewModels
             if (_deskewedMat == null || _deskewedMat.IsDisposed || SelectedProfile == null)
             {
                 ChitPreviewImage = null;
+                UpdatePreviewGeometry(0, 0, 0);
                 return;
             }
 
@@ -2872,18 +2986,31 @@ namespace pdf_to_Tiles.ViewModels
                     using var previewMat = GridSlicerService.ExtractBandedCellPreview(
                         _deskewedMat, SelectedProfile, SelectedSide, ActiveBandIndex, PreviewRowIndex, PreviewColIndex,
                         EffectiveBandRows, EffectiveBandColumns);
+                    PreviewCellWidth = previewMat.Width;
+                    PreviewCellHeight = previewMat.Height;
                     ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
                 }
                 else
                 {
                     using var previewMat = GridSlicerService.ExtractCellPreview(
                         _deskewedMat, SelectedProfile, SelectedSide, 0, 0);
+                    PreviewCellWidth = previewMat.Width;
+                    PreviewCellHeight = previewMat.Height;
                     ChitPreviewImage = DeskewService.MatToBitmapSource(previewMat);
                 }
+
+                int maxBuf = GetMaxAllowedBuffer();
+                if (ActiveBandBufferPx > maxBuf)
+                {
+                    ActiveBandBufferPx = maxBuf;
+                    ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+                }
+                UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, ActiveBandBufferPx);
             }
             catch
             {
                 ChitPreviewImage = null;
+                UpdatePreviewGeometry(0, 0, 0);
             }
         }
 
