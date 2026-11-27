@@ -272,7 +272,7 @@
                               InputGestureText="Ctrl+E"
                               Command="{Binding SaveTilePageImageCommand}"
                               IsEnabled="{Binding CanSaveTilePageImage}" />
-                    <MenuItem Header="Open Tile _Page Image (PNG)..."
+                    <MenuItem Header="Open Tile _Page Image..."
                               InputGestureText="Ctrl+Shift+O"
                               Command="{Binding OpenImageForSlicingCommand}"
                               IsEnabled="{Binding IsTileCreatorTabSelected}" />
