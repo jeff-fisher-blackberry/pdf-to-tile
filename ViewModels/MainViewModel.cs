@@ -2954,6 +2954,7 @@ namespace pdf_to_Tiles.ViewModels
             BumpChitRightCommand.NotifyCanExecuteChanged();
             BumpChitUpCommand.NotifyCanExecuteChanged();
             BumpChitDownCommand.NotifyCanExecuteChanged();
+            ChitEditorZoomResetCommand.NotifyCanExecuteChanged();
         }
 
         private void SelectedChit_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -3328,6 +3329,7 @@ namespace pdf_to_Tiles.ViewModels
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ChitEditorZoomPercentageText))]
+        [NotifyCanExecuteChangedFor(nameof(ChitEditorZoomResetCommand))]
         private double _chitEditorZoomScale = 1.0;
 
         public string ChitEditorZoomPercentageText => $"{Math.Round(ChitEditorZoomScale * 100):F0}%";
@@ -3441,6 +3443,7 @@ namespace pdf_to_Tiles.ViewModels
             BumpChitRightCommand.NotifyCanExecuteChanged();
             BumpChitUpCommand.NotifyCanExecuteChanged();
             BumpChitDownCommand.NotifyCanExecuteChanged();
+            ChitEditorZoomResetCommand.NotifyCanExecuteChanged();
         }
 
         private void OnChitItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -3746,11 +3749,15 @@ namespace pdf_to_Tiles.ViewModels
             ChitEditorZoomScale = Math.Max(Math.Round(ChitEditorZoomScale - 0.01, 2), 0.10);
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanResetChitEditorZoom))]
         private void ChitEditorZoomReset()
         {
+            if (!HasChitsLoaded) return;
             ChitEditorZoomScale = 1.0;
+            ChitEditorZoomInputText = "100%";
         }
+
+        public bool CanResetChitEditorZoom => HasChitsLoaded && Math.Abs(ChitEditorZoomScale - 1.0) > 0.001;
 
         [RelayCommand]
         public void ApplyChitEditorZoomInput(string? input = null)
