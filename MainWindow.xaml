@@ -265,6 +265,10 @@
                             </Style>
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
+                    <MenuItem Header="_Close PDF"
+                              InputGestureText="Ctrl+W"
+                              Command="{Binding ClosePdfCommand}"
+                              IsEnabled="{Binding CanClosePdf}" />
                     <Separator />
 
                     <!-- Tab 2: Tile Creator Section -->
@@ -276,6 +280,10 @@
                               InputGestureText="Ctrl+Shift+O"
                               Command="{Binding OpenImageForSlicingCommand}"
                               IsEnabled="{Binding IsTileCreatorTabSelected}" />
+                    <MenuItem Header="Close _Tile Page Image"
+                              InputGestureText="Ctrl+W"
+                              Command="{Binding CloseTilePageImageCommand}"
+                              IsEnabled="{Binding CanCloseTilePageImage}" />
                     <Separator />
 
                     <!-- Tab 3: Tile Editor Section -->
@@ -290,6 +298,10 @@
                               InputGestureText="Ctrl+S"
                               Command="{Binding SaveCurrentTileCommand}"
                               IsEnabled="{Binding CanSaveCurrentTile}" />
+                    <MenuItem Header="Close _Tiles"
+                              InputGestureText="Ctrl+W"
+                              Command="{Binding CloseTilesCommand}"
+                              IsEnabled="{Binding CanCloseTiles}" />
                     <Separator />
 
                     <!-- Bottom Item -->

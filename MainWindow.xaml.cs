@@ -552,9 +552,21 @@ namespace pdf_to_Tiles
                 }
                 else if (e.Key == Key.W)
                 {
-                    if (vm.CloseDocumentCommand.CanExecute(null))
+                    if (vm.SelectedTabIndex == 0 && vm.ClosePdfCommand.CanExecute(null))
                     {
-                        vm.CloseDocumentCommand.Execute(null);
+                        vm.ClosePdfCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    else if (vm.SelectedTabIndex == 1 && vm.CloseTilePageImageCommand.CanExecute(null))
+                    {
+                        vm.CloseTilePageImageCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                    else if (vm.SelectedTabIndex == 2 && vm.CloseTilesCommand.CanExecute(null))
+                    {
+                        vm.CloseTilesCommand.Execute(null);
                         e.Handled = true;
                         return;
                     }

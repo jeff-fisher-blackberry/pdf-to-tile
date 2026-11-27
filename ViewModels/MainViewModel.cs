@@ -139,6 +139,9 @@ namespace pdf_to_Tiles.ViewModels
         public bool CanOpenTileFiles => IsTileEditorTabSelected;
         public bool CanSaveCurrentTile => IsTileEditorTabSelected && HasSelectedChit;
         public bool CanSaveAllTiles => IsTileEditorTabSelected && HasChitsLoaded;
+        public bool CanClosePdf => IsPdfViewerTabSelected && HasLoadedPdf;
+        public bool CanCloseTilePageImage => IsTileCreatorTabSelected && HasSlicerImage;
+        public bool CanCloseTiles => IsTileEditorTabSelected && HasChitsLoaded;
 
         public IRelayCommand ExportPageToPngCommand => CapturePageCommand;
         public IRelayCommand SaveTilePageImageCommand => SaveTilePageImageInternalCommand;
@@ -712,7 +715,9 @@ namespace pdf_to_Tiles.ViewModels
             LoadedChits.CollectionChanged += (s, e) =>
             {
                 OnPropertyChanged(nameof(HasChitsLoaded));
+                OnPropertyChanged(nameof(CanCloseTiles));
                 OnPropertyChanged(nameof(HasActiveDocument));
+                CloseTilesCommand.NotifyCanExecuteChanged();
                 CloseDocumentCommand.NotifyCanExecuteChanged();
                 ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
                 ResetAllChitsCommand.NotifyCanExecuteChanged();
@@ -933,9 +938,11 @@ namespace pdf_to_Tiles.ViewModels
             {
                 IsLoading = false;
                 OnPropertyChanged(nameof(HasLoadedPdf));
+                OnPropertyChanged(nameof(CanClosePdf));
                 OnPropertyChanged(nameof(HasActiveDocument));
                 OnPropertyChanged(nameof(CanSendPageToSlicer));
                 SendPageToSlicerCommand.NotifyCanExecuteChanged();
+                ClosePdfCommand.NotifyCanExecuteChanged();
                 CloseDocumentCommand.NotifyCanExecuteChanged();
             }
         }
@@ -1211,9 +1218,15 @@ namespace pdf_to_Tiles.ViewModels
                 OnPropertyChanged(nameof(HasChitsLoaded));
                 OnPropertyChanged(nameof(HasSelectedChit));
                 OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(CanClosePdf));
+                OnPropertyChanged(nameof(CanCloseTilePageImage));
+                OnPropertyChanged(nameof(CanCloseTiles));
                 OnPropertyChanged(nameof(CanUndoChit));
                 OnPropertyChanged(nameof(CanRedoChit));
                 OnPropertyChanged(nameof(ChitStatusBarText));
+                ClosePdfCommand.NotifyCanExecuteChanged();
+                CloseTilePageImageCommand.NotifyCanExecuteChanged();
+                CloseTilesCommand.NotifyCanExecuteChanged();
                 CloseDocumentCommand.NotifyCanExecuteChanged();
                 ExportPageToPngCommand.NotifyCanExecuteChanged();
                 SliceGridCommand.NotifyCanExecuteChanged();
@@ -1228,6 +1241,196 @@ namespace pdf_to_Tiles.ViewModels
                 ApplySharedToolAllCommand.NotifyCanExecuteChanged();
 
                 // Explicit garbage collection to release unmanaged buffers
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanClosePdf))]
+        private void ClosePdf()
+        {
+            try
+            {
+                _pdfBytes = null;
+                LoadedFilePath = null;
+                LoadedFileName = null;
+                CurrentPageImage = null;
+                TotalPages = 0;
+                CurrentPageNumber = 0;
+                SelectedSideTag = "Page";
+                HasExplicitlyPickedPage = false;
+                PagePixelWidth = 0;
+                PagePixelHeight = 0;
+                IsFitToPage = true;
+                ZoomScale = 1.0;
+
+                if (HasSlicerImage && !string.IsNullOrWhiteSpace(SlicerSourceFileName))
+                {
+                    WindowTitle = $"{AppBaseTitle} - {SlicerSourceFileName}";
+                }
+                else
+                {
+                    WindowTitle = AppBaseTitle;
+                }
+
+                StatusMessage = "PDF closed. Ready. Open a PDF rulebook or counter sheet to begin.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error closing PDF: {ex.Message}";
+            }
+            finally
+            {
+                OnPropertyChanged(nameof(HasLoadedPdf));
+                OnPropertyChanged(nameof(CanSendPageToSlicer));
+                OnPropertyChanged(nameof(CanClosePdf));
+                OnPropertyChanged(nameof(CanSaveTilePageImage));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(ChitStatusBarText));
+
+                ClosePdfCommand.NotifyCanExecuteChanged();
+                CloseDocumentCommand.NotifyCanExecuteChanged();
+                FirstPageCommand.NotifyCanExecuteChanged();
+                PreviousPageCommand.NotifyCanExecuteChanged();
+                NextPageCommand.NotifyCanExecuteChanged();
+                LastPageCommand.NotifyCanExecuteChanged();
+                CapturePageCommand.NotifyCanExecuteChanged();
+                SendPageToSlicerCommand.NotifyCanExecuteChanged();
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanCloseTilePageImage))]
+        private void CloseTilePageImage()
+        {
+            try
+            {
+                _sliceCts?.Cancel();
+                _sliceCts?.Dispose();
+                _sliceCts = null;
+
+                _masterMat?.Dispose();
+                _masterMat = null;
+                _deskewedMat?.Dispose();
+                _deskewedMat = null;
+                _preEdgeCleanMat?.Dispose();
+                _preEdgeCleanMat = null;
+
+                SlicerImage = null;
+                ChitPreviewImage = null;
+                SlicerSourceFileName = null;
+                SlicerPixelWidth = 0;
+                SlicerPixelHeight = 0;
+                DeskewAngle = 0.0;
+                IsSettingUpperLeftCorner = false;
+                IsSettingLowerRightCorner = false;
+
+                if (!HasLoadedPdf)
+                {
+                    WindowTitle = AppBaseTitle;
+                }
+
+                StatusMessage = "Tile page image closed. Ready for next counter sheet.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error closing tile page image: {ex.Message}";
+            }
+            finally
+            {
+                OnPropertyChanged(nameof(HasSlicerImage));
+                OnPropertyChanged(nameof(CanCloseTilePageImage));
+                OnPropertyChanged(nameof(CanSaveTilePageImage));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(ChitStatusBarText));
+
+                CloseTilePageImageCommand.NotifyCanExecuteChanged();
+                CloseDocumentCommand.NotifyCanExecuteChanged();
+                AutoDetectTiltCommand.NotifyCanExecuteChanged();
+                SliceGridCommand.NotifyCanExecuteChanged();
+                SliceAllBandsCommand.NotifyCanExecuteChanged();
+                SliceActiveBandCommand.NotifyCanExecuteChanged();
+                SendBandToChitEditorCommand.NotifyCanExecuteChanged();
+                RotateLeft90Command.NotifyCanExecuteChanged();
+                RotateRight90Command.NotifyCanExecuteChanged();
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanCloseTiles))]
+        private void CloseTiles()
+        {
+            try
+            {
+                DeactivateCloneStamp();
+
+                if (SelectedChit != null)
+                {
+                    SelectedChit.PropertyChanged -= SelectedChit_PropertyChanged;
+                    SelectedChit = null;
+                }
+
+                foreach (var chit in LoadedChits)
+                {
+                    chit.PropertyChanged -= OnChitItemPropertyChanged;
+                    chit.Dispose();
+                }
+                LoadedChits.Clear();
+                _batchEditHistory.Clear();
+                _batchEditRedoHistory.Clear();
+
+                _lastCommittedSignature = null;
+                _lastCommittedBevelSignature = null;
+                _lastCommittedClipSignature = null;
+                ChitEditorWidth = 0;
+                ChitEditorHeight = 0;
+                ChitEditorZoomScale = 1.0;
+                IsCloneStampActive = false;
+                HasCloneAnchor = false;
+                HasDestinationAnchor = false;
+                IsPickingCloneAnchor = false;
+                CloneOffsetDeltaX = 0;
+                CloneOffsetDeltaY = 0;
+                CloneHoverDstX = -1;
+                CloneHoverDstY = -1;
+                IsCloneHovering = false;
+
+                StatusMessage = "Tiles closed. Ready to slice or open tile files.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error closing tiles: {ex.Message}";
+            }
+            finally
+            {
+                OnPropertyChanged(nameof(HasChitsLoaded));
+                OnPropertyChanged(nameof(HasSelectedChit));
+                OnPropertyChanged(nameof(HasSelectedChits));
+                OnPropertyChanged(nameof(CanCloseTiles));
+                OnPropertyChanged(nameof(CanSaveAllTiles));
+                OnPropertyChanged(nameof(CanSaveCurrentTile));
+                OnPropertyChanged(nameof(HasActiveDocument));
+                OnPropertyChanged(nameof(CanUndoChit));
+                OnPropertyChanged(nameof(CanRedoChit));
+                OnPropertyChanged(nameof(ChitStatusBarText));
+                NotifySelectionChanges();
+
+                CloseTilesCommand.NotifyCanExecuteChanged();
+                CloseDocumentCommand.NotifyCanExecuteChanged();
+                SaveAllTilesCommand.NotifyCanExecuteChanged();
+                SaveCurrentTileCommand.NotifyCanExecuteChanged();
+                ExportAllEditedChitsCommand.NotifyCanExecuteChanged();
+                ResetAllChitsCommand.NotifyCanExecuteChanged();
+                RotateAllTilesLeftCommand.NotifyCanExecuteChanged();
+                RotateAllTilesRightCommand.NotifyCanExecuteChanged();
+                BevelAllCommand.NotifyCanExecuteChanged();
+                ClipAllCommand.NotifyCanExecuteChanged();
+                ApplySharedToolAllCommand.NotifyCanExecuteChanged();
+
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
@@ -1683,7 +1886,9 @@ namespace pdf_to_Tiles.ViewModels
             {
                 IsLoading = false;
                 OnPropertyChanged(nameof(HasSlicerImage));
+                OnPropertyChanged(nameof(CanCloseTilePageImage));
                 OnPropertyChanged(nameof(HasActiveDocument));
+                CloseTilePageImageCommand.NotifyCanExecuteChanged();
                 CloseDocumentCommand.NotifyCanExecuteChanged();
             }
         }
@@ -1914,6 +2119,12 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(CanOpenTileFiles));
             OnPropertyChanged(nameof(CanSaveCurrentTile));
             OnPropertyChanged(nameof(CanSaveAllTiles));
+            OnPropertyChanged(nameof(CanClosePdf));
+            OnPropertyChanged(nameof(CanCloseTilePageImage));
+            OnPropertyChanged(nameof(CanCloseTiles));
+            ClosePdfCommand.NotifyCanExecuteChanged();
+            CloseTilePageImageCommand.NotifyCanExecuteChanged();
+            CloseTilesCommand.NotifyCanExecuteChanged();
             OpenPdfCommand.NotifyCanExecuteChanged();
             OpenImageForSlicingCommand.NotifyCanExecuteChanged();
             OpenTileFilesCommand.NotifyCanExecuteChanged();
