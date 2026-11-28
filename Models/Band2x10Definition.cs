@@ -47,6 +47,16 @@ namespace pdf_to_Tiles.Models
         public double RowSplitRatio { get; set; } = 0.50;
 
         /// <summary>
+        /// Default horizontal shift in pixels applied to tiles in this band.
+        /// </summary>
+        public int ShiftX { get; set; } = 0;
+
+        /// <summary>
+        /// Default vertical shift in pixels applied to tiles in this band.
+        /// </summary>
+        public int ShiftY { get; set; } = 0;
+
+        /// <summary>
         /// Relative column divider positions (0.0 to 1.0 within the band width).
         /// For 10 columns, contains exactly 9 internal dividers: [0.10, 0.20, ..., 0.90].
         /// Allows individual column widths to vary while the outer left and right boundaries remain fixed.
@@ -70,6 +80,8 @@ namespace pdf_to_Tiles.Models
                 Name = Name,
                 Bounds = Bounds.Clone(),
                 RowSplitRatio = RowSplitRatio,
+                ShiftX = ShiftX,
+                ShiftY = ShiftY,
                 ColumnDividers = new List<double>(ColumnDividers)
             };
         }

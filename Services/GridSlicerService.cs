@@ -153,7 +153,9 @@ namespace pdf_to_Tiles.Services
             int bandCols = 10,
             bool skipExisting = false,
             Mat? patternMat = null,
-            bool fillBuffer = false)
+            bool fillBuffer = false,
+            Func<int, int, (int shiftX, int shiftY)>? getBandTileShift = null,
+            Func<int, (int shiftX, int shiftY)>? getTileShift = null)
         {
             return Task.Run(() =>
             {
@@ -240,11 +242,16 @@ namespace pdf_to_Tiles.Services
                             int xRight = xStart + (int)Math.Round(dividers[c + 1] * wTotal);
                             int colW = Math.Max(1, xRight - xLeft);
 
+                            int chitNum = (r * effectiveCols) + c + 1;
+                            var (shiftX, shiftY) = getBandTileShift?.Invoke(b, chitNum) ?? getTileShift?.Invoke(chitNum) ?? (0, 0);
+
                             bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
-                            int cellX = usePattern ? xLeft : (xLeft + inset);
-                            int cellY = usePattern ? rowY : (rowY + inset);
-                            int pieceW = usePattern ? colW : (colW - (2 * inset));
-                            int pieceH = usePattern ? rowH : (rowH - (2 * inset));
+                            bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
+
+                            int cellX = applyFillOrShift ? xLeft : (xLeft + inset);
+                            int cellY = applyFillOrShift ? rowY : (rowY + inset);
+                            int pieceW = applyFillOrShift ? colW : (colW - (2 * inset));
+                            int pieceH = applyFillOrShift ? rowH : (rowH - (2 * inset));
 
                             // Clamp strictly inside master image boundaries
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -301,9 +308,9 @@ namespace pdf_to_Tiles.Services
                                 {
                                     try
                                     {
-                                        if (usePattern)
+                                        if (applyFillOrShift)
                                         {
-                                            using var filledMat = ApplyBufferPatternFill(pieceMat, patternMat!, inset);
+                                            using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
                                             Cv2.ImWrite(outPath, filledMat);
                                         }
                                         else
@@ -348,7 +355,8 @@ namespace pdf_to_Tiles.Services
             int bandRows = 2,
             int bandCols = 10,
             Mat? patternMat = null,
-            bool fillBuffer = false)
+            bool fillBuffer = false,
+            Func<int, (int shiftX, int shiftY)>? getTileShift = null)
         {
             return Task.Run(() =>
             {
@@ -439,14 +447,18 @@ namespace pdf_to_Tiles.Services
                             int colRight = bandX + (int)Math.Round(rightRatio * bandW);
                             int colWidth = colRight - colLeft;
 
+                            int chitNum = currentPiece + 1;
+                            var (shiftX, shiftY) = getTileShift?.Invoke(chitNum) ?? (0, 0);
+
                             // Slicing applies profile inward inset / buffer
                             int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
                             bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                            bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
 
-                            int cellX = usePattern ? colLeft : (colLeft + inset);
-                            int cellY = usePattern ? rowTop : (rowTop + inset);
-                            int pieceW = usePattern ? colWidth : (colWidth - (2 * inset));
-                            int pieceH = usePattern ? rowHeight : (rowHeight - (2 * inset));
+                            int cellX = applyFillOrShift ? colLeft : (colLeft + inset);
+                            int cellY = applyFillOrShift ? rowTop : (rowTop + inset);
+                            int pieceW = applyFillOrShift ? colWidth : (colWidth - (2 * inset));
+                            int pieceH = applyFillOrShift ? rowHeight : (rowHeight - (2 * inset));
 
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
                             cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));
@@ -463,9 +475,9 @@ namespace pdf_to_Tiles.Services
                                 using var cropMat = new Mat(masterMat, roi);
 
                                 Mat bgraMat;
-                                if (usePattern)
+                                if (applyFillOrShift)
                                 {
-                                    bgraMat = ApplyBufferPatternFill(cropMat, patternMat!, inset);
+                                    bgraMat = ApplyBufferPatternFill(cropMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
                                 }
                                 else
                                 {
@@ -520,7 +532,8 @@ namespace pdf_to_Tiles.Services
             CancellationToken cancellationToken,
             bool skipExisting = false,
             Mat? patternMat = null,
-            bool fillBuffer = false)
+            bool fillBuffer = false,
+            Func<int, (int shiftX, int shiftY)>? getTileShift = null)
         {
             return Task.Run(() =>
             {
@@ -605,11 +618,16 @@ namespace pdf_to_Tiles.Services
                         }
 
                         // Physical pixel coordinates for this cell
+                        int tileIndex = (r * profile.Columns) + c + 1;
+                        var (shiftX, shiftY) = getTileShift?.Invoke(tileIndex) ?? (0, 0);
+
                         bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
-                        int cellX = usePattern ? (int)Math.Round(gridX + c * cellW) : ((int)Math.Round(gridX + c * cellW) + inset);
-                        int cellY = usePattern ? (int)Math.Round(gridY + r * cellH) : ((int)Math.Round(gridY + r * cellH) + inset);
-                        int pieceW = usePattern ? (int)Math.Round(cellW) : ((int)Math.Round(cellW) - (2 * inset));
-                        int pieceH = usePattern ? (int)Math.Round(cellH) : ((int)Math.Round(cellH) - (2 * inset));
+                        bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
+
+                        int cellX = applyFillOrShift ? (int)Math.Round(gridX + c * cellW) : ((int)Math.Round(gridX + c * cellW) + inset);
+                        int cellY = applyFillOrShift ? (int)Math.Round(gridY + r * cellH) : ((int)Math.Round(gridY + r * cellH) + inset);
+                        int pieceW = applyFillOrShift ? (int)Math.Round(cellW) : ((int)Math.Round(cellW) - (2 * inset));
+                        int pieceH = applyFillOrShift ? (int)Math.Round(cellH) : ((int)Math.Round(cellH) - (2 * inset));
 
                         // Clamp strictly inside master image boundary
                         cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -641,9 +659,9 @@ namespace pdf_to_Tiles.Services
                         {
                             try
                             {
-                                if (usePattern)
+                                if (applyFillOrShift)
                                 {
-                                    using var filledMat = ApplyBufferPatternFill(pieceMat, patternMat!, inset);
+                                    using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
                                     Cv2.ImWrite(outPath, filledMat);
                                 }
                                 else
@@ -807,18 +825,18 @@ namespace pdf_to_Tiles.Services
         }
 
         /// <summary>
-        /// Tiles patternMat across the full (W, H) cell, blits the inner [inset..W-inset, inset..H-inset]
-        /// core artwork from cellMat into the center, and applies a 1-pixel linear blend along the boundary.
+        /// Tiles patternMat across the full (W, H) cell (or initializes a transparent canvas if pattern is absent),
+        /// blits the inner [inset..W-inset, inset..H-inset] core artwork shifted by (shiftX, shiftY) with safe clipping,
+        /// and applies a 1-pixel linear blend along the boundary.
         /// Returns a new Mat of size (W, H) in CV_8UC4 (BGRA).
         /// </summary>
-        public static Mat ApplyBufferPatternFill(Mat cellMat, Mat patternMat, int inset)
+        public static Mat ApplyBufferPatternFill(Mat cellMat, Mat? patternMat, int inset, int shiftX = 0, int shiftY = 0)
         {
             if (cellMat == null || cellMat.IsDisposed) throw new ArgumentNullException(nameof(cellMat));
-            if (patternMat == null || patternMat.IsDisposed) return cellMat.Clone();
 
             int w = cellMat.Width;
             int h = cellMat.Height;
-            if (inset <= 0 || w <= 2 * inset || h <= 2 * inset)
+            if (inset <= 0 && shiftX == 0 && shiftY == 0)
             {
                 var copy = new Mat();
                 if (cellMat.Channels() == 3)
@@ -828,95 +846,126 @@ namespace pdf_to_Tiles.Services
                 return copy;
             }
 
-            // Ensure pattern is BGRA
-            using var bgraPattern = new Mat();
-            if (patternMat.Channels() == 3)
-            {
-                Cv2.CvtColor(patternMat, bgraPattern, ColorConversionCodes.BGR2BGRA);
-            }
-            else
-            {
-                patternMat.CopyTo(bgraPattern);
-            }
-
-            // Tile pattern to at least (w, h)
-            int patW = Math.Max(1, bgraPattern.Width);
-            int patH = Math.Max(1, bgraPattern.Height);
-            int repeatX = (w / patW) + 1;
-            int repeatY = (h / patH) + 1;
-
-            using var repeatedPattern = new Mat();
-            Cv2.Repeat(bgraPattern, repeatY, repeatX, repeatedPattern);
-
-            // Crop to exact (w, h)
-            using var croppedBg = new Mat(repeatedPattern, new Rect(0, 0, w, h));
-            var result = croppedBg.Clone();
-
             // Ensure source cell is BGRA
             using var bgraCell = new Mat();
             if (cellMat.Channels() == 3)
-            {
                 Cv2.CvtColor(cellMat, bgraCell, ColorConversionCodes.BGR2BGRA);
+            else
+                cellMat.CopyTo(bgraCell);
+
+            Mat result;
+            bool hasPattern = patternMat != null && !patternMat.IsDisposed;
+            if (hasPattern)
+            {
+                using var bgraPattern = new Mat();
+                if (patternMat!.Channels() == 3)
+                    Cv2.CvtColor(patternMat, bgraPattern, ColorConversionCodes.BGR2BGRA);
+                else
+                    patternMat.CopyTo(bgraPattern);
+
+                int patW = Math.Max(1, bgraPattern.Width);
+                int patH = Math.Max(1, bgraPattern.Height);
+                int repeatX = (w / patW) + 1;
+                int repeatY = (h / patH) + 1;
+
+                using var repeatedPattern = new Mat();
+                Cv2.Repeat(bgraPattern, repeatY, repeatX, repeatedPattern);
+                using var croppedBg = new Mat(repeatedPattern, new Rect(0, 0, w, h));
+                result = croppedBg.Clone();
             }
             else
             {
-                cellMat.CopyTo(bgraCell);
+                result = new Mat(h, w, MatType.CV_8UC4, new Scalar(0, 0, 0, 0));
             }
 
-            // Blit inner core [inset, inset, w - 2*inset, h - 2*inset]
-            int innerW = w - 2 * inset;
-            int innerH = h - 2 * inset;
-            var innerRoi = new Rect(inset, inset, innerW, innerH);
+            int safeInset = Math.Max(0, inset);
+            int coreX = safeInset;
+            int coreY = safeInset;
+            int coreW = Math.Max(0, w - (2 * safeInset));
+            int coreH = Math.Max(0, h - (2 * safeInset));
 
-            using (var innerCell = new Mat(bgraCell, innerRoi))
-            using (var targetSlot = new Mat(result, innerRoi))
+            if (coreW > 0 && coreH > 0)
             {
-                innerCell.CopyTo(targetSlot);
-            }
+                // Destination target coordinates with shift applied
+                int destX = safeInset + shiftX;
+                int destY = safeInset + shiftY;
 
-            // 1-pixel linear seam blend along perimeter if inner size allows
-            if (innerW > 2 && innerH > 2)
-            {
-                // Top & bottom edge rows inside boundary
-                BlendHorizontalSeam(result, bgraCell, inset, inset, innerW);
-                BlendHorizontalSeam(result, bgraCell, inset, inset + innerH - 1, innerW);
-                // Left & right edge columns inside boundary
-                BlendVerticalSeam(result, bgraCell, inset, inset, innerH);
-                BlendVerticalSeam(result, bgraCell, inset + innerW - 1, inset, innerH);
+                // Clip destination rectangle against result boundaries [0, 0, w, h]
+                int clipDstX = Math.Max(0, destX);
+                int clipDstY = Math.Max(0, destY);
+                int clipDstRight = Math.Min(w, destX + coreW);
+                int clipDstBottom = Math.Min(h, destY + coreH);
+
+                int blitW = clipDstRight - clipDstX;
+                int blitH = clipDstBottom - clipDstY;
+
+                if (blitW > 0 && blitH > 0)
+                {
+                    // Corresponding source rectangle inside bgraCell
+                    int srcX = coreX + (clipDstX - destX);
+                    int srcY = coreY + (clipDstY - destY);
+
+                    srcX = Math.Max(0, Math.Min(srcX, bgraCell.Width - blitW));
+                    srcY = Math.Max(0, Math.Min(srcY, bgraCell.Height - blitH));
+
+                    var srcRoi = new Rect(srcX, srcY, blitW, blitH);
+                    var dstRoi = new Rect(clipDstX, clipDstY, blitW, blitH);
+
+                    using (var innerCell = new Mat(bgraCell, srcRoi))
+                    using (var targetSlot = new Mat(result, dstRoi))
+                    {
+                        innerCell.CopyTo(targetSlot);
+                    }
+
+                    // 1-pixel linear seam blend along perimeter if pattern is present and blit region is large enough
+                    if (hasPattern && blitW > 2 && blitH > 2)
+                    {
+                        // Top & bottom edge rows inside blit region
+                        BlendHorizontalSeam(result, bgraCell, clipDstX, clipDstY, srcX, srcY, blitW);
+                        BlendHorizontalSeam(result, bgraCell, clipDstX, clipDstY + blitH - 1, srcX, srcY + blitH - 1, blitW);
+                        // Left & right edge columns inside blit region
+                        BlendVerticalSeam(result, bgraCell, clipDstX, clipDstY, srcX, srcY, blitH);
+                        BlendVerticalSeam(result, bgraCell, clipDstX + blitW - 1, clipDstY, srcX + blitW - 1, srcY, blitH);
+                    }
+                }
             }
 
             return result;
         }
 
-        private static void BlendHorizontalSeam(Mat dst, Mat src, int startX, int y, int width)
+        private static void BlendHorizontalSeam(Mat dst, Mat src, int dstStartX, int dstY, int srcStartX, int srcY, int width)
         {
-            if (y < 0 || y >= dst.Height || y >= src.Height) return;
-            for (int x = startX; x < startX + width; x++)
+            if (dstY < 0 || dstY >= dst.Height || srcY < 0 || srcY >= src.Height) return;
+            for (int i = 0; i < width; i++)
             {
-                if (x < 0 || x >= dst.Width || x >= src.Width) continue;
-                Vec4b cDst = dst.Get<Vec4b>(y, x);
-                Vec4b cSrc = src.Get<Vec4b>(y, x);
+                int dx = dstStartX + i;
+                int sx = srcStartX + i;
+                if (dx < 0 || dx >= dst.Width || sx < 0 || sx >= src.Width) continue;
+                Vec4b cDst = dst.Get<Vec4b>(dstY, dx);
+                Vec4b cSrc = src.Get<Vec4b>(srcY, sx);
                 byte b = (byte)((cDst.Item0 + cSrc.Item0) / 2);
                 byte g = (byte)((cDst.Item1 + cSrc.Item1) / 2);
                 byte r = (byte)((cDst.Item2 + cSrc.Item2) / 2);
                 byte a = (byte)((cDst.Item3 + cSrc.Item3) / 2);
-                dst.Set(y, x, new Vec4b(b, g, r, a));
+                dst.Set(dstY, dx, new Vec4b(b, g, r, a));
             }
         }
 
-        private static void BlendVerticalSeam(Mat dst, Mat src, int x, int startY, int height)
+        private static void BlendVerticalSeam(Mat dst, Mat src, int dstX, int dstStartY, int srcX, int srcStartY, int height)
         {
-            if (x < 0 || x >= dst.Width || x >= src.Width) return;
-            for (int y = startY; y < startY + height; y++)
+            if (dstX < 0 || dstX >= dst.Width || srcX < 0 || srcX >= src.Width) return;
+            for (int i = 0; i < height; i++)
             {
-                if (y < 0 || y >= dst.Height || y >= src.Height) continue;
-                Vec4b cDst = dst.Get<Vec4b>(y, x);
-                Vec4b cSrc = src.Get<Vec4b>(y, x);
+                int dy = dstStartY + i;
+                int sy = srcStartY + i;
+                if (dy < 0 || dy >= dst.Height || sy < 0 || sy >= src.Height) continue;
+                Vec4b cDst = dst.Get<Vec4b>(dy, dstX);
+                Vec4b cSrc = src.Get<Vec4b>(sy, srcX);
                 byte b = (byte)((cDst.Item0 + cSrc.Item0) / 2);
                 byte g = (byte)((cDst.Item1 + cSrc.Item1) / 2);
                 byte r = (byte)((cDst.Item2 + cSrc.Item2) / 2);
                 byte a = (byte)((cDst.Item3 + cSrc.Item3) / 2);
-                dst.Set(y, x, new Vec4b(b, g, r, a));
+                dst.Set(dy, dstX, new Vec4b(b, g, r, a));
             }
         }
     }

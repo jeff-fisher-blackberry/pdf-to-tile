@@ -450,6 +450,29 @@ namespace pdf_to_Tiles.ViewModels
 
         public Cursor PatternCursor => IsCapturingPattern ? Cursors.Cross : Cursors.Arrow;
 
+        // Preview Tile Shift & Bump Controls
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
+        [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
+        private int _currentTileShiftX = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
+        [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
+        private int _currentTileShiftY = 0;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewBumpStepText))]
+        private int _previewBumpStepPx = 1;
+
+        public string PreviewBumpStepText => $"{PreviewBumpStepPx}px";
+
+        public string TileShiftStatusText => $"Shift: ({CurrentTileShiftX:+0;-0;0}, {CurrentTileShiftY:+0;-0;0}) px";
+
+        public bool CanResetTileShift => CurrentTileShiftX != 0 || CurrentTileShiftY != 0;
+
+        private readonly Dictionary<(string Side, int Band, int Chit), (int ShiftX, int ShiftY)> _tileShifts = new();
+
         // Readouts
         public int ActiveBandRightPx => ActiveBandLeftPx + ActiveBandWidthPx;
         public int ActiveBandBottomPx => ActiveBandTopPx + ActiveBandHeightPx;
@@ -2143,6 +2166,7 @@ namespace pdf_to_Tiles.ViewModels
                 _isSyncingBand = false;
             }
 
+            LoadCurrentTileShift();
             UpdateChitPreview();
         }
 
@@ -2216,11 +2240,13 @@ namespace pdf_to_Tiles.ViewModels
                 _isSyncingBand = false;
             }
 
+            LoadCurrentTileShift();
             UpdateChitPreview();
         }
 
         partial void OnSelectedProfileChanged(SheetProfile? value)
         {
+            _tileShifts.Clear();
             if (value != null)
             {
                 ProfileRows = value.Rows;
@@ -2289,6 +2315,7 @@ namespace pdf_to_Tiles.ViewModels
 
             // Re-sync row/col from current PreviewChitNumber under new side ordering
             SyncPreviewRowColFromChitNumber(PreviewChitNumber);
+            LoadCurrentTileShift();
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
         }
@@ -2433,6 +2460,7 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             SyncPreviewRowColFromChitNumber(clamped);
+            LoadCurrentTileShift();
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
         }
@@ -2732,10 +2760,84 @@ namespace pdf_to_Tiles.ViewModels
                 PreviewHatchGeometry = combined;
             }
 
-            var cutLine = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
+            var cutLine = new RectangleGeometry(new System.Windows.Rect(buffer + CurrentTileShiftX, buffer + CurrentTileShiftY, w - 2 * buffer, h - 2 * buffer));
             cutLine.Freeze();
             PreviewCutLineGeometry = cutLine;
         }
+
+        #region Preview Tile Shift & Bump Management
+
+        private void LoadCurrentTileShift()
+        {
+            var key = (SelectedSide, ActiveBandIndex, PreviewChitNumber);
+            if (_tileShifts.TryGetValue(key, out var shift))
+            {
+                CurrentTileShiftX = shift.ShiftX;
+                CurrentTileShiftY = shift.ShiftY;
+            }
+            else
+            {
+                CurrentTileShiftX = 0;
+                CurrentTileShiftY = 0;
+            }
+        }
+
+        private void SaveCurrentTileShift(int sx, int sy)
+        {
+            CurrentTileShiftX = sx;
+            CurrentTileShiftY = sy;
+            var key = (SelectedSide, ActiveBandIndex, PreviewChitNumber);
+            if (sx == 0 && sy == 0)
+            {
+                _tileShifts.Remove(key);
+            }
+            else
+            {
+                _tileShifts[key] = (sx, sy);
+            }
+            UpdateChitPreview();
+        }
+
+        [RelayCommand]
+        private void PreviewBumpUp() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY - PreviewBumpStepPx);
+
+        [RelayCommand]
+        private void PreviewBumpDown() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY + PreviewBumpStepPx);
+
+        [RelayCommand]
+        private void PreviewBumpLeft() => SaveCurrentTileShift(CurrentTileShiftX - PreviewBumpStepPx, CurrentTileShiftY);
+
+        [RelayCommand]
+        private void PreviewBumpRight() => SaveCurrentTileShift(CurrentTileShiftX + PreviewBumpStepPx, CurrentTileShiftY);
+
+        [RelayCommand]
+        private void ResetTileShift() => SaveCurrentTileShift(0, 0);
+
+        [RelayCommand]
+        private void PreviewBumpStepDown() => PreviewBumpStepPx = Math.Max(1, PreviewBumpStepPx - 1);
+
+        [RelayCommand]
+        private void PreviewBumpStepUp() => PreviewBumpStepPx = Math.Min(50, PreviewBumpStepPx + 1);
+
+        [RelayCommand]
+        private void ApplyShiftToBand()
+        {
+            int sx = CurrentTileShiftX;
+            int sy = CurrentTileShiftY;
+            int total = TotalBandChits;
+            for (int c = 1; c <= total; c++)
+            {
+                var key = (SelectedSide, ActiveBandIndex, c);
+                if (sx == 0 && sy == 0)
+                    _tileShifts.Remove(key);
+                else
+                    _tileShifts[key] = (sx, sy);
+            }
+            StatusMessage = $"Applied shift ({sx}, {sy}) px to all {total} tiles in Band {ActiveBandIndex + 1}.";
+            UpdateChitPreview();
+        }
+
+        #endregion
 
         #region Pattern Swatch & Capture Commands
 
@@ -3253,9 +3355,16 @@ namespace pdf_to_Tiles.ViewModels
                 PreviewCellWidth = previewMat.Width;
                 PreviewCellHeight = previewMat.Height;
 
-                if (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0)
+                bool shouldApplyFillOrShift = (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0) || (CurrentTileShiftX != 0 || CurrentTileShiftY != 0);
+
+                if (shouldApplyFillOrShift)
                 {
-                    using var filledMat = GridSlicerService.ApplyBufferPatternFill(previewMat, _capturedPatternMat!, ActiveBandBufferPx);
+                    using var filledMat = GridSlicerService.ApplyBufferPatternFill(
+                        previewMat,
+                        (IsPatternFillEnabled && HasCapturedPattern) ? _capturedPatternMat : null,
+                        ActiveBandBufferPx,
+                        CurrentTileShiftX,
+                        CurrentTileShiftY);
                     ChitPreviewImage = DeskewService.MatToBitmapSource(filledMat);
                 }
                 else
@@ -3496,7 +3605,8 @@ namespace pdf_to_Tiles.ViewModels
                         EffectiveBandColumns,
                         skipExisting,
                         _capturedPatternMat,
-                        IsPatternFillEnabled
+                        IsPatternFillEnabled,
+                        (b, chitNum) => _tileShifts.TryGetValue((currentSide, b, chitNum), out var s) ? s : (0, 0)
                     );
                 }
                 else
@@ -3510,7 +3620,8 @@ namespace pdf_to_Tiles.ViewModels
                         _sliceCts.Token,
                         skipExisting,
                         _capturedPatternMat,
-                        IsPatternFillEnabled
+                        IsPatternFillEnabled,
+                        tileNum => _tileShifts.TryGetValue((currentSide, 0, tileNum), out var s) ? s : (0, 0)
                     );
                 }
 
@@ -3610,7 +3721,8 @@ namespace pdf_to_Tiles.ViewModels
                     EffectiveBandRows,
                     EffectiveBandColumns,
                     _capturedPatternMat,
-                    IsPatternFillEnabled
+                    IsPatternFillEnabled,
+                    chitNum => _tileShifts.TryGetValue((currentSide, bandIdx, chitNum), out var s) ? s : (0, 0)
                 );
 
                 // Dispose existing loaded chits to prevent memory leaks
