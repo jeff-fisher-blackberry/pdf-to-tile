@@ -1322,239 +1322,139 @@
                                         <TextBlock Text="{Binding PreviewCellText}"
                                                    FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" HorizontalAlignment="Center" />
 
-                                        <!-- Shift Status & Step Toolbar -->
-                                        <Grid Margin="0,0,0,6">
+                                        <!-- Shift Status & Reset (Horizontally Centered) -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding TileShiftStatusText}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <Button Content="⟲ Reset" Command="{Binding ResetTileShiftCommand}"
+                                                    Visibility="{Binding CanResetTileShift, Converter={StaticResource BoolToVis}}"
+                                                    Height="20" Padding="5,1" FontSize="10" ToolTip="Reset tile shift to (0, 0)" />
+                                        </StackPanel>
+
+                                        <!-- Directional Bump Compass & 116x116 Viewport (Horizontally Centered) -->
+                                        <Grid HorizontalAlignment="Center" Width="146" Height="152">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="18" />
+                                                <RowDefinition Height="116" />
+                                                <RowDefinition Height="18" />
+                                            </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="15" />
+                                                <ColumnDefinition Width="116" />
+                                                <ColumnDefinition Width="15" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding TileShiftStatusText}"
-                                                           FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                <Button Content="⟲ Reset" Command="{Binding ResetTileShiftCommand}"
-                                                        Visibility="{Binding CanResetTileShift, Converter={StaticResource BoolToVis}}"
-                                                        Height="20" Padding="4,1" FontSize="10" ToolTip="Reset tile shift to (0, 0)" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Step:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <TextBlock Text="{Binding PreviewBumpStepText}" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                <RepeatButton Content="-" Command="{Binding PreviewBumpStepDownCommand}" Width="18" Height="20" Padding="0" Delay="250" Interval="50" ToolTip="Decrease step size" />
-                                                <RepeatButton Content="+" Command="{Binding PreviewBumpStepUpCommand}" Width="18" Height="20" Padding="0" Delay="250" Interval="50" Margin="2,0,0,0" ToolTip="Increase step size" />
-                                            </StackPanel>
+
+                                            <!-- Up Bump Button -->
+                                            <RepeatButton Grid.Row="0" Grid.Column="1"
+                                                          Content="▲"
+                                                          Command="{Binding PreviewBumpUpCommand}"
+                                                          Width="44" Height="18"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          HorizontalAlignment="Center"
+                                                          ToolTip="Nudge tile artwork up 1px (negative Y)" />
+
+                                            <!-- Left Bump Button -->
+                                            <RepeatButton Grid.Row="1" Grid.Column="0"
+                                                          Content="◀"
+                                                          Command="{Binding PreviewBumpLeftCommand}"
+                                                          Width="15" Height="44"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          VerticalAlignment="Center"
+                                                          ToolTip="Nudge tile artwork left 1px (negative X)" />
+
+                                            <!-- 116x116 Tile Preview Viewport -->
+                                            <Border Grid.Row="1" Grid.Column="1"
+                                                    x:Name="TilePreviewBorder"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    Width="116" Height="116"
+                                                    Background="#F9FAFB"
+                                                    ClipToBounds="True"
+                                                    Cursor="{Binding PatternCursor}"
+                                                    PreviewMouseLeftButtonDown="TilePreview_PreviewMouseLeftButtonDown"
+                                                    MouseMove="TilePreview_MouseMove"
+                                                    MouseLeave="TilePreview_MouseLeave">
+                                                <Viewbox Stretch="Uniform">
+                                                    <Grid x:Name="TilePreviewGrid" Width="{Binding PreviewCellWidth}" Height="{Binding PreviewCellHeight}">
+                                                        <Image Source="{Binding ChitPreviewImage}"
+                                                               RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                                        <Path Fill="{StaticResource DiagonalHatchBrush}"
+                                                              Data="{Binding PreviewHatchGeometry}"
+                                                              IsHitTestVisible="False" />
+                                                        <Path Stroke="#EF4444"
+                                                              StrokeThickness="1"
+                                                              StrokeDashArray="2 2"
+                                                              Data="{Binding PreviewCutLineGeometry}"
+                                                              IsHitTestVisible="False" />
+                                                        <Rectangle x:Name="PreviewCaptureGuide"
+                                                                   Width="{Binding PatternSquareSize}"
+                                                                   Height="{Binding PatternSquareSize}"
+                                                                   Stroke="#3B82F6"
+                                                                   StrokeThickness="1.5"
+                                                                   Fill="#253B82F6"
+                                                                   Visibility="Collapsed"
+                                                                   IsHitTestVisible="False" />
+                                                    </Grid>
+                                                </Viewbox>
+                                            </Border>
+
+                                            <!-- Right Bump Button -->
+                                            <RepeatButton Grid.Row="1" Grid.Column="2"
+                                                          Content="▶"
+                                                          Command="{Binding PreviewBumpRightCommand}"
+                                                          Width="15" Height="44"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          VerticalAlignment="Center"
+                                                          ToolTip="Nudge tile artwork right 1px (positive X)" />
+
+                                            <!-- Down Bump Button -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="1"
+                                                          Content="▼"
+                                                          Command="{Binding PreviewBumpDownCommand}"
+                                                          Width="44" Height="18"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          HorizontalAlignment="Center"
+                                                          ToolTip="Nudge tile artwork down 1px (positive Y)" />
                                         </Grid>
 
-                                        <!-- 2-Column Preview & Pattern Fill Section -->
-                                        <Grid Margin="0,2,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="146" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
+                                        <!-- Pattern Swatch Control (Horizontally Centered Below Compass) -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,0,0">
+                                            <TextBlock Text="Pattern:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
 
-                                            <!-- Column 0: Directional Bump Controls & 116x116 Viewport + Apply to Selected / Band -->
-                                            <StackPanel Grid.Column="0" HorizontalAlignment="Center" Width="146">
-                                                <Grid HorizontalAlignment="Center">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="18" />
-                                                        <RowDefinition Height="116" />
-                                                        <RowDefinition Height="18" />
-                                                    </Grid.RowDefinitions>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="15" />
-                                                        <ColumnDefinition Width="116" />
-                                                        <ColumnDefinition Width="15" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <!-- Up Bump Button -->
-                                                    <RepeatButton Grid.Row="0" Grid.Column="1"
-                                                                  Content="▲"
-                                                                  Command="{Binding PreviewBumpUpCommand}"
-                                                                  Width="44" Height="18"
-                                                                  Padding="0" Delay="250" Interval="50"
-                                                                  HorizontalAlignment="Center"
-                                                                  ToolTip="Nudge tile artwork up (negative Y)" />
-
-                                                    <!-- Left Bump Button -->
-                                                    <RepeatButton Grid.Row="1" Grid.Column="0"
-                                                                  Content="◀"
-                                                                  Command="{Binding PreviewBumpLeftCommand}"
-                                                                  Width="15" Height="44"
-                                                                  Padding="0" Delay="250" Interval="50"
-                                                                  VerticalAlignment="Center"
-                                                                  ToolTip="Nudge tile artwork left (negative X)" />
-
-                                                    <!-- 116x116 Tile Preview Viewport -->
-                                                    <Border Grid.Row="1" Grid.Column="1"
-                                                            x:Name="TilePreviewBorder"
-                                                            BorderBrush="{DynamicResource BorderBrush}"
-                                                            BorderThickness="1"
-                                                            Width="116" Height="116"
-                                                            Background="#F9FAFB"
-                                                            ClipToBounds="True"
-                                                            Cursor="{Binding PatternCursor}"
-                                                            PreviewMouseLeftButtonDown="TilePreview_PreviewMouseLeftButtonDown"
-                                                            MouseMove="TilePreview_MouseMove"
-                                                            MouseLeave="TilePreview_MouseLeave">
-                                                        <Viewbox Stretch="Uniform">
-                                                            <Grid x:Name="TilePreviewGrid" Width="{Binding PreviewCellWidth}" Height="{Binding PreviewCellHeight}">
-                                                                <Image Source="{Binding ChitPreviewImage}"
-                                                                       RenderOptions.BitmapScalingMode="NearestNeighbor" />
-                                                                <Path Fill="{StaticResource DiagonalHatchBrush}"
-                                                                      Data="{Binding PreviewHatchGeometry}"
-                                                                      IsHitTestVisible="False" />
-                                                                <Path Stroke="#EF4444"
-                                                                      StrokeThickness="1"
-                                                                      StrokeDashArray="2 2"
-                                                                      Data="{Binding PreviewCutLineGeometry}"
-                                                                      IsHitTestVisible="False" />
-                                                                <Rectangle x:Name="PreviewCaptureGuide"
-                                                                           Width="{Binding PatternSquareSize}"
-                                                                           Height="{Binding PatternSquareSize}"
-                                                                           Stroke="#3B82F6"
-                                                                           StrokeThickness="1.5"
-                                                                           Fill="#253B82F6"
-                                                                           Visibility="Collapsed"
-                                                                           IsHitTestVisible="False" />
-                                                            </Grid>
-                                                        </Viewbox>
-                                                    </Border>
-
-                                                    <!-- Right Bump Button -->
-                                                    <RepeatButton Grid.Row="1" Grid.Column="2"
-                                                                  Content="▶"
-                                                                  Command="{Binding PreviewBumpRightCommand}"
-                                                                  Width="15" Height="44"
-                                                                  Padding="0" Delay="250" Interval="50"
-                                                                  VerticalAlignment="Center"
-                                                                  ToolTip="Nudge tile artwork right (positive X)" />
-
-                                                    <!-- Down Bump Button -->
-                                                    <RepeatButton Grid.Row="2" Grid.Column="1"
-                                                                  Content="▼"
-                                                                  Command="{Binding PreviewBumpDownCommand}"
-                                                                  Width="44" Height="18"
-                                                                  Padding="0" Delay="250" Interval="50"
-                                                                  HorizontalAlignment="Center"
-                                                                  ToolTip="Nudge tile artwork down (positive Y)" />
-                                                </Grid>
-
-                                                <!-- Apply to Selected Button -->
-                                                <Button Content="{Binding SlicerSelectedCount, StringFormat='{}Apply to Selected ({0})'}"
-                                                        Command="{Binding ApplyShiftToSelectedCommand}"
-                                                        Margin="0,6,0,0"
-                                                        Height="22"
-                                                        FontSize="11"
-                                                        Padding="6,1"
-                                                        HorizontalAlignment="Center"
-                                                        ToolTip="Apply current tile's (X, Y) shift to all selected tiles in this band"
-                                                        Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
-
-                                                <!-- Apply to Band Button -->
-                                                <Button Content="{Binding SlicerTotalBandTiles, StringFormat='{}Apply to Band ({0})'}"
-                                                        Command="{Binding ApplyShiftToBandCommand}"
-                                                        Margin="0,3,0,0"
-                                                        Height="20"
-                                                        FontSize="10"
-                                                        Padding="6,1"
-                                                        HorizontalAlignment="Center"
-                                                        ToolTip="Apply current tile's (X, Y) shift to all tiles in this band"
-                                                        Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
-                                            </StackPanel>
-
-                                            <!-- Column 2: Pattern Capture Controls & Swatch -->
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                <TextBlock Text="PATTERN SWATCH"
-                                                           FontSize="10"
-                                                           FontWeight="Bold"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           Margin="0,0,0,4" />
-
-                                                <!-- Swatch Display & Size Stepper -->
-                                                <Grid Margin="0,0,0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="34" />
-                                                        <ColumnDefinition Width="6" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <!-- 34x34 Pattern Swatch Box -->
-                                                    <Border Grid.Column="0"
-                                                            Width="34" Height="34"
-                                                            BorderBrush="{DynamicResource BorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="4"
-                                                            Background="{StaticResource CheckerboardBrush}"
-                                                            ToolTip="Captured clean pattern swatch">
+                                            <!-- Clickable 34x34 Swatch Button (Click to Sample from Sheet or Preview) -->
+                                            <Button Command="{Binding TogglePatternCaptureCommand}"
+                                                    Width="36" Height="36" Padding="0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    ToolTip="Click to sample a 20×20 px pattern swatch from sheet or preview (Esc to cancel)">
+                                                <Border Width="34" Height="34" CornerRadius="4" BorderThickness="2"
+                                                        BorderBrush="{Binding PatternSwatchBorderBrush}"
+                                                        Background="{StaticResource CheckerboardBrush}">
+                                                    <Grid>
                                                         <Image Source="{Binding CapturedPatternSwatchImage}"
                                                                Stretch="UniformToFill"
                                                                RenderOptions.BitmapScalingMode="NearestNeighbor" />
-                                                    </Border>
+                                                        <Border Background="#553B82F6"
+                                                                Visibility="{Binding IsCapturingPattern, Converter={StaticResource BoolToVis}}"
+                                                                CornerRadius="2">
+                                                            <TextBlock Text="🎯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </Button>
 
-                                                    <!-- Patch Size Controls -->
-                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding PatternSquareSizeText}"
-                                                                       FontSize="11"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                                       VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                            <RepeatButton Content="◄"
-                                                                          Command="{Binding NudgePatternSquareSizeDownCommand}"
-                                                                          Width="18" Height="18" Padding="0" Delay="250" Interval="35"
-                                                                          ToolTip="Decrease capture square size (-1 px)" />
-                                                            <RepeatButton Content="►"
-                                                                          Command="{Binding NudgePatternSquareSizeUpCommand}"
-                                                                          Width="18" Height="18" Padding="0" Delay="250" Interval="35" Margin="2,0,0,0"
-                                                                          ToolTip="Increase capture square size (+1 px)" />
-                                                        </StackPanel>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                            <Button Content="15" Command="{Binding SetPatternSquareSizeCommand}" CommandParameter="15"
-                                                                    Width="20" Height="18" Padding="0" Margin="0,0,2,0" FontSize="9" />
-                                                            <Button Content="20" Command="{Binding SetPatternSquareSizeCommand}" CommandParameter="20"
-                                                                    Width="20" Height="18" Padding="0" Margin="0,0,2,0" FontSize="9" />
-                                                            <Button Content="30" Command="{Binding SetPatternSquareSizeCommand}" CommandParameter="30"
-                                                                    Width="20" Height="18" Padding="0" Margin="0" FontSize="9" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Grid>
+                                            <!-- Clear Swatch Button -->
+                                            <Button Content="✕" Command="{Binding ClearPatternCommand}"
+                                                    Width="22" Height="22" Margin="6,0,0,0" Padding="0"
+                                                    FontSize="10" FontWeight="Bold"
+                                                    Foreground="{DynamicResource TextMutedBrush}"
+                                                    ToolTip="Clear pattern swatch"
+                                                    Visibility="{Binding HasCapturedPattern, Converter={StaticResource BoolToVis}}" />
 
-                                                <!-- Capture Trigger & Clear Buttons -->
-                                                <Grid Margin="0,0,0,6">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="4" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <ToggleButton Grid.Column="0"
-                                                                  Content="🎯 Sample"
-                                                                  IsChecked="{Binding IsCapturingPattern, Mode=TwoWay}"
-                                                                  Height="24"
-                                                                  Padding="4,2"
-                                                                  FontSize="11"
-                                                                  FontWeight="SemiBold"
-                                                                  ToolTip="Activate capture square: click clean area on sheet or preview tile (Esc to cancel)" />
-
-                                                    <Button Grid.Column="2"
-                                                            Content="✕"
-                                                            Command="{Binding ClearPatternCommand}"
-                                                            Width="24" Height="24"
-                                                            Padding="0"
-                                                            FontSize="11"
-                                                            Foreground="{DynamicResource TextMutedBrush}"
-                                                            ToolTip="Clear captured pattern swatch" />
-                                                </Grid>
-
-                                                <!-- Fill Buffer Margin Checkbox -->
-                                                <CheckBox Content="Fill buffer margin"
-                                                          IsChecked="{Binding IsPatternFillEnabled, Mode=TwoWay}"
-                                                          FontSize="11"
-                                                          FontWeight="SemiBold"
-                                                          ToolTip="Replaces dirty buffer borders with seamless pattern instead of cropping away tile dimensions" />
-                                            </StackPanel>
-                                        </Grid>
+                                            <TextBlock Text="20×20 px" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 

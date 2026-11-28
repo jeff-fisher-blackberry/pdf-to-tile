@@ -429,17 +429,16 @@ namespace pdf_to_Tiles.ViewModels
         // Pattern Swatch & Capture
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PatternCursor))]
+        [NotifyPropertyChangedFor(nameof(PatternSwatchBorderBrush))]
         private bool _isCapturingPattern = false;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewCellText))]
         private bool _isPatternFillEnabled = false;
 
-        [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(PatternSquareSizeText))]
-        private int _patternSquareSize = 20;
+        public int PatternSquareSize => 20;
 
-        public string PatternSquareSizeText => $"{PatternSquareSize}×{PatternSquareSize} px";
+        public string PatternSquareSizeText => "20×20 px";
 
         [ObservableProperty]
         private ImageSource? _capturedPatternSwatchImage;
@@ -450,27 +449,20 @@ namespace pdf_to_Tiles.ViewModels
 
         public Cursor PatternCursor => IsCapturingPattern ? Cursors.Cross : Cursors.Arrow;
 
+        public System.Windows.Media.Brush PatternSwatchBorderBrush => IsCapturingPattern
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246))
+            : (System.Windows.Media.Brush)(System.Windows.Application.Current?.TryFindResource("BorderBrush") ?? System.Windows.Media.Brushes.Gray);
+
         // Preview Tile Shift & Bump Controls
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
         [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
-        [NotifyPropertyChangedFor(nameof(CanApplyShiftToSelected))]
         private int _currentTileShiftX = 0;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
         [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
-        [NotifyPropertyChangedFor(nameof(CanApplyShiftToSelected))]
         private int _currentTileShiftY = 0;
-
-        partial void OnCurrentTileShiftXChanged(int value) => ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
-        partial void OnCurrentTileShiftYChanged(int value) => ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
-
-        [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(PreviewBumpStepText))]
-        private int _previewBumpStepPx = 1;
-
-        public string PreviewBumpStepText => $"{PreviewBumpStepPx}px";
 
         public string TileShiftStatusText => $"Shift: ({CurrentTileShiftX:+0;-0;0}, {CurrentTileShiftY:+0;-0;0}) px";
 
@@ -525,8 +517,6 @@ namespace pdf_to_Tiles.ViewModels
 
         public bool CanSlicerDeselectAll => SlicerSelectedCount > 0;
 
-        public bool CanApplyShiftToSelected => SlicerSelectedCount > 0 && (CurrentTileShiftX != 0 || CurrentTileShiftY != 0);
-
         public bool IsTileSelectedInActiveBand(int chitNumber)
         {
             return _slicerSelectedTiles.Contains((SelectedSide, ActiveBandIndex, chitNumber));
@@ -540,10 +530,8 @@ namespace pdf_to_Tiles.ViewModels
             OnPropertyChanged(nameof(SlicerSelectionSummaryText));
             OnPropertyChanged(nameof(CanSlicerSelectAll));
             OnPropertyChanged(nameof(CanSlicerDeselectAll));
-            OnPropertyChanged(nameof(CanApplyShiftToSelected));
             SlicerSelectAllCommand?.NotifyCanExecuteChanged();
             SlicerDeselectAllCommand?.NotifyCanExecuteChanged();
-            ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
             SlicerSelectionChanged?.Invoke();
         }
 
@@ -2353,7 +2341,6 @@ namespace pdf_to_Tiles.ViewModels
                 OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 SelectedOrientation = value.BackOrientation;
 
-                PatternSquareSize = Math.Clamp(value.PatternSquareSize, 15, 30);
                 if (!string.IsNullOrWhiteSpace(value.PatternBase64))
                 {
                     LoadPatternFromBase64(value.PatternBase64);
@@ -2931,25 +2918,19 @@ namespace pdf_to_Tiles.ViewModels
         }
 
         [RelayCommand]
-        private void PreviewBumpUp() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY - PreviewBumpStepPx);
+        private void PreviewBumpUp() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY - 1);
 
         [RelayCommand]
-        private void PreviewBumpDown() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY + PreviewBumpStepPx);
+        private void PreviewBumpDown() => SaveCurrentTileShift(CurrentTileShiftX, CurrentTileShiftY + 1);
 
         [RelayCommand]
-        private void PreviewBumpLeft() => SaveCurrentTileShift(CurrentTileShiftX - PreviewBumpStepPx, CurrentTileShiftY);
+        private void PreviewBumpLeft() => SaveCurrentTileShift(CurrentTileShiftX - 1, CurrentTileShiftY);
 
         [RelayCommand]
-        private void PreviewBumpRight() => SaveCurrentTileShift(CurrentTileShiftX + PreviewBumpStepPx, CurrentTileShiftY);
+        private void PreviewBumpRight() => SaveCurrentTileShift(CurrentTileShiftX + 1, CurrentTileShiftY);
 
         [RelayCommand]
         private void ResetTileShift() => SaveCurrentTileShift(0, 0);
-
-        [RelayCommand]
-        private void PreviewBumpStepDown() => PreviewBumpStepPx = Math.Max(1, PreviewBumpStepPx - 1);
-
-        [RelayCommand]
-        private void PreviewBumpStepUp() => PreviewBumpStepPx = Math.Min(50, PreviewBumpStepPx + 1);
 
         [RelayCommand(CanExecute = nameof(CanSlicerSelectAll))]
         private void SlicerSelectAll()
@@ -2981,47 +2962,6 @@ namespace pdf_to_Tiles.ViewModels
             IsCurrentTileSelected = !IsCurrentTileSelected;
         }
 
-        [RelayCommand(CanExecute = nameof(CanApplyShiftToSelected))]
-        private void ApplyShiftToSelected()
-        {
-            int sx = CurrentTileShiftX;
-            int sy = CurrentTileShiftY;
-            int total = TotalBandChits;
-            int appliedCount = 0;
-            for (int c = 1; c <= total; c++)
-            {
-                var key = (SelectedSide, ActiveBandIndex, c);
-                if (_slicerSelectedTiles.Contains(key))
-                {
-                    if (sx == 0 && sy == 0)
-                        _tileShifts.Remove(key);
-                    else
-                        _tileShifts[key] = (sx, sy);
-                    appliedCount++;
-                }
-            }
-            StatusMessage = $"Applied shift ({sx:+0;-0;0}, {sy:+0;-0;0}) px to {appliedCount} selected tile(s) in Band {ActiveBandIndex + 1}.";
-            UpdateChitPreview();
-        }
-
-        [RelayCommand]
-        private void ApplyShiftToBand()
-        {
-            int sx = CurrentTileShiftX;
-            int sy = CurrentTileShiftY;
-            int total = TotalBandChits;
-            for (int c = 1; c <= total; c++)
-            {
-                var key = (SelectedSide, ActiveBandIndex, c);
-                if (sx == 0 && sy == 0)
-                    _tileShifts.Remove(key);
-                else
-                    _tileShifts[key] = (sx, sy);
-            }
-            StatusMessage = $"Applied shift ({sx:+0;-0;0}, {sy:+0;-0;0}) px to all {total} tiles in Band {ActiveBandIndex + 1}.";
-            UpdateChitPreview();
-        }
-
         #endregion
 
         #region Pattern Swatch & Capture Commands
@@ -3030,9 +2970,20 @@ namespace pdf_to_Tiles.ViewModels
         {
             if (value)
             {
-                StatusMessage = $"Click clean pattern on sheet or preview to capture {PatternSquareSize}×{PatternSquareSize} px swatch (Esc to cancel)";
+                StatusMessage = $"Click clean 20×20 area on sheet or preview to capture pattern swatch (Esc to cancel)";
             }
             OnPropertyChanged(nameof(PatternCursor));
+            OnPropertyChanged(nameof(PatternSwatchBorderBrush));
+        }
+
+        [RelayCommand]
+        private void TogglePatternCapture()
+        {
+            IsCapturingPattern = !IsCapturingPattern;
+            if (IsCapturingPattern)
+            {
+                StatusMessage = "Click clean 20×20 area on sheet or preview tile to capture pattern swatch (Esc to cancel)";
+            }
         }
 
         partial void OnIsPatternFillEnabledChanged(bool value)
@@ -3048,43 +2999,6 @@ namespace pdf_to_Tiles.ViewModels
             }
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
-        }
-
-        partial void OnPatternSquareSizeChanged(int value)
-        {
-            OnPropertyChanged(nameof(PatternSquareSizeText));
-            if (SelectedProfile != null)
-            {
-                SelectedProfile.PatternSquareSize = value;
-            }
-        }
-
-        [RelayCommand]
-        private void NudgePatternSquareSizeDown()
-        {
-            PatternSquareSize = Math.Max(15, PatternSquareSize - 1);
-            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
-        }
-
-        [RelayCommand]
-        private void NudgePatternSquareSizeUp()
-        {
-            PatternSquareSize = Math.Min(30, PatternSquareSize + 1);
-            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
-        }
-
-        [RelayCommand]
-        private void SetPatternSquareSize(object? param)
-        {
-            if (param is int size)
-            {
-                PatternSquareSize = Math.Clamp(size, 15, 30);
-            }
-            else if (param is string s && int.TryParse(s, out int parsed))
-            {
-                PatternSquareSize = Math.Clamp(parsed, 15, 30);
-            }
-            if (SelectedProfile != null) SelectedProfile.PatternSquareSize = PatternSquareSize;
         }
 
         [RelayCommand]
@@ -3104,6 +3018,7 @@ namespace pdf_to_Tiles.ViewModels
 
             OnPropertyChanged(nameof(HasCapturedPattern));
             OnPropertyChanged(nameof(PreviewCellText));
+            OnPropertyChanged(nameof(PatternSwatchBorderBrush));
             StatusMessage = "Cleared pattern swatch.";
             UpdateChitPreview();
         }
@@ -3187,7 +3102,6 @@ namespace pdf_to_Tiles.ViewModels
             _capturedPatternMat = bgra;
 
             CapturedPatternSwatchImage = DeskewService.MatToBitmapSource(_capturedPatternMat);
-            PatternSquareSize = Math.Clamp(_capturedPatternMat.Width, 15, 30);
             IsCapturingPattern = false;
             IsPatternFillEnabled = true;
 
@@ -3200,6 +3114,7 @@ namespace pdf_to_Tiles.ViewModels
 
             OnPropertyChanged(nameof(HasCapturedPattern));
             OnPropertyChanged(nameof(PreviewCellText));
+            OnPropertyChanged(nameof(PatternSwatchBorderBrush));
             StatusMessage = $"Captured {PatternSquareSize}×{PatternSquareSize} px pattern swatch.";
             UpdateChitPreview();
         }

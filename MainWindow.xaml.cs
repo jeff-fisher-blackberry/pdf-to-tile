@@ -24,6 +24,16 @@ namespace pdf_to_Tiles
             PreviewKeyDown += MainWindow_PreviewKeyDown;
             PreviewKeyUp += MainWindow_PreviewKeyUp;
 
+            Deactivated += (s, e) =>
+            {
+                if (DataContext is MainViewModel dvm && dvm.IsCapturingPattern)
+                {
+                    dvm.IsCapturingPattern = false;
+                    if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
+                    if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+                }
+            };
+
             if (DataContext is MainViewModel vm)
             {
                 vm.GetPdfViewportSize = () => (PdfScrollViewer.ActualWidth, PdfScrollViewer.ActualHeight);
@@ -101,6 +111,12 @@ namespace pdf_to_Tiles
                     {
                         if (vmTab.IsSettingUpperLeftCorner) vmTab.IsSettingUpperLeftCorner = false;
                         if (vmTab.IsSettingLowerRightCorner) vmTab.IsSettingLowerRightCorner = false;
+                        if (vmTab.IsCapturingPattern)
+                        {
+                            vmTab.IsCapturingPattern = false;
+                            if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
+                            if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+                        }
                     }
                     UpdateSlicerCursor();
                     break;
@@ -904,6 +920,7 @@ namespace pdf_to_Tiles
             {
                 vm.ApplyCapturedPatternFromSheet(new Point(clickPxX, clickPxY));
                 if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
+                if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
                 e.Handled = true;
                 return;
             }
@@ -1034,6 +1051,7 @@ namespace pdf_to_Tiles
                 Point pos = e.GetPosition(TilePreviewGrid);
                 vm.ApplyCapturedPatternFromPreview(pos);
                 if (PreviewCaptureGuide != null) PreviewCaptureGuide.Visibility = Visibility.Collapsed;
+                if (SlicerPatternCaptureGuide != null) SlicerPatternCaptureGuide.Visibility = Visibility.Collapsed;
                 e.Handled = true;
             }
         }
