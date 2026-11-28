@@ -2882,8 +2882,14 @@ namespace pdf_to_Tiles.ViewModels
 
         private void SaveCurrentTileShift(int sx, int sy)
         {
+            int maxW = PreviewCellWidth > 0 ? PreviewCellWidth : 500;
+            int maxH = PreviewCellHeight > 0 ? PreviewCellHeight : 500;
+            sx = Math.Clamp(sx, -maxW, maxW);
+            sy = Math.Clamp(sy, -maxH, maxH);
+
             CurrentTileShiftX = sx;
             CurrentTileShiftY = sy;
+
             var key = (SelectedSide, ActiveBandIndex, PreviewChitNumber);
             if (sx == 0 && sy == 0)
             {
@@ -2893,6 +2899,34 @@ namespace pdf_to_Tiles.ViewModels
             {
                 _tileShifts[key] = (sx, sy);
             }
+
+            // Propagate to all currently selected tiles in _slicerSelectedTiles for active (SelectedSide, ActiveBandIndex)
+            int total = TotalBandChits;
+            int appliedCount = 0;
+            for (int c = 1; c <= total; c++)
+            {
+                var selKey = (SelectedSide, ActiveBandIndex, c);
+                if (_slicerSelectedTiles.Contains(selKey))
+                {
+                    if (sx == 0 && sy == 0)
+                    {
+                        _tileShifts.Remove(selKey);
+                    }
+                    else
+                    {
+                        _tileShifts[selKey] = (sx, sy);
+                    }
+                    appliedCount++;
+                }
+            }
+
+            if (appliedCount > 1)
+            {
+                StatusMessage = sx == 0 && sy == 0
+                    ? $"Reset shift to (0, 0) px for {appliedCount} selected tiles in Band {ActiveBandIndex + 1}."
+                    : $"Shifted {appliedCount} selected tiles in Band {ActiveBandIndex + 1} to ({sx:+0;-0;0}, {sy:+0;-0;0}) px.";
+            }
+
             UpdateChitPreview();
         }
 

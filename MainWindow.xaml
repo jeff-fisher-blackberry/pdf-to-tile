@@ -1263,17 +1263,18 @@
                                     <StackPanel HorizontalAlignment="Stretch">
                                         <!-- Card Header: Title + Select All / Deselect All + Selection Summary -->
                                         <Grid Margin="0,0,0,6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="TILE PREVIEW" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" Margin="0" />
-                                            <TextBlock Grid.Column="1" Text="{Binding SlicerSelectionSummaryText}"
-                                                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                                                       VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"
-                                                       Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+
+                                            <!-- Row 0: Section Title & Action Buttons -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="TILE PREVIEW" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" Margin="0" />
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                                         Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}">
                                                 <Button Content="Select All"
                                                         Command="{Binding SlicerSelectAllCommand}"
@@ -1284,6 +1285,13 @@
                                                         Height="22" Padding="6,1" Margin="3,0,0,0" FontSize="10" FontWeight="SemiBold"
                                                         ToolTip="Deselect all tiles in the active band" />
                                             </StackPanel>
+
+                                            <!-- Row 1: Selection Summary Subtitle (Zero-collision spanning row) -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                       Text="{Binding SlicerSelectionSummaryText}"
+                                                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                                       Margin="0,3,0,0"
+                                                       Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
                                         </Grid>
 
                                         <!-- Banded mode Chit 1..20 cycling stepper & dropdown + Selected Checkbox -->
@@ -1444,14 +1452,14 @@
                                                         Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
 
                                                 <!-- Apply to Band Button -->
-                                                <Button Content="Apply to Band (20)"
+                                                <Button Content="{Binding SlicerTotalBandTiles, StringFormat='{}Apply to Band ({0})'}"
                                                         Command="{Binding ApplyShiftToBandCommand}"
                                                         Margin="0,3,0,0"
                                                         Height="20"
                                                         FontSize="10"
                                                         Padding="6,1"
                                                         HorizontalAlignment="Center"
-                                                        ToolTip="Apply current tile's (X, Y) shift to all 20 tiles in this band"
+                                                        ToolTip="Apply current tile's (X, Y) shift to all tiles in this band"
                                                         Visibility="{Binding IsBandedMode, Converter={StaticResource BoolToVis}}" />
                                             </StackPanel>
 
