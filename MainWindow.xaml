@@ -956,24 +956,31 @@
                                         Padding="12"
                                         Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="Rows and Columns" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+                                        <!-- Header Row: 'Rows and Columns' (Left) and 'Front' / 'Rear' Radios (Right) -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
-                                        <!-- Front / Back Horizontal Radios directly under Rows and Columns header -->
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,6">
-                                            <RadioButton Content="Front"
-                                                         GroupName="SheetSideGroup"
-                                                         IsChecked="{Binding IsFrontSide, Mode=TwoWay}"
-                                                         FontSize="11"
-                                                         FontWeight="SemiBold"
-                                                         Margin="0,0,16,0"
-                                                         ToolTip="Front side: left-to-right tile navigation and creation" />
-                                            <RadioButton Content="Rear"
-                                                         GroupName="SheetSideGroup"
-                                                         IsChecked="{Binding IsBackSide, Mode=TwoWay}"
-                                                         FontSize="11"
-                                                         FontWeight="SemiBold"
-                                                         ToolTip="Rear side: right-to-left tile navigation and creation per row to align with front tiles" />
-                                        </StackPanel>
+                                            <TextBlock Grid.Column="0" Text="Rows and Columns" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" Margin="0" />
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <RadioButton Content="Front"
+                                                             GroupName="SheetSideGroup"
+                                                             IsChecked="{Binding IsFrontSide, Mode=TwoWay}"
+                                                             FontSize="11"
+                                                             FontWeight="SemiBold"
+                                                             Margin="0,0,10,0"
+                                                             ToolTip="Front side: left-to-right tile navigation and creation" />
+                                                <RadioButton Content="Rear"
+                                                             GroupName="SheetSideGroup"
+                                                             IsChecked="{Binding IsBackSide, Mode=TwoWay}"
+                                                             FontSize="11"
+                                                             FontWeight="SemiBold"
+                                                             ToolTip="Rear side: right-to-left tile navigation and creation per row to align with front tiles" />
+                                            </StackPanel>
+                                        </Grid>
 
                                         <!-- Numeric [Columns] x [Row] Inputs with Swatch Button, Set Button, and Double Width Checkbox -->
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
@@ -1230,26 +1237,6 @@
                                                           Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Nudge row split line down (+1 px)" />
                                             <TextBlock Grid.Column="4" Text="{Binding ActiveBandRowSplitPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
                                         </Grid>
-
-                                        <!-- Buffer (Inward Inset) -->
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="65" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="66" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Buffer:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip="Crop uniform pixel margin from all 4 sides of each tile" />
-                                            <RepeatButton Grid.Column="1" Content="◄" Command="{Binding NudgeActiveBandBufferDownCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="0,0,3,0" ToolTip="Decrease tile edge buffer (-1 px)" />
-                                            <TextBox Grid.Column="2" x:Name="BandBufferTextBox" Text="{Binding ActiveBandBufferText, UpdateSourceTrigger=LostFocus}"
-                                                     KeyDown="BandBufferTextBox_KeyDown" LostFocus="BandBufferTextBox_LostFocus"
-                                                     Height="22" TextAlignment="Center" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11" />
-                                            <RepeatButton Grid.Column="3" Content="►" Command="{Binding NudgeActiveBandBufferUpCommand}"
-                                                          Width="22" Height="22" Padding="0" Delay="250" Interval="35" Margin="3,0,0,0" ToolTip="Increase tile edge buffer (+1 px)" />
-                                            <TextBlock Grid.Column="4" Text="{Binding ActiveBandBufferPercentText}" TextAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
-                                        </Grid>
                                     </StackPanel>
                                 </Border>
 
@@ -1333,39 +1320,64 @@
                                                     Height="20" Padding="5,1" FontSize="10" ToolTip="Reset tile shift to (0, 0)" />
                                         </StackPanel>
 
-                                        <!-- Directional Bump Compass & 116x116 Viewport (Horizontally Centered) -->
-                                        <Grid HorizontalAlignment="Center" Width="146" Height="152">
+                                        <!-- 8-Button Concentric Ring Compass & 116x116 Viewport (Horizontally Centered) -->
+                                        <!-- Outer Ring: Artwork Shift (▲ ▼ ◀ ▶). Inner Ring: Buffer Margin Inset (⤓ ⤒ ⤠ ⤟). -->
+                                        <Grid HorizontalAlignment="Center" Width="180" Height="184">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="18" />
+                                                <RowDefinition Height="16" />
                                                 <RowDefinition Height="116" />
+                                                <RowDefinition Height="16" />
                                                 <RowDefinition Height="18" />
                                             </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="15" />
+                                                <ColumnDefinition Width="16" />
+                                                <ColumnDefinition Width="16" />
                                                 <ColumnDefinition Width="116" />
-                                                <ColumnDefinition Width="15" />
+                                                <ColumnDefinition Width="16" />
+                                                <ColumnDefinition Width="16" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Up Bump Button -->
-                                            <RepeatButton Grid.Row="0" Grid.Column="1"
+                                            <!-- Row 0: Outer Shift Up (▲) -->
+                                            <RepeatButton Grid.Row="0" Grid.Column="2"
                                                           Content="▲"
                                                           Command="{Binding PreviewBumpUpCommand}"
-                                                          Width="44" Height="18"
+                                                          Width="48" Height="18"
                                                           Padding="0" Delay="200" Interval="40"
                                                           HorizontalAlignment="Center"
-                                                          ToolTip="Nudge tile artwork up 1px (negative Y)" />
+                                                          ToolTip="Shift artwork up 1px (negative Y)" />
 
-                                            <!-- Left Bump Button -->
-                                            <RepeatButton Grid.Row="1" Grid.Column="0"
+                                            <!-- Row 1: Inner Buffer Top (⤓) -->
+                                            <RepeatButton Grid.Row="1" Grid.Column="2"
+                                                          Content="⤓"
+                                                          Command="{Binding NudgeBufferTopCommand}"
+                                                          Width="48" Height="16"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          HorizontalAlignment="Center"
+                                                          FontSize="10"
+                                                          ToolTip="Increase top buffer margin (+1 px inward)" />
+
+                                            <!-- Col 0: Outer Shift Left (◀) -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="0"
                                                           Content="◀"
                                                           Command="{Binding PreviewBumpLeftCommand}"
-                                                          Width="15" Height="44"
+                                                          Width="16" Height="48"
                                                           Padding="0" Delay="200" Interval="40"
                                                           VerticalAlignment="Center"
-                                                          ToolTip="Nudge tile artwork left 1px (negative X)" />
+                                                          ToolTip="Shift artwork left 1px (negative X)" />
+
+                                            <!-- Col 1: Inner Buffer Left (⤠) -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="1"
+                                                          Content="⤠"
+                                                          Command="{Binding NudgeBufferLeftCommand}"
+                                                          Width="16" Height="48"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          VerticalAlignment="Center"
+                                                          FontSize="10"
+                                                          ToolTip="Increase left buffer margin (+1 px inward)" />
 
                                             <!-- 116x116 Tile Preview Viewport -->
-                                            <Border Grid.Row="1" Grid.Column="1"
+                                            <Border Grid.Row="2" Grid.Column="2"
                                                     x:Name="TilePreviewBorder"
                                                     BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1"
@@ -1400,24 +1412,69 @@
                                                 </Viewbox>
                                             </Border>
 
-                                            <!-- Right Bump Button -->
-                                            <RepeatButton Grid.Row="1" Grid.Column="2"
-                                                          Content="▶"
-                                                          Command="{Binding PreviewBumpRightCommand}"
-                                                          Width="15" Height="44"
+                                            <!-- Col 3: Inner Buffer Right (⤟) -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="3"
+                                                          Content="⤟"
+                                                          Command="{Binding NudgeBufferRightCommand}"
+                                                          Width="16" Height="48"
                                                           Padding="0" Delay="200" Interval="40"
                                                           VerticalAlignment="Center"
-                                                          ToolTip="Nudge tile artwork right 1px (positive X)" />
+                                                          FontSize="10"
+                                                          ToolTip="Increase right buffer margin (+1 px inward)" />
 
-                                            <!-- Down Bump Button -->
-                                            <RepeatButton Grid.Row="2" Grid.Column="1"
-                                                          Content="▼"
-                                                          Command="{Binding PreviewBumpDownCommand}"
-                                                          Width="44" Height="18"
+                                            <!-- Col 4: Outer Shift Right (▶) -->
+                                            <RepeatButton Grid.Row="2" Grid.Column="4"
+                                                          Content="▶"
+                                                          Command="{Binding PreviewBumpRightCommand}"
+                                                          Width="16" Height="48"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          VerticalAlignment="Center"
+                                                          ToolTip="Shift artwork right 1px (positive X)" />
+
+                                            <!-- Row 3: Inner Buffer Bottom (⤒) -->
+                                            <RepeatButton Grid.Row="3" Grid.Column="2"
+                                                          Content="⤒"
+                                                          Command="{Binding NudgeBufferBottomCommand}"
+                                                          Width="48" Height="16"
                                                           Padding="0" Delay="200" Interval="40"
                                                           HorizontalAlignment="Center"
-                                                          ToolTip="Nudge tile artwork down 1px (positive Y)" />
+                                                          FontSize="10"
+                                                          ToolTip="Increase bottom buffer margin (+1 px inward)" />
+
+                                            <!-- Row 4: Outer Shift Down (▼) -->
+                                            <RepeatButton Grid.Row="4" Grid.Column="2"
+                                                          Content="▼"
+                                                          Command="{Binding PreviewBumpDownCommand}"
+                                                          Width="48" Height="18"
+                                                          Padding="0" Delay="200" Interval="40"
+                                                          HorizontalAlignment="Center"
+                                                          ToolTip="Shift artwork down 1px (positive Y)" />
                                         </Grid>
+
+                                        <!-- Buffer Status & Control Bar (Horizontally Centered) -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,6,0,0">
+                                            <!-- Lock/Split Toggle Button -->
+                                            <Button Content="{Binding BufferLockIcon}"
+                                                    Command="{Binding ToggleBufferLockCommand}"
+                                                    Width="24" Height="22" Padding="0" Margin="0,0,6,0"
+                                                    FontSize="11" ToolTip="{Binding BufferLockToolTip}" />
+
+                                            <!-- Buffer Readout Text -->
+                                            <TextBlock Text="Buffer:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding ActiveBandBufferText}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                            <!-- Buffer Nudge - / + -->
+                                            <RepeatButton Content="-" Command="{Binding NudgeActiveBandBufferDownCommand}"
+                                                          Width="20" Height="20" Padding="0" Delay="200" Interval="40" Margin="0,0,2,0"
+                                                          FontSize="11" FontWeight="Bold" ToolTip="Decrease buffer (-1 px)" />
+                                            <RepeatButton Content="+" Command="{Binding NudgeActiveBandBufferUpCommand}"
+                                                          Width="20" Height="20" Padding="0" Delay="200" Interval="40" Margin="0,0,6,0"
+                                                          FontSize="11" FontWeight="Bold" ToolTip="Increase buffer (+1 px)" />
+
+                                            <!-- Reset Buffer Button -->
+                                            <Button Content="⟲ Reset" Command="{Binding ResetBufferCommand}"
+                                                    Height="20" Padding="5,1" FontSize="10" ToolTip="Reset buffer margins to 4 px locked" />
+                                        </StackPanel>
 
                                         <!-- Pattern Swatch Control (Horizontally Centered Below Compass) -->
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,10,0,0">

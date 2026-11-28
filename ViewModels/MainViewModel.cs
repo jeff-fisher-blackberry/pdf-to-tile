@@ -415,6 +415,34 @@ namespace pdf_to_Tiles.ViewModels
         private string _activeBandBufferText = "4 px";
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferText))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _bufferTopPx = 4;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferText))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _bufferBottomPx = 4;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferText))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _bufferLeftPx = 4;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveBandBufferText))]
+        [NotifyPropertyChangedFor(nameof(PreviewCellText))]
+        private int _bufferRightPx = 4;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(BufferLockIcon))]
+        [NotifyPropertyChangedFor(nameof(BufferLockToolTip))]
+        private bool _isBufferLocked = true;
+
+        public string BufferLockIcon => IsBufferLocked ? "🔒" : "🔓";
+        public string BufferLockToolTip => IsBufferLocked ? "Buffer is locked (all 4 sides change together). Click to split." : "Buffer is split (individual sides change). Click to lock.";
+
+        [ObservableProperty]
         private int _previewCellWidth = 300;
 
         [ObservableProperty]
@@ -914,12 +942,12 @@ namespace pdf_to_Tiles.ViewModels
                     int total = TotalBandChits;
                     int row = PreviewRowIndex + 1;
                     int col = PreviewColIndex + 1;
-                    if (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0)
+                    if (IsPatternFillEnabled && HasCapturedPattern && (BufferTopPx > 0 || BufferBottomPx > 0 || BufferLeftPx > 0 || BufferRightPx > 0 || ActiveBandBufferPx > 0))
                     {
                         return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col} ({PreviewCellWidth}×{PreviewCellHeight} px [Pattern Fill])";
                     }
-                    int tw = Math.Max(1, PreviewCellWidth - (2 * ActiveBandBufferPx));
-                    int th = Math.Max(1, PreviewCellHeight - (2 * ActiveBandBufferPx));
+                    int tw = Math.Max(1, PreviewCellWidth - (BufferLeftPx + BufferRightPx));
+                    int th = Math.Max(1, PreviewCellHeight - (BufferTopPx + BufferBottomPx));
                     return $"Tile {PreviewChitNumber} of {total} — Row {row}, Col {col} ({tw}×{th} px)";
                 }
                 return "Cell (Row 1, Col 1) with red cut boundary";
@@ -2220,6 +2248,22 @@ namespace pdf_to_Tiles.ViewModels
                 ActiveBandHeightPx = Math.Max(4, (int)Math.Round(band.Bounds.Height * h));
                 ActiveBandRowSplitPx = Math.Max(2, (int)Math.Round(band.RowSplitRatio * ActiveBandHeightPx));
                 ActiveBandBufferPx = Math.Max(0, (int)Math.Round(SelectedProfile?.InwardInsetPx ?? InwardInsetPx));
+                if (SelectedProfile != null)
+                {
+                    BufferTopPx = Math.Max(0, (int)Math.Round(SelectedProfile.InwardInsetTopPx));
+                    BufferBottomPx = Math.Max(0, (int)Math.Round(SelectedProfile.InwardInsetBottomPx));
+                    BufferLeftPx = Math.Max(0, (int)Math.Round(SelectedProfile.InwardInsetLeftPx));
+                    BufferRightPx = Math.Max(0, (int)Math.Round(SelectedProfile.InwardInsetRightPx));
+                    IsBufferLocked = SelectedProfile.IsBufferLocked;
+                    if (BufferTopPx == 0 && BufferBottomPx == 0 && BufferLeftPx == 0 && BufferRightPx == 0 && ActiveBandBufferPx > 0)
+                    {
+                        BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+                    }
+                }
+                else
+                {
+                    BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+                }
 
                 ActiveBandLeftText = $"{ActiveBandLeftPx} px";
                 ActiveBandTopText = $"{ActiveBandTopPx} px";
@@ -2337,7 +2381,16 @@ namespace pdf_to_Tiles.ViewModels
                 ProfileColumns = value.Columns;
                 InwardInsetPx = value.InwardInsetPx;
                 ActiveBandBufferPx = Math.Max(0, (int)Math.Round(value.InwardInsetPx));
-                ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+                BufferTopPx = Math.Max(0, (int)Math.Round(value.InwardInsetTopPx));
+                BufferBottomPx = Math.Max(0, (int)Math.Round(value.InwardInsetBottomPx));
+                BufferLeftPx = Math.Max(0, (int)Math.Round(value.InwardInsetLeftPx));
+                BufferRightPx = Math.Max(0, (int)Math.Round(value.InwardInsetRightPx));
+                IsBufferLocked = value.IsBufferLocked;
+                if (BufferTopPx == 0 && BufferBottomPx == 0 && BufferLeftPx == 0 && BufferRightPx == 0 && ActiveBandBufferPx > 0)
+                {
+                    BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+                }
+                ActiveBandBufferText = IsBufferLocked ? $"{ActiveBandBufferPx} px" : $"{BufferTopPx},{BufferBottomPx},{BufferLeftPx},{BufferRightPx} px";
                 OnPropertyChanged(nameof(ActiveBandBufferPercentText));
                 SelectedOrientation = value.BackOrientation;
 
@@ -2602,6 +2655,11 @@ namespace pdf_to_Tiles.ViewModels
                 SelectedProfile.Rows = Math.Max(1, ProfileRows);
                 SelectedProfile.Columns = Math.Max(1, ProfileColumns);
                 SelectedProfile.InwardInsetPx = Math.Max(0, InwardInsetPx);
+                SelectedProfile.InwardInsetTopPx = Math.Max(0, BufferTopPx);
+                SelectedProfile.InwardInsetBottomPx = Math.Max(0, BufferBottomPx);
+                SelectedProfile.InwardInsetLeftPx = Math.Max(0, BufferLeftPx);
+                SelectedProfile.InwardInsetRightPx = Math.Max(0, BufferRightPx);
+                SelectedProfile.IsBufferLocked = IsBufferLocked;
                 SelectedProfile.BackOrientation = SelectedOrientation;
                 SelectedProfile.NamingPrefix = NamingPrefix;
             }
@@ -2781,15 +2839,128 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void NudgeActiveBandBufferDown()
         {
-            ActiveBandBufferPx = Math.Max(0, ActiveBandBufferPx - 1);
+            if (IsBufferLocked)
+            {
+                ActiveBandBufferPx = Math.Max(0, ActiveBandBufferPx - 1);
+                BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+            }
+            else
+            {
+                BufferTopPx = Math.Max(0, BufferTopPx - 1);
+                BufferBottomPx = Math.Max(0, BufferBottomPx - 1);
+                BufferLeftPx = Math.Max(0, BufferLeftPx - 1);
+                BufferRightPx = Math.Max(0, BufferRightPx - 1);
+            }
             ApplyBufferToProfile();
         }
 
         [RelayCommand]
         private void NudgeActiveBandBufferUp()
         {
-            int maxBuf = GetMaxAllowedBuffer();
-            ActiveBandBufferPx = Math.Min(maxBuf, ActiveBandBufferPx + 1);
+            int maxH = Math.Max(0, (PreviewCellHeight - 4) / 2);
+            int maxW = Math.Max(0, (PreviewCellWidth - 4) / 2);
+            int maxBuf = Math.Min(maxW, maxH);
+
+            if (IsBufferLocked)
+            {
+                ActiveBandBufferPx = Math.Min(maxBuf, ActiveBandBufferPx + 1);
+                BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+            }
+            else
+            {
+                if (BufferTopPx + BufferBottomPx + 2 <= PreviewCellHeight - 4)
+                {
+                    BufferTopPx++;
+                    BufferBottomPx++;
+                }
+                if (BufferLeftPx + BufferRightPx + 2 <= PreviewCellWidth - 4)
+                {
+                    BufferLeftPx++;
+                    BufferRightPx++;
+                }
+            }
+            ApplyBufferToProfile();
+        }
+
+        [RelayCommand]
+        private void NudgeBufferTop()
+        {
+            if (IsBufferLocked)
+            {
+                NudgeActiveBandBufferUp();
+                return;
+            }
+            if (BufferTopPx + BufferBottomPx + 1 <= PreviewCellHeight - 4)
+            {
+                BufferTopPx++;
+                ApplyBufferToProfile();
+            }
+        }
+
+        [RelayCommand]
+        private void NudgeBufferBottom()
+        {
+            if (IsBufferLocked)
+            {
+                NudgeActiveBandBufferUp();
+                return;
+            }
+            if (BufferTopPx + BufferBottomPx + 1 <= PreviewCellHeight - 4)
+            {
+                BufferBottomPx++;
+                ApplyBufferToProfile();
+            }
+        }
+
+        [RelayCommand]
+        private void NudgeBufferLeft()
+        {
+            if (IsBufferLocked)
+            {
+                NudgeActiveBandBufferUp();
+                return;
+            }
+            if (BufferLeftPx + BufferRightPx + 1 <= PreviewCellWidth - 4)
+            {
+                BufferLeftPx++;
+                ApplyBufferToProfile();
+            }
+        }
+
+        [RelayCommand]
+        private void NudgeBufferRight()
+        {
+            if (IsBufferLocked)
+            {
+                NudgeActiveBandBufferUp();
+                return;
+            }
+            if (BufferLeftPx + BufferRightPx + 1 <= PreviewCellWidth - 4)
+            {
+                BufferRightPx++;
+                ApplyBufferToProfile();
+            }
+        }
+
+        [RelayCommand]
+        private void ToggleBufferLock()
+        {
+            IsBufferLocked = !IsBufferLocked;
+            if (IsBufferLocked)
+            {
+                // Lock onto the current Top buffer value
+                ActiveBandBufferPx = BufferTopPx;
+                BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+            }
+            ApplyBufferToProfile();
+        }
+
+        [RelayCommand]
+        private void ResetBuffer()
+        {
+            ActiveBandBufferPx = 4;
+            BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = 4;
+            IsBufferLocked = true;
             ApplyBufferToProfile();
         }
 
@@ -2797,20 +2968,30 @@ namespace pdf_to_Tiles.ViewModels
         {
             int maxBuf = GetMaxAllowedBuffer();
             ActiveBandBufferPx = ParsePixelInput(raw, ActiveBandBufferPx, 0, maxBuf);
+            if (IsBufferLocked)
+            {
+                BufferTopPx = BufferBottomPx = BufferLeftPx = BufferRightPx = ActiveBandBufferPx;
+            }
             ApplyBufferToProfile();
         }
 
         private void ApplyBufferToProfile()
         {
-            ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+            ActiveBandBufferText = IsBufferLocked ? $"{ActiveBandBufferPx} px" : $"T:{BufferTopPx} B:{BufferBottomPx} L:{BufferLeftPx} R:{BufferRightPx} px";
             if (SelectedProfile != null)
             {
                 SelectedProfile.InwardInsetPx = ActiveBandBufferPx;
+                SelectedProfile.InwardInsetTopPx = BufferTopPx;
+                SelectedProfile.InwardInsetBottomPx = BufferBottomPx;
+                SelectedProfile.InwardInsetLeftPx = BufferLeftPx;
+                SelectedProfile.InwardInsetRightPx = BufferRightPx;
+                SelectedProfile.IsBufferLocked = IsBufferLocked;
                 InwardInsetPx = ActiveBandBufferPx;
             }
             OnPropertyChanged(nameof(ActiveBandBufferPercentText));
             OnPropertyChanged(nameof(PreviewCellText));
-            UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, ActiveBandBufferPx);
+            UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, BufferTopPx, BufferBottomPx, BufferLeftPx, BufferRightPx);
+            UpdateChitPreview();
         }
 
         public int GetMaxAllowedBuffer()
@@ -2822,10 +3003,16 @@ namespace pdf_to_Tiles.ViewModels
 
         public void UpdatePreviewGeometry(int w, int h, int buffer)
         {
+            UpdatePreviewGeometry(w, h, buffer, buffer, buffer, buffer);
+        }
+
+        public void UpdatePreviewGeometry(int w, int h, int top, int bottom, int left, int right)
+        {
             PreviewCellWidth = w;
             PreviewCellHeight = h;
 
-            if (buffer <= 0 || w <= 2 * buffer || h <= 2 * buffer)
+            bool hasBuffer = top > 0 || bottom > 0 || left > 0 || right > 0;
+            if (!hasBuffer || w <= left + right || h <= top + bottom)
             {
                 PreviewHatchGeometry = null;
                 PreviewCutLineGeometry = null;
@@ -2839,13 +3026,13 @@ namespace pdf_to_Tiles.ViewModels
             else
             {
                 var outerRect = new RectangleGeometry(new System.Windows.Rect(0, 0, w, h));
-                var innerRect = new RectangleGeometry(new System.Windows.Rect(buffer, buffer, w - 2 * buffer, h - 2 * buffer));
+                var innerRect = new RectangleGeometry(new System.Windows.Rect(left, top, Math.Max(0, w - left - right), Math.Max(0, h - top - bottom)));
                 var combined = new CombinedGeometry(GeometryCombineMode.Exclude, outerRect, innerRect);
                 combined.Freeze();
                 PreviewHatchGeometry = combined;
             }
 
-            var cutLine = new RectangleGeometry(new System.Windows.Rect(buffer + CurrentTileShiftX, buffer + CurrentTileShiftY, w - 2 * buffer, h - 2 * buffer));
+            var cutLine = new RectangleGeometry(new System.Windows.Rect(left + CurrentTileShiftX, top + CurrentTileShiftY, Math.Max(0, w - left - right), Math.Max(0, h - top - bottom)));
             cutLine.Freeze();
             PreviewCutLineGeometry = cutLine;
         }
@@ -3455,14 +3642,18 @@ namespace pdf_to_Tiles.ViewModels
                 PreviewCellWidth = previewMat.Width;
                 PreviewCellHeight = previewMat.Height;
 
-                bool shouldApplyFillOrShift = (IsPatternFillEnabled && HasCapturedPattern && ActiveBandBufferPx > 0) || (CurrentTileShiftX != 0 || CurrentTileShiftY != 0);
+                bool hasAnyBuffer = BufferTopPx > 0 || BufferBottomPx > 0 || BufferLeftPx > 0 || BufferRightPx > 0;
+                bool shouldApplyFillOrShift = (IsPatternFillEnabled && HasCapturedPattern && hasAnyBuffer) || (CurrentTileShiftX != 0 || CurrentTileShiftY != 0);
 
                 if (shouldApplyFillOrShift)
                 {
                     using var filledMat = GridSlicerService.ApplyBufferPatternFill(
                         previewMat,
                         (IsPatternFillEnabled && HasCapturedPattern) ? _capturedPatternMat : null,
-                        ActiveBandBufferPx,
+                        BufferTopPx,
+                        BufferBottomPx,
+                        BufferLeftPx,
+                        BufferRightPx,
                         CurrentTileShiftX,
                         CurrentTileShiftY);
                     ChitPreviewImage = DeskewService.MatToBitmapSource(filledMat);
@@ -3476,9 +3667,9 @@ namespace pdf_to_Tiles.ViewModels
                 if (ActiveBandBufferPx > maxBuf)
                 {
                     ActiveBandBufferPx = maxBuf;
-                    ActiveBandBufferText = $"{ActiveBandBufferPx} px";
+                    ActiveBandBufferText = IsBufferLocked ? $"{ActiveBandBufferPx} px" : $"T:{BufferTopPx} B:{BufferBottomPx} L:{BufferLeftPx} R:{BufferRightPx} px";
                 }
-                UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, ActiveBandBufferPx);
+                UpdatePreviewGeometry(PreviewCellWidth, PreviewCellHeight, BufferTopPx, BufferBottomPx, BufferLeftPx, BufferRightPx);
             }
             catch
             {

@@ -91,8 +91,23 @@ namespace pdf_to_Tiles.Models
 
         /// <summary>
         /// Inward pixel inset (e.g. 2-6 px at 600 DPI) to prevent adjacent chit artwork or die-cut line bleed.
+        /// When locked, represents uniform buffer inset across all sides.
         /// </summary>
         public double InwardInsetPx { get; set; } = 4.0;
+
+        /// <summary>
+        /// Individual buffer margin insets in pixels (top, bottom, left, right).
+        /// Default to 4.0 px matching InwardInsetPx for seamless backward compatibility.
+        /// </summary>
+        public double InwardInsetTopPx { get; set; } = 4.0;
+        public double InwardInsetBottomPx { get; set; } = 4.0;
+        public double InwardInsetLeftPx { get; set; } = 4.0;
+        public double InwardInsetRightPx { get; set; } = 4.0;
+
+        /// <summary>
+        /// Whether buffer adjustments are locked across all four edges simultaneously (default true).
+        /// </summary>
+        public bool IsBufferLocked { get; set; } = true;
 
         /// <summary>
         /// Orientation mapping for the reverse side.
@@ -137,6 +152,11 @@ namespace pdf_to_Tiles.Models
                 FrontBands = FrontBands.Select(b => b.Clone()).ToList(),
                 BackBands = BackBands.Select(b => b.Clone()).ToList(),
                 InwardInsetPx = InwardInsetPx,
+                InwardInsetTopPx = InwardInsetTopPx,
+                InwardInsetBottomPx = InwardInsetBottomPx,
+                InwardInsetLeftPx = InwardInsetLeftPx,
+                InwardInsetRightPx = InwardInsetRightPx,
+                IsBufferLocked = IsBufferLocked,
                 BackOrientation = BackOrientation,
                 NamingPrefix = NamingPrefix,
                 NamingFormat = NamingFormat,

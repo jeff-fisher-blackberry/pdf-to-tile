@@ -192,7 +192,15 @@ namespace pdf_to_Tiles.Services
                 int totalPieces = (endBand - startBand) * effectiveRows * effectiveCols;
                 int currentPiece = 0;
 
+                int insetTop = Math.Max(0, (int)Math.Round(profile.InwardInsetTopPx));
+                int insetBottom = Math.Max(0, (int)Math.Round(profile.InwardInsetBottomPx));
+                int insetLeft = Math.Max(0, (int)Math.Round(profile.InwardInsetLeftPx));
+                int insetRight = Math.Max(0, (int)Math.Round(profile.InwardInsetRightPx));
                 int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
+                if (insetTop == 0 && insetBottom == 0 && insetLeft == 0 && insetRight == 0 && inset > 0)
+                {
+                    insetTop = insetBottom = insetLeft = insetRight = inset;
+                }
                 string prefix = string.IsNullOrWhiteSpace(profile.NamingPrefix) ? "Piece" : profile.NamingPrefix;
 
                 for (int b = startBand; b < endBand; b++)
@@ -245,13 +253,14 @@ namespace pdf_to_Tiles.Services
                             int chitNum = (r * effectiveCols) + c + 1;
                             var (shiftX, shiftY) = getBandTileShift?.Invoke(b, chitNum) ?? getTileShift?.Invoke(chitNum) ?? (0, 0);
 
-                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                            bool hasAnyInset = insetTop > 0 || insetBottom > 0 || insetLeft > 0 || insetRight > 0;
+                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && hasAnyInset;
                             bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
 
-                            int cellX = applyFillOrShift ? xLeft : (xLeft + inset);
-                            int cellY = applyFillOrShift ? rowY : (rowY + inset);
-                            int pieceW = applyFillOrShift ? colW : (colW - (2 * inset));
-                            int pieceH = applyFillOrShift ? rowH : (rowH - (2 * inset));
+                            int cellX = applyFillOrShift ? xLeft : (xLeft + insetLeft);
+                            int cellY = applyFillOrShift ? rowY : (rowY + insetTop);
+                            int pieceW = applyFillOrShift ? colW : (colW - insetLeft - insetRight);
+                            int pieceH = applyFillOrShift ? rowH : (rowH - insetTop - insetBottom);
 
                             // Clamp strictly inside master image boundaries
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -310,7 +319,7 @@ namespace pdf_to_Tiles.Services
                                     {
                                         if (applyFillOrShift)
                                         {
-                                            using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
+                                            using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, insetTop, insetBottom, insetLeft, insetRight, shiftX, shiftY);
                                             Cv2.ImWrite(outPath, filledMat);
                                         }
                                         else
@@ -451,14 +460,23 @@ namespace pdf_to_Tiles.Services
                             var (shiftX, shiftY) = getTileShift?.Invoke(chitNum) ?? (0, 0);
 
                             // Slicing applies profile inward inset / buffer
+                            int insetTop = Math.Max(0, (int)Math.Round(profile.InwardInsetTopPx));
+                            int insetBottom = Math.Max(0, (int)Math.Round(profile.InwardInsetBottomPx));
+                            int insetLeft = Math.Max(0, (int)Math.Round(profile.InwardInsetLeftPx));
+                            int insetRight = Math.Max(0, (int)Math.Round(profile.InwardInsetRightPx));
                             int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
-                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                            if (insetTop == 0 && insetBottom == 0 && insetLeft == 0 && insetRight == 0 && inset > 0)
+                            {
+                                insetTop = insetBottom = insetLeft = insetRight = inset;
+                            }
+                            bool hasAnyInset = insetTop > 0 || insetBottom > 0 || insetLeft > 0 || insetRight > 0;
+                            bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && hasAnyInset;
                             bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
 
-                            int cellX = applyFillOrShift ? colLeft : (colLeft + inset);
-                            int cellY = applyFillOrShift ? rowTop : (rowTop + inset);
-                            int pieceW = applyFillOrShift ? colWidth : (colWidth - (2 * inset));
-                            int pieceH = applyFillOrShift ? rowHeight : (rowHeight - (2 * inset));
+                            int cellX = applyFillOrShift ? colLeft : (colLeft + insetLeft);
+                            int cellY = applyFillOrShift ? rowTop : (rowTop + insetTop);
+                            int pieceW = applyFillOrShift ? colWidth : (colWidth - insetLeft - insetRight);
+                            int pieceH = applyFillOrShift ? rowHeight : (rowHeight - insetTop - insetBottom);
 
                             cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
                             cellY = Math.Max(0, Math.Min(cellY, masterMat.Height - 1));
@@ -477,7 +495,7 @@ namespace pdf_to_Tiles.Services
                                 Mat bgraMat;
                                 if (applyFillOrShift)
                                 {
-                                    bgraMat = ApplyBufferPatternFill(cropMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
+                                    bgraMat = ApplyBufferPatternFill(cropMat, fillBuffer ? patternMat : null, insetTop, insetBottom, insetLeft, insetRight, shiftX, shiftY);
                                 }
                                 else
                                 {
@@ -569,12 +587,20 @@ namespace pdf_to_Tiles.Services
                 double cellW = (double)gridW / profile.Columns;
                 double cellH = (double)gridH / profile.Rows;
 
+                int insetTop = Math.Max(0, (int)Math.Round(profile.InwardInsetTopPx));
+                int insetBottom = Math.Max(0, (int)Math.Round(profile.InwardInsetBottomPx));
+                int insetLeft = Math.Max(0, (int)Math.Round(profile.InwardInsetLeftPx));
+                int insetRight = Math.Max(0, (int)Math.Round(profile.InwardInsetRightPx));
                 int inset = Math.Max(0, (int)Math.Round(profile.InwardInsetPx));
+                if (insetTop == 0 && insetBottom == 0 && insetLeft == 0 && insetRight == 0 && inset > 0)
+                {
+                    insetTop = insetBottom = insetLeft = insetRight = inset;
+                }
 
-                if ((int)cellW - (2 * inset) <= 0 || (int)cellH - (2 * inset) <= 0)
+                if ((int)cellW - (insetLeft + insetRight) <= 0 || (int)cellH - (insetTop + insetBottom) <= 0)
                 {
                     throw new InvalidOperationException(
-                        $"Cell dimensions ({cellW:F1} × {cellH:F1} px) are too small for an inward inset of {inset} px.");
+                        $"Cell dimensions ({cellW:F1} × {cellH:F1} px) are too small for inward insets (L:{insetLeft}, R:{insetRight}, T:{insetTop}, B:{insetBottom}).");
                 }
 
                 int totalPieces = profile.Rows * profile.Columns;
@@ -621,13 +647,14 @@ namespace pdf_to_Tiles.Services
                         int tileIndex = (r * profile.Columns) + c + 1;
                         var (shiftX, shiftY) = getTileShift?.Invoke(tileIndex) ?? (0, 0);
 
-                        bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && inset > 0;
+                        bool hasAnyInset = insetTop > 0 || insetBottom > 0 || insetLeft > 0 || insetRight > 0;
+                        bool usePattern = fillBuffer && patternMat != null && !patternMat.IsDisposed && hasAnyInset;
                         bool applyFillOrShift = usePattern || shiftX != 0 || shiftY != 0;
 
-                        int cellX = applyFillOrShift ? (int)Math.Round(gridX + c * cellW) : ((int)Math.Round(gridX + c * cellW) + inset);
-                        int cellY = applyFillOrShift ? (int)Math.Round(gridY + r * cellH) : ((int)Math.Round(gridY + r * cellH) + inset);
-                        int pieceW = applyFillOrShift ? (int)Math.Round(cellW) : ((int)Math.Round(cellW) - (2 * inset));
-                        int pieceH = applyFillOrShift ? (int)Math.Round(cellH) : ((int)Math.Round(cellH) - (2 * inset));
+                        int cellX = applyFillOrShift ? (int)Math.Round(gridX + c * cellW) : ((int)Math.Round(gridX + c * cellW) + insetLeft);
+                        int cellY = applyFillOrShift ? (int)Math.Round(gridY + r * cellH) : ((int)Math.Round(gridY + r * cellH) + insetTop);
+                        int pieceW = applyFillOrShift ? (int)Math.Round(cellW) : ((int)Math.Round(cellW) - (insetLeft + insetRight));
+                        int pieceH = applyFillOrShift ? (int)Math.Round(cellH) : ((int)Math.Round(cellH) - (insetTop + insetBottom));
 
                         // Clamp strictly inside master image boundary
                         cellX = Math.Max(0, Math.Min(cellX, masterMat.Width - 1));
@@ -661,7 +688,7 @@ namespace pdf_to_Tiles.Services
                             {
                                 if (applyFillOrShift)
                                 {
-                                    using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, inset, shiftX, shiftY);
+                                    using var filledMat = ApplyBufferPatternFill(pieceMat, fillBuffer ? patternMat : null, insetTop, insetBottom, insetLeft, insetRight, shiftX, shiftY);
                                     Cv2.ImWrite(outPath, filledMat);
                                 }
                                 else
@@ -832,11 +859,35 @@ namespace pdf_to_Tiles.Services
         /// </summary>
         public static Mat ApplyBufferPatternFill(Mat cellMat, Mat? patternMat, int inset, int shiftX = 0, int shiftY = 0)
         {
+            return ApplyBufferPatternFill(cellMat, patternMat, inset, inset, inset, inset, shiftX, shiftY);
+        }
+
+        /// <summary>
+        /// Tiles patternMat across the full (W, H) cell (or initializes a transparent canvas if pattern is absent),
+        /// blits the inner [insetLeft..W-insetRight, insetTop..H-insetBottom] core artwork shifted by (shiftX, shiftY) with safe clipping,
+        /// and applies a 1-pixel linear blend along the boundary.
+        /// Returns a new Mat of size (W, H) in CV_8UC4 (BGRA).
+        /// </summary>
+        public static Mat ApplyBufferPatternFill(
+            Mat cellMat,
+            Mat? patternMat,
+            int insetTop,
+            int insetBottom,
+            int insetLeft,
+            int insetRight,
+            int shiftX = 0,
+            int shiftY = 0)
+        {
             if (cellMat == null || cellMat.IsDisposed) throw new ArgumentNullException(nameof(cellMat));
 
             int w = cellMat.Width;
             int h = cellMat.Height;
-            if (inset <= 0 && shiftX == 0 && shiftY == 0)
+            int safeTop = Math.Max(0, insetTop);
+            int safeBottom = Math.Max(0, insetBottom);
+            int safeLeft = Math.Max(0, insetLeft);
+            int safeRight = Math.Max(0, insetRight);
+
+            if (safeTop <= 0 && safeBottom <= 0 && safeLeft <= 0 && safeRight <= 0 && shiftX == 0 && shiftY == 0)
             {
                 var copy = new Mat();
                 if (cellMat.Channels() == 3)
@@ -878,17 +929,16 @@ namespace pdf_to_Tiles.Services
                 result = new Mat(h, w, MatType.CV_8UC4, new Scalar(0, 0, 0, 0));
             }
 
-            int safeInset = Math.Max(0, inset);
-            int coreX = safeInset;
-            int coreY = safeInset;
-            int coreW = Math.Max(0, w - (2 * safeInset));
-            int coreH = Math.Max(0, h - (2 * safeInset));
+            int coreX = safeLeft;
+            int coreY = safeTop;
+            int coreW = Math.Max(0, w - safeLeft - safeRight);
+            int coreH = Math.Max(0, h - safeTop - safeBottom);
 
             if (coreW > 0 && coreH > 0)
             {
                 // Destination target coordinates with shift applied
-                int destX = safeInset + shiftX;
-                int destY = safeInset + shiftY;
+                int destX = safeLeft + shiftX;
+                int destY = safeTop + shiftY;
 
                 // Clip destination rectangle against result boundaries [0, 0, w, h]
                 int clipDstX = Math.Max(0, destX);
