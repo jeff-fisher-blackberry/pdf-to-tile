@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using pdf_to_Tiles.Models;
+using pdf_to_Tiles.Services;
 using pdf_to_Tiles.ViewModels;
 
 namespace pdf_to_Tiles
@@ -29,6 +30,7 @@ namespace pdf_to_Tiles
                 vm.GetSlicerViewportSize = () => (SlicerScrollViewer.ActualWidth, SlicerScrollViewer.ActualHeight);
 
                 vm.PropertyChanged += ViewModel_PropertyChanged;
+                vm.SlicerSelectionChanged += UpdateGridOverlay;
 
                 SlicerScrollViewer.IsVisibleChanged += (s, e) =>
                 {
@@ -87,6 +89,8 @@ namespace pdf_to_Tiles
                 case nameof(MainViewModel.EffectiveBandColumns):
                 case nameof(MainViewModel.IsDoubleWidthColumns):
                 case nameof(MainViewModel.SlicerOverlayColor):
+                case nameof(MainViewModel.IsCurrentTileSelected):
+                case nameof(MainViewModel.SlicerSelectedCount):
                     UpdateGridOverlay();
                     break;
 
@@ -342,14 +346,64 @@ namespace pdf_to_Tiles
                             SlicerGridCanvas.Children.Add(colLine);
                         }
 
-                        // Preview cell indicator highlight inside active band
-                        int pRow = Math.Clamp(vm.PreviewRowIndex, 0, Math.Max(0, numRows - 1));
-                        int pCol = Math.Clamp(vm.PreviewColIndex, 0, Math.Max(0, numCols - 1));
-
                         var divPositions = new List<double> { 0.0 };
                         divPositions.AddRange(dividers);
                         divPositions.Add(1.0);
 
+                        int pRow = Math.Clamp(vm.PreviewRowIndex, 0, Math.Max(0, numRows - 1));
+                        int pCol = Math.Clamp(vm.PreviewColIndex, 0, Math.Max(0, numCols - 1));
+
+                        // Draw subtle selection overlays for all selected tiles in active band (excluding the active preview cell)
+                        var selFillBrush = new SolidColorBrush(Color.FromArgb(35, 59, 130, 246));
+                        selFillBrush.Freeze();
+                        var selBorderBrush = new SolidColorBrush(Color.FromArgb(140, 59, 130, 246));
+                        selBorderBrush.Freeze();
+
+                        for (int r = 0; r < numRows; r++)
+                        {
+                            double rowY1, rowY2;
+                            if (numRows == 2)
+                            {
+                                double activeSplitY = aby + (activeBand.RowSplitRatio * abh);
+                                rowY1 = (r == 0 ? aby : activeSplitY);
+                                rowY2 = (r == 0 ? activeSplitY : aby + abh);
+                            }
+                            else
+                            {
+                                rowY1 = aby + (abh * (r / (double)numRows));
+                                rowY2 = aby + (abh * ((r + 1) / (double)numRows));
+                            }
+
+                            for (int c = 0; c < numCols; c++)
+                            {
+                                int colIndexInRow = GridSlicerService.IsRearSide(vm.SelectedSide) ? (numCols - 1 - c) : c;
+                                int chitNumber = (r * numCols) + colIndexInRow + 1;
+
+                                bool isPreviewCell = (r == pRow && c == pCol);
+                                bool isSelected = vm.IsTileSelectedInActiveBand(chitNumber);
+
+                                if (isSelected && !isPreviewCell)
+                                {
+                                    double tileX1 = abx + (divPositions[Math.Min(c, divPositions.Count - 2)] * abw);
+                                    double tileX2 = abx + (divPositions[Math.Min(c + 1, divPositions.Count - 1)] * abw);
+
+                                    var selRect = new Rectangle
+                                    {
+                                        Width = Math.Max(1, tileX2 - tileX1),
+                                        Height = Math.Max(1, rowY2 - rowY1),
+                                        Fill = selFillBrush,
+                                        Stroke = selBorderBrush,
+                                        StrokeThickness = 2,
+                                        StrokeDashArray = new DoubleCollection { 3, 2 }
+                                    };
+                                    Canvas.SetLeft(selRect, tileX1);
+                                    Canvas.SetTop(selRect, rowY1);
+                                    SlicerGridCanvas.Children.Add(selRect);
+                                }
+                            }
+                        }
+
+                        // Preview cell indicator highlight inside active band
                         double cellX1 = abx + (divPositions[Math.Min(pCol, divPositions.Count - 2)] * abw);
                         double cellX2 = abx + (divPositions[Math.Min(pCol + 1, divPositions.Count - 1)] * abw);
 

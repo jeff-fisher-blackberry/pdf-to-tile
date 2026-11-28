@@ -454,12 +454,17 @@ namespace pdf_to_Tiles.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
         [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
+        [NotifyPropertyChangedFor(nameof(CanApplyShiftToSelected))]
         private int _currentTileShiftX = 0;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(TileShiftStatusText))]
         [NotifyPropertyChangedFor(nameof(CanResetTileShift))]
+        [NotifyPropertyChangedFor(nameof(CanApplyShiftToSelected))]
         private int _currentTileShiftY = 0;
+
+        partial void OnCurrentTileShiftXChanged(int value) => ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
+        partial void OnCurrentTileShiftYChanged(int value) => ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(PreviewBumpStepText))]
@@ -472,6 +477,94 @@ namespace pdf_to_Tiles.ViewModels
         public bool CanResetTileShift => CurrentTileShiftX != 0 || CurrentTileShiftY != 0;
 
         private readonly Dictionary<(string Side, int Band, int Chit), (int ShiftX, int ShiftY)> _tileShifts = new();
+
+        // Slicer Multi-Tile Selection Model (Tab 2: Gross Changes Hub)
+        private readonly HashSet<(string Side, int Band, int Chit)> _slicerSelectedTiles = new();
+
+        public event Action? SlicerSelectionChanged;
+
+        public bool IsCurrentTileSelected
+        {
+            get => _slicerSelectedTiles.Contains((SelectedSide, ActiveBandIndex, PreviewChitNumber));
+            set
+            {
+                var key = (SelectedSide, ActiveBandIndex, PreviewChitNumber);
+                if (value)
+                {
+                    _slicerSelectedTiles.Add(key);
+                }
+                else
+                {
+                    _slicerSelectedTiles.Remove(key);
+                }
+                OnPropertyChanged(nameof(IsCurrentTileSelected));
+                NotifySlicerSelectionChanges();
+            }
+        }
+
+        public int SlicerSelectedCount
+        {
+            get
+            {
+                int count = 0;
+                int total = TotalBandChits;
+                for (int c = 1; c <= total; c++)
+                {
+                    if (_slicerSelectedTiles.Contains((SelectedSide, ActiveBandIndex, c)))
+                        count++;
+                }
+                return count;
+            }
+        }
+
+        public int SlicerTotalBandTiles => TotalBandChits;
+
+        public string SlicerSelectionSummaryText => $"{SlicerSelectedCount} of {SlicerTotalBandTiles} tiles selected";
+
+        public bool CanSlicerSelectAll => SlicerSelectedCount < SlicerTotalBandTiles;
+
+        public bool CanSlicerDeselectAll => SlicerSelectedCount > 0;
+
+        public bool CanApplyShiftToSelected => SlicerSelectedCount > 0 && (CurrentTileShiftX != 0 || CurrentTileShiftY != 0);
+
+        public bool IsTileSelectedInActiveBand(int chitNumber)
+        {
+            return _slicerSelectedTiles.Contains((SelectedSide, ActiveBandIndex, chitNumber));
+        }
+
+        public void NotifySlicerSelectionChanges()
+        {
+            OnPropertyChanged(nameof(IsCurrentTileSelected));
+            OnPropertyChanged(nameof(SlicerSelectedCount));
+            OnPropertyChanged(nameof(SlicerTotalBandTiles));
+            OnPropertyChanged(nameof(SlicerSelectionSummaryText));
+            OnPropertyChanged(nameof(CanSlicerSelectAll));
+            OnPropertyChanged(nameof(CanSlicerDeselectAll));
+            OnPropertyChanged(nameof(CanApplyShiftToSelected));
+            SlicerSelectAllCommand?.NotifyCanExecuteChanged();
+            SlicerDeselectAllCommand?.NotifyCanExecuteChanged();
+            ApplyShiftToSelectedCommand?.NotifyCanExecuteChanged();
+            SlicerSelectionChanged?.Invoke();
+        }
+
+        public void InitializeSlicerSelectionForAllBands()
+        {
+            _slicerSelectedTiles.Clear();
+            var bands = IsRearSide(SelectedSide) ? SelectedProfile?.BackBands : SelectedProfile?.FrontBands;
+            int bandCount = bands?.Count ?? 5;
+            int totalChits = TotalBandChits;
+            foreach (var side in new[] { "Front", "Back", "Rear" })
+            {
+                for (int b = 0; b < bandCount; b++)
+                {
+                    for (int c = 1; c <= totalChits; c++)
+                    {
+                        _slicerSelectedTiles.Add((side, b, c));
+                    }
+                }
+            }
+            NotifySlicerSelectionChanges();
+        }
 
         // Readouts
         public int ActiveBandRightPx => ActiveBandLeftPx + ActiveBandWidthPx;
@@ -2167,6 +2260,7 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             LoadCurrentTileShift();
+            NotifySlicerSelectionChanges();
             UpdateChitPreview();
         }
 
@@ -2241,12 +2335,14 @@ namespace pdf_to_Tiles.ViewModels
             }
 
             LoadCurrentTileShift();
+            NotifySlicerSelectionChanges();
             UpdateChitPreview();
         }
 
         partial void OnSelectedProfileChanged(SheetProfile? value)
         {
             _tileShifts.Clear();
+            InitializeSlicerSelectionForAllBands();
             if (value != null)
             {
                 ProfileRows = value.Rows;
@@ -2316,6 +2412,7 @@ namespace pdf_to_Tiles.ViewModels
             // Re-sync row/col from current PreviewChitNumber under new side ordering
             SyncPreviewRowColFromChitNumber(PreviewChitNumber);
             LoadCurrentTileShift();
+            NotifySlicerSelectionChanges();
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
         }
@@ -2461,6 +2558,7 @@ namespace pdf_to_Tiles.ViewModels
 
             SyncPreviewRowColFromChitNumber(clamped);
             LoadCurrentTileShift();
+            OnPropertyChanged(nameof(IsCurrentTileSelected));
             OnPropertyChanged(nameof(PreviewCellText));
             UpdateChitPreview();
         }
@@ -2819,6 +2917,59 @@ namespace pdf_to_Tiles.ViewModels
         [RelayCommand]
         private void PreviewBumpStepUp() => PreviewBumpStepPx = Math.Min(50, PreviewBumpStepPx + 1);
 
+        [RelayCommand(CanExecute = nameof(CanSlicerSelectAll))]
+        private void SlicerSelectAll()
+        {
+            int total = TotalBandChits;
+            for (int c = 1; c <= total; c++)
+            {
+                _slicerSelectedTiles.Add((SelectedSide, ActiveBandIndex, c));
+            }
+            NotifySlicerSelectionChanges();
+            StatusMessage = $"Selected all {total} tiles in Band {ActiveBandIndex + 1}.";
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSlicerDeselectAll))]
+        private void SlicerDeselectAll()
+        {
+            int total = TotalBandChits;
+            for (int c = 1; c <= total; c++)
+            {
+                _slicerSelectedTiles.Remove((SelectedSide, ActiveBandIndex, c));
+            }
+            NotifySlicerSelectionChanges();
+            StatusMessage = $"Deselected all tiles in Band {ActiveBandIndex + 1}.";
+        }
+
+        [RelayCommand]
+        private void SlicerToggleCurrentTileSelection()
+        {
+            IsCurrentTileSelected = !IsCurrentTileSelected;
+        }
+
+        [RelayCommand(CanExecute = nameof(CanApplyShiftToSelected))]
+        private void ApplyShiftToSelected()
+        {
+            int sx = CurrentTileShiftX;
+            int sy = CurrentTileShiftY;
+            int total = TotalBandChits;
+            int appliedCount = 0;
+            for (int c = 1; c <= total; c++)
+            {
+                var key = (SelectedSide, ActiveBandIndex, c);
+                if (_slicerSelectedTiles.Contains(key))
+                {
+                    if (sx == 0 && sy == 0)
+                        _tileShifts.Remove(key);
+                    else
+                        _tileShifts[key] = (sx, sy);
+                    appliedCount++;
+                }
+            }
+            StatusMessage = $"Applied shift ({sx:+0;-0;0}, {sy:+0;-0;0}) px to {appliedCount} selected tile(s) in Band {ActiveBandIndex + 1}.";
+            UpdateChitPreview();
+        }
+
         [RelayCommand]
         private void ApplyShiftToBand()
         {
@@ -2833,7 +2984,7 @@ namespace pdf_to_Tiles.ViewModels
                 else
                     _tileShifts[key] = (sx, sy);
             }
-            StatusMessage = $"Applied shift ({sx}, {sy}) px to all {total} tiles in Band {ActiveBandIndex + 1}.";
+            StatusMessage = $"Applied shift ({sx:+0;-0;0}, {sy:+0;-0;0}) px to all {total} tiles in Band {ActiveBandIndex + 1}.";
             UpdateChitPreview();
         }
 
@@ -3735,9 +3886,15 @@ namespace pdf_to_Tiles.ViewModels
                 _batchEditHistory.Clear();
                 _batchEditRedoHistory.Clear();
 
+                // If any tiles in the active band are selected on Tab 2, preserve that selection;
+                // if 0 tiles are selected, safely fall back to selecting all tiles so the strip remains functional.
+                bool hasAnySelected = chits.Any(c => _slicerSelectedTiles.Contains((currentSide, bandIdx, c.Index)));
+
                 foreach (var chit in chits)
                 {
-                    chit.IsSelected = true;
+                    chit.IsSelected = hasAnySelected
+                        ? _slicerSelectedTiles.Contains((currentSide, bandIdx, chit.Index))
+                        : true;
                     chit.PropertyChanged += OnChitItemPropertyChanged;
                     LoadedChits.Add(chit);
                 }
@@ -3745,7 +3902,7 @@ namespace pdf_to_Tiles.ViewModels
                 _isSyncingTileSelection = true;
                 try
                 {
-                    IsAllTilesSelected = true;
+                    IsAllTilesSelected = LoadedChits.Count > 0 && LoadedChits.All(c => c.IsSelected);
                 }
                 finally
                 {
@@ -3755,7 +3912,7 @@ namespace pdf_to_Tiles.ViewModels
 
                 if (LoadedChits.Count > 0)
                 {
-                    SelectedChit = LoadedChits[0];
+                    SelectedChit = LoadedChits.FirstOrDefault(c => c.IsSelected) ?? LoadedChits[0];
                     SelectedChit.IsSelected = true;
                 }
 
